@@ -1,0 +1,38 @@
+{
+  "mcpServers": {
+    "n8n-mcp-docs": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/czlonkowski/n8n-mcp"
+      ]
+    },
+    "docs-mcp-server": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/arabold/docs-mcp-server"
+      ]
+    },
+    "n8n-mcp": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--init",
+        "-e",
+        "MCP_MODE=stdio",
+        "-e",
+        "LOG_LEVEL=error",
+        "-e",
+        "DISABLE_CONSOLE_OUTPUT=true",
+        "-e",
+        "N8N_API_URL=https://n8n.aiautomata.co.za",
+        "-e",
+        "N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxYTYxY2YwZS1kYjI0LTRkMmEtYWMzOS01NDBlMTU3NTllYmYiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUzNzU3MjIxfQ.L1wm1o3b2iGnK_m3ONpSsCqgrWBY3hWg_yZHhhm7MoA",
+        "ghcr.io/czlonkowski/n8n-mcp:latest"
+      ]
+    }
+  }
+}

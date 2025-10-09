@@ -1,0 +1,2580 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blog-creation-mvp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1360,
+        128
+      ],
+      "id": "e608583c-7e3c-4dab-a608-3042175d96eb",
+      "name": "Webhook",
+      "webhookId": "06da0f2e-661b-4ce9-af16-e6cda1de6fd5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process webhook data and prepare for workflow\nconst webhookData = $input.first().json;\n\n// Extract the body data from webhook payload\nconst bodyData = webhookData.body;\n\nconsole.log('=== PROCESSING WEBHOOK DATA ===');\nconsole.log('Blog Request ID:', bodyData.blogRequestId);\nconsole.log('Blog Topic:', bodyData.blogTopic);\nconsole.log('Input Type:', bodyData.inputType);\nconsole.log('Focused Keywords:', bodyData.focusedKeywords);\nconsole.log('Content Goal:', bodyData.contentGoal);\n\n// Process the data based on input type\nlet processedContent = '';\nlet inputType = bodyData.inputType;\n\nif (inputType === 'Text') {\n  processedContent = bodyData.blogTopic;\n  if (bodyData.additionalContext) {\n    processedContent += '\\n\\nAdditional Context: ' + bodyData.additionalContext;\n  }\n} else if (inputType === 'URL') {\n  // URL will be processed by URL content extraction nodes later\n  processedContent = bodyData.blogTopic; // This should be the URL\n} else if (inputType === 'Voice Note') {\n  // Voice note will be processed by voice transcription nodes later\n  processedContent = bodyData.blogTopic; // This should be the voice file path\n}\n\n// Prepare data for the workflow\nconst processedData = {\n  // Original webhook data\n  clientId: bodyData.clientId,\n  baserowToken: bodyData.baserowToken,\n  baserowDatabaseId: bodyData.baserowDatabaseId,\n  blogRequestsTableId: bodyData.blogRequestsTableId,\n  blogPostsTableId: bodyData.blogPostsTableId,\n  keywordResearchTableId: bodyData.keywordResearchTableId,\n  fieldMappings: bodyData.fieldMappings,\n  \n  // Blog content data\n  blogTopic: bodyData.blogTopic,\n  inputType: inputType,\n  focusedKeywords: bodyData.focusedKeywords,\n  contentGoal: bodyData.contentGoal,\n  additionalContext: bodyData.additionalContext,\n  processedContent: processedContent,\n  \n  // Voice note data (if applicable)\n  hasVoiceNote: bodyData.hasVoiceNote,\n  voiceNoteFileName: bodyData.voiceNoteFileName,\n  voiceNoteFileSize: bodyData.voiceNoteFileSize,\n  voiceNoteFileType: bodyData.voiceNoteFileType,\n  \n  // Timestamps and IDs\n  timestamp: bodyData.timestamp,\n  blogRequestId: bodyData.blogRequestId,\n  status: 'processing'\n};\n\nconsole.log('=== PROCESSED DATA READY ===');\nconsole.log('Blog Request ID:', processedData.blogRequestId);\nconsole.log('Processed Content Length:', processedData.processedContent?.length);\n\nreturn [{ json: processedData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1168,
+        128
+      ],
+      "id": "431ad0ad-9d34-4943-8029-c17fdc191ac5",
+      "name": "Process Webhook Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CLEAN URL CONTENT2 - DATA PRESERVATION CHECK\nconst payload = $json;\n\nconsole.log('=== CLEAN URL CONTENT - DATA ANALYSIS ===');\nconsole.log('Input data keys:', Object.keys(payload));\nconsole.log('Has extracted HTML data:', !!payload.title || !!payload.main_content);\nconsole.log('Has clientConfig:', !!payload.clientConfig);\n\n// CRITICAL: Get the original workflow data that started the URL processing\nconsole.log('=== ORIGINAL DATA RECOVERY ===');\nlet originalWorkflowData = {};\n\ntry {\n  // Try to get from URL Processor2 (the node that started URL processing)\n  const urlProcessorData = $('URL Processor2').first();\n  if (urlProcessorData?.json) {\n    originalWorkflowData = urlProcessorData.json;\n    console.log(`✅ Found original data from URL Processor2`);\n    console.log('Original data has clientConfig:', !!originalWorkflowData.clientConfig);\n    console.log('Original data keys:', Object.keys(originalWorkflowData));\n  } else {\n    console.log(`❌ No data found from URL Processor2`);\n  }\n} catch (error) {\n  console.log(`⚠️ Error getting original data: ${error.message}`);\n}\n\n// If no original data found, try alternative recovery\nif (!originalWorkflowData.clientConfig) {\n  console.log('⚠️ No clientConfig in original data, attempting broader recovery...');\n  \n  try {\n    // Try to get from earlier nodes\n    const processBaserowData = $('Process Baserow Data2').first();\n    if (processBaserowData?.json?.clientConfig) {\n      console.log('✅ Found clientConfig in Process Baserow Data2');\n      originalWorkflowData.clientConfig = processBaserowData.json.clientConfig;\n      originalWorkflowData.client_data = processBaserowData.json.client_data;\n      originalWorkflowData.baserow_record = processBaserowData.json.baserow_record;\n      originalWorkflowData.hook_focus = processBaserowData.json.hook_focus;\n      originalWorkflowData.cta = processBaserowData.json.cta;\n      originalWorkflowData.platforms = processBaserowData.json.platforms;\n      originalWorkflowData.number_of_posts = processBaserowData.json.number_of_posts;\n    }\n  } catch (error) {\n    console.log('❌ Could not recover clientConfig:', error.message);\n  }\n}\n\n// Extract and clean the web content from the HTML extraction\nconst extractedData = payload;\n\nconsole.log('=== CONTENT EXTRACTION ===');\nconsole.log('Title:', extractedData.title?.substring(0, 50) + '...');\nconsole.log('Description:', extractedData.description?.substring(0, 50) + '...');\nconsole.log('Main content available:', !!extractedData.main_content);\nconsole.log('Headings available:', !!extractedData.headings);\n\n// Combine and clean the extracted content\nlet cleanedContent = '';\n\n// Add title if available\nif (extractedData.title && extractedData.title.trim()) {\n  cleanedContent += `Title: ${extractedData.title.trim()}\\n\\n`;\n}\n\n// Add description if available\nif (extractedData.description && extractedData.description.trim()) {\n  cleanedContent += `Description: ${extractedData.description.trim()}\\n\\n`;\n}\n\n// Add headings if available\nif (extractedData.headings && Array.isArray(extractedData.headings)) {\n  const headings = extractedData.headings.filter(h => h && h.trim()).join('\\n');\n  if (headings) {\n    cleanedContent += `Key Headings:\\n${headings}\\n\\n`;\n  }\n}\n\n// Add main content if available\nif (extractedData.main_content) {\n  let mainContent = '';\n  if (Array.isArray(extractedData.main_content)) {\n    mainContent = extractedData.main_content.filter(p => p && p.trim()).join('\\n\\n');\n  } else {\n    mainContent = extractedData.main_content.trim();\n  }\n  \n  if (mainContent) {\n    cleanedContent += `Main Content:\\n${mainContent}`;\n  }\n}\n\n// Clean up the content\ncleanedContent = cleanedContent\n  .replace(/\\s+/g, ' ')  // Replace multiple spaces with single space\n  .replace(/\\n\\s*\\n/g, '\\n\\n')  // Clean up multiple newlines\n  .trim();\n\n// Limit content length (max 4000 characters for AI processing)\nif (cleanedContent.length > 4000) {\n  cleanedContent = cleanedContent.substring(0, 4000) + '... [content truncated]';\n}\n\n// Prepare the processed data WITH ORIGINAL WORKFLOW DATA PRESERVED\nconst processedData = {\n  // PRESERVE ALL ORIGINAL WORKFLOW DATA FIRST\n  ...originalWorkflowData,\n  \n  // Add the extracted HTML data\n  ...extractedData,\n  \n  // Add processing results\n  processed_content: cleanedContent || 'No content could be extracted from the URL',\n  processing_status: cleanedContent ? 'completed' : 'partial',\n  processing_type: 'url_extraction_completed',\n  content_ready: true,\n  \n  // ENSURE CRITICAL DATA IS PRESERVED\n  clientConfig: originalWorkflowData.clientConfig, // CRITICAL!\n  client_data: originalWorkflowData.client_data,\n  baserow_record: originalWorkflowData.baserow_record,\n  hook_focus: originalWorkflowData.hook_focus,\n  cta: originalWorkflowData.cta,\n  content_type: originalWorkflowData.content_type || 'url',\n  platforms: originalWorkflowData.platforms,\n  number_of_posts: originalWorkflowData.number_of_posts,\n  \n  // Keep original identifiers\n  recordId: originalWorkflowData.recordId,\n  baseId: originalWorkflowData.baseId,\n  clientId: originalWorkflowData.clientId,\n  clientName: originalWorkflowData.clientName,\n  \n  // Extraction metadata\n  extracted_data: {\n    title: extractedData.title || '',\n    description: extractedData.description || '',\n    content_length: cleanedContent.length,\n    extraction_successful: !!cleanedContent\n  },\n  \n  processing_notes: `URL content extracted and cleaned. Length: ${cleanedContent.length} characters`,\n  \n  // Debug info\n  debug_info: {\n    ...originalWorkflowData.debug_info,\n    url_processing_completed: true,\n    original_data_preserved: true,\n    clientConfig_preserved: !!originalWorkflowData.clientConfig,\n    content_extracted: !!cleanedContent,\n    processing_timestamp: new Date().toISOString()\n  }\n};\n\nconsole.log('=== URL PROCESSING SUMMARY ===');\nconsole.log(`Content extraction: ${cleanedContent ? '✅ SUCCESS' : '❌ FAILED'}`);\nconsole.log(`Content length: ${cleanedContent.length} characters`);\nconsole.log(`clientConfig preserved: ${!!processedData.clientConfig}`);\nconsole.log(`client name: ${processedData.clientConfig?.client?.name || 'missing'}`);\nconsole.log(`record ID: ${processedData.clientConfig?.recordId || 'missing'}`);\nconsole.log(`brand assets table: ${processedData.clientConfig?.tables?.brandAssets?.id || 'missing'}`);\nconsole.log('=== END URL PROCESSING ===');\n\nreturn {\n  json: processedData\n};"
+      },
+      "name": "Clean URL Content2",
+      "typeVersion": 1,
+      "id": "4d6f3293-341d-462d-ba85-12241884dc9a",
+      "position": [
+        96,
+        272
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "title"
+            },
+            {
+              "key": "description",
+              "cssSelector": "meta[name=\"description\"]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            },
+            {
+              "key": "main_content",
+              "cssSelector": "article, main, .content, .post-content, .entry-content, p"
+            },
+            {
+              "key": "headings",
+              "cssSelector": "h1, h2, h3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Extract HTML Content2",
+      "typeVersion": 1,
+      "id": "f275feb7-455e-4596-9765-2e1aa68e92c3",
+      "position": [
+        -128,
+        272
+      ],
+      "type": "n8n-nodes-base.htmlExtract"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.target_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch URL Content2",
+      "typeVersion": 4.2,
+      "id": "b6ddc2a5-db33-4948-a8c6-9a32238cfffa",
+      "position": [
+        -352,
+        288
+      ],
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "parameters": {
+        "jsCode": "// BLOG URL PROCESSOR - Process URL input for blog creation\nconst payload = $json;\n\nconsole.log('=== BLOG URL PROCESSOR ===');\nconsole.log('Input data keys:', Object.keys(payload));\nconsole.log('Blog topic (URL):', payload.blogTopic);\nconsole.log('Input type:', payload.inputType);\nconsole.log('Focused keywords:', payload.focusedKeywords);\nconsole.log('Content goal:', payload.contentGoal);\n\n// Extract URL from blog topic\nconst targetUrl = payload.blogTopic || payload.processedContent;\n\nconsole.log('Processing URL:', targetUrl);\n\n// Validate URL\nif (!targetUrl || targetUrl === '') {\n  return {\n    json: {\n      ...payload,\n      processing_status: 'error',\n      error_message: 'No URL provided in blog topic',\n      content_ready: false\n    }\n  };\n}\n\n// Basic URL validation\nconst urlPattern = /^https?:\\/\\/.+/;\nif (!urlPattern.test(targetUrl)) {\n  return {\n    json: {\n      ...payload,\n      processing_status: 'error',\n      error_message: 'Invalid URL format - must start with http:// or https://',\n      content_ready: false\n    }\n  };\n}\n\n// Prepare for URL processing with blog context\nconst processingData = {\n  ...payload,\n  \n  // URL processing data\n  target_url: targetUrl,\n  processing_status: 'ready_for_extraction',\n  processing_type: 'url_extraction',\n  content_ready: false,\n  next_action: 'fetch_and_extract',\n  processing_notes: `URL ready for content extraction: ${targetUrl}`,\n  \n  // Blog-specific data\n  blog_topic: payload.blogTopic,\n  focused_keywords: payload.focusedKeywords,\n  content_goal: payload.contentGoal,\n  additional_context: payload.additionalContext,\n  \n  // Debug info\n  debug_info: {\n    url_processing_started: true,\n    target_url: targetUrl,\n    blog_context_preserved: true\n  }\n};\n\nconsole.log('=== BLOG URL PROCESSING RESULT ===');\nconsole.log('Target URL:', processingData.target_url);\nconsole.log('Blog topic:', processingData.blog_topic);\nconsole.log('Keywords:', processingData.focused_keywords);\n\nreturn {\n  json: processingData\n};"
+      },
+      "name": "URL Processor2",
+      "typeVersion": 1,
+      "id": "3020c491-184b-4d70-9b07-08b2b2bf7f5f",
+      "position": [
+        -576,
+        272
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// BLOG TEXT PROCESSOR - Process text input for blog creation\nconst payload = $json;\n\nconsole.log('=== BLOG TEXT PROCESSOR ===');\nconsole.log('Input data keys:', Object.keys(payload));\nconsole.log('Blog topic:', payload.blogTopic);\nconsole.log('Input type:', payload.inputType);\nconsole.log('Focused keywords:', payload.focusedKeywords);\nconsole.log('Content goal:', payload.contentGoal);\n\n// For text input, we use the blog topic and additional context directly\nconst processedData = {\n  // PRESERVE ALL ORIGINAL DATA\n  ...payload,\n  \n  // Processing results for blog creation\n  processed_content: payload.processedContent || payload.blogTopic,\n  processing_status: 'completed',\n  processing_type: 'text_direct',\n  content_ready: true,\n  processing_notes: 'Text content ready for blog creation',\n  \n  // Blog-specific data\n  blog_topic: payload.blogTopic,\n  focused_keywords: payload.focusedKeywords,\n  content_goal: payload.contentGoal,\n  additional_context: payload.additionalContext,\n  \n  // Debug info\n  debug_info: {\n    text_processing_completed: true,\n    blog_data_ready: true,\n    content_length: (payload.processedContent || payload.blogTopic)?.length || 0\n  }\n};\n\nconsole.log('=== BLOG TEXT PROCESSING RESULT ===');\nconsole.log('Processed content length:', processedData.processed_content?.length);\nconsole.log('Blog topic:', processedData.blog_topic);\nconsole.log('Keywords:', processedData.focused_keywords);\n\nreturn {\n  json: processedData\n};"
+      },
+      "name": "Text Idea Processor2",
+      "typeVersion": 1,
+      "id": "83ac78db-3959-4cc1-818d-c3461ff4e916",
+      "position": [
+        -240,
+        -128
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.inputType }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Text",
+                    "id": "38387e44-5c24-4c6b-baa7-55560ef41e8b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text_idea"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.inputType }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Voice Note",
+                    "id": "ad279f25-a004-4507-9d61-847518de57e2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "voice_note"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.content_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "image",
+                    "id": "d6429611-af2e-465d-97d2-b226f11db930"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.inputType }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "URL",
+                    "id": "a8c6fcd2-ae1a-495d-a1de-49d2a7faf087"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "url"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.content_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "video",
+                    "id": "ff2ec465-4ef3-4bc4-bfbc-5afcba928398"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Content Type Router2",
+      "typeVersion": 3,
+      "id": "b561f109-dd0f-4929-ab2c-35380f3e8cc6",
+      "position": [
+        -800,
+        80
+      ],
+      "type": "n8n-nodes-base.switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PROCESS VOICE TRANSCRIPTION2 - DATA PRESERVATION CHECK\nconst whisperResponse = $json;\n\nconsole.log('=== VOICE TRANSCRIPTION PROCESSING - DATA ANALYSIS ===');\nconsole.log('Whisper Response Keys:', Object.keys(whisperResponse));\nconsole.log('Has whisper text:', !!whisperResponse.text);\n\n// Extract transcription from Whisper API response\nlet transcription = '';\nlet processingStatus = 'completed';\nlet errorMessage = '';\n\ntry {\n  if (whisperResponse.text && whisperResponse.text.trim() !== '') {\n    transcription = whisperResponse.text.trim();\n    console.log(`✅ Transcription successful: ${transcription.length} characters`);\n    console.log(`Transcription preview: ${transcription.substring(0, 100)}...`);\n  } else if (whisperResponse.error) {\n    errorMessage = whisperResponse.error.message || 'Unknown Whisper API error';\n    transcription = `Error transcribing voice: ${errorMessage}`;\n    processingStatus = 'error';\n    console.log(`❌ Whisper API error: ${errorMessage}`);\n  } else {\n    errorMessage = 'No transcription text in response';\n    transcription = 'Unable to transcribe voice - no text returned';\n    processingStatus = 'error';  \n    console.log(`❌ No transcription text found in response`);\n  }\n} catch (error) {\n  errorMessage = `Processing error: ${error.message}`;\n  transcription = 'Error processing transcription response';\n  processingStatus = 'error';\n  console.log(`❌ Processing error: ${error.message}`);\n}\n\n// CRITICAL: Get the original workflow data that started the voice processing\nconsole.log('=== ORIGINAL DATA RECOVERY ===');\nlet originalWorkflowData = {};\n\ntry {\n  // Method 1: Try to get from Voice Note Processor2\n  const voiceProcessorData = $('Voice Note Processor2').first();\n  if (voiceProcessorData?.json) {\n    originalWorkflowData = voiceProcessorData.json;\n    console.log(`✅ Found original data from Voice Note Processor2`);\n    console.log('Original data has clientConfig:', !!originalWorkflowData.clientConfig);\n    console.log('Original data has platforms:', !!originalWorkflowData.platforms);\n    console.log('Original data keys:', Object.keys(originalWorkflowData));\n  } else {\n    console.log(`❌ No data found from Voice Note Processor2`);\n  }\n} catch (error) {\n  console.log(`⚠️ Error getting original data: ${error.message}`);\n}\n\n// If no original data found, try alternative recovery methods\nif (!originalWorkflowData.clientConfig) {\n  console.log('⚠️ No clientConfig in original data, attempting broader recovery...');\n  \n  try {\n    // Try to get from earlier nodes\n    const processBaserowData = $('Process Baserow Data2').first();\n    if (processBaserowData?.json?.clientConfig) {\n      console.log('✅ Found clientConfig in Process Baserow Data2');\n      originalWorkflowData.clientConfig = processBaserowData.json.clientConfig;\n      originalWorkflowData.client_data = processBaserowData.json.client_data;\n      originalWorkflowData.baserow_record = processBaserowData.json.baserow_record;\n    }\n  } catch (error) {\n    console.log('❌ Could not recover clientConfig:', error.message);\n  }\n}\n\n// Check what platforms we need to create\nconst platforms = originalWorkflowData.platforms || ['Facebook', 'Instagram', 'X', 'LinkedIn'];\nconst numberOfPosts = originalWorkflowData.number_of_posts || 1;\n\nconsole.log('=== PLATFORM RESTORATION ===');\nconsole.log(`Platforms to restore: ${platforms.join(', ')}`);\nconsole.log(`Posts per platform: ${numberOfPosts}`);\nconsole.log(`Total items to create: ${platforms.length * numberOfPosts}`);\n\n// Create platform items with transcription applied\nconst restoredItems = [];\nlet itemCounter = 0;\n\nfor (const platformName of platforms) {\n  for (let postNumber = 1; postNumber <= numberOfPosts; postNumber++) {\n    itemCounter++;\n    \n    const platformItem = {\n      // PRESERVE ALL ORIGINAL WORKFLOW DATA\n      ...originalWorkflowData,\n      \n      // Apply transcription result  \n      processed_content: transcription,\n      processing_status: processingStatus,\n      processing_type: 'voice_transcription_completed',\n      content_ready: processingStatus === 'completed',\n      voice_transcription: transcription,\n      error_message: errorMessage,\n      \n      // Platform-specific data\n      platform: platformName,\n      platforms: [platformName],\n      post_number: postNumber,\n      total_posts_for_platform: numberOfPosts,\n      workflow_item_id: `${platformName}_post_${postNumber}`,\n      unique_id: `${originalWorkflowData.clientConfig?.recordId || 'unknown'}_${platformName}_${postNumber}`,\n      \n      // Processing notes\n      processing_notes: processingStatus === 'completed' \n        ? `✅ Voice transcribed for ${platformName} post ${postNumber}. Length: ${transcription.length} chars`\n        : `❌ Voice transcription failed for ${platformName} post ${postNumber}: ${errorMessage}`,\n      \n      // ENSURE CRITICAL DATA IS PRESERVED\n      clientConfig: originalWorkflowData.clientConfig, // CRITICAL!\n      client_data: originalWorkflowData.client_data,\n      baserow_record: originalWorkflowData.baserow_record,\n      \n      // Processing flags\n      ready_for_ai_generation: true,\n      platform_split_complete: true,\n      \n      // Debug info\n      debug_info: {\n        ...originalWorkflowData.debug_info,\n        voice_transcription_completed: true,\n        original_data_preserved: true,\n        clientConfig_preserved: !!originalWorkflowData.clientConfig,\n        platform_assigned: platformName,\n        post_number: postNumber\n      }\n    };\n    \n    console.log(`✅ Created platform item ${itemCounter}: ${platformName} post ${postNumber}`);\n    console.log(`   - clientConfig present: ${!!platformItem.clientConfig}`);\n    console.log(`   - client name: ${platformItem.clientConfig?.client?.name || 'missing'}`);\n    console.log(`   - record ID: ${platformItem.clientConfig?.recordId || 'missing'}`);\n    \n    restoredItems.push(platformItem);\n  }\n}\n\nconsole.log('=== VOICE TRANSCRIPTION SUMMARY ===');\nconsole.log(`Transcription Status: ${processingStatus === 'completed' ? '✅ SUCCESS' : '❌ FAILED'}`)\nconsole.log(`Transcription Length: ${transcription.length} characters`); \nconsole.log(`Platform Items Restored: ${restoredItems.length}`);\nconsole.log(`All items have clientConfig: ${restoredItems.every(item => !!item.clientConfig)}`);\nconsole.log(`All items have client name: ${restoredItems.every(item => !!item.clientConfig?.client?.name)}`);\nconsole.log('=== END TRANSCRIPTION SUMMARY ===');\n\n// Return all platform items with transcription applied\nreturn restoredItems.map(item => ({ json: item }));"
+      },
+      "name": "Process Voice Transcription2",
+      "typeVersion": 1,
+      "id": "57f3d5d3-2921-4799-a8da-6b275cba8e3a",
+      "position": [
+        64,
+        48
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "=data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "name": "Transcribe Voice with Whisper3",
+      "typeVersion": 4.2,
+      "id": "3231d936-3e6f-460e-9702-2e1b6407f98d",
+      "position": [
+        -144,
+        80
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "z06CbCGaeEeBPVIt",
+          "name": "GPT Image Generator"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.field_7046[0].url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "name": "Download Voice File2",
+      "typeVersion": 4.2,
+      "id": "d7224a07-bbbc-4727-8c75-efaf738eb03b",
+      "position": [
+        -352,
+        80
+      ],
+      "type": "n8n-nodes-base.httpRequest"
+    },
+    {
+      "parameters": {
+        "jsCode": "// BLOG VOICE NOTE PROCESSOR - Process voice input for blog creation\nconst payload = $json;\n\nconsole.log('=== BLOG VOICE NOTE PROCESSOR ===');\nconsole.log('Input data keys:', Object.keys(payload));\nconsole.log('Blog topic (voice file):', payload.blogTopic);\nconsole.log('Input type:', payload.inputType);\nconsole.log('Focused keywords:', payload.focusedKeywords);\nconsole.log('Content goal:', payload.contentGoal);\nconsole.log('Has voice note:', payload.hasVoiceNote);\nconsole.log('Voice file name:', payload.voiceNoteFileName);\n\n// Extract voice file URL from blog topic or voice note data\nlet voiceFileUrl = payload.blogTopic || payload.processedContent;\n\n// If we have voice note data, use that\nif (payload.hasVoiceNote && payload.voiceNoteFileName) {\n  // Construct voice file URL from the file name\n  voiceFileUrl = `/uploads/voice-notes/${payload.voiceNoteFileName}`;\n}\n\nconsole.log('Processing Voice Note:', voiceFileUrl);\n\n// Validate voice file URL\nif (!voiceFileUrl || voiceFileUrl === '') {\n  return {\n    json: {\n      ...payload,\n      processing_status: 'error',\n      error_message: 'No voice file URL provided in blog topic',\n      content_ready: false\n    }\n  };\n}\n\n// Prepare for voice processing with blog context\nconst processingData = {\n  ...payload,\n  \n  // Voice processing data\n  voice_file_url: voiceFileUrl,\n  processing_status: 'ready_for_transcription',\n  processing_type: 'voice_transcription',\n  content_ready: false,\n  next_action: 'download_and_transcribe',\n  processing_notes: `Voice file ready for transcription: ${voiceFileUrl}`,\n  \n  // Blog-specific data\n  blog_topic: payload.blogTopic,\n  focused_keywords: payload.focusedKeywords,\n  content_goal: payload.contentGoal,\n  additional_context: payload.additionalContext,\n  \n  // Voice note data\n  has_voice_note: payload.hasVoiceNote,\n  voice_file_name: payload.voiceNoteFileName,\n  voice_file_size: payload.voiceNoteFileSize,\n  voice_file_type: payload.voiceNoteFileType,\n  \n  // Debug info\n  debug_info: {\n    voice_processing_started: true,\n    voice_file_url: voiceFileUrl,\n    blog_context_preserved: true\n  }\n};\n\nconsole.log('=== BLOG VOICE PROCESSING RESULT ===');\nconsole.log('Voice file URL:', processingData.voice_file_url);\nconsole.log('Blog topic:', processingData.blog_topic);\nconsole.log('Keywords:', processingData.focused_keywords);\n\nreturn {\n  json: processingData\n};"
+      },
+      "name": "Voice Note Processor2",
+      "typeVersion": 1,
+      "id": "d969974d-b862-4c62-9477-0134710bffce",
+      "position": [
+        -528,
+        80
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// BLOG INFO PROCESSOR - Prepare blog data for AI workflow\nconst processedItem = $json;\n\nconsole.log('=== BLOG INFO PROCESSOR ===');\nconsole.log('Input data keys:', Object.keys(processedItem));\nconsole.log('Blog topic:', processedItem.blogTopic);\nconsole.log('Input type:', processedItem.inputType);\nconsole.log('Focused keywords:', processedItem.focusedKeywords);\nconsole.log('Content goal:', processedItem.contentGoal);\nconsole.log('Processed content:', processedItem.processed_content?.substring(0, 100) + '...');\n\n// Extract client configuration from the original webhook data\nconst clientConfig = {\n  clientId: processedItem.clientId,\n  baserowToken: processedItem.baserowToken,\n  baserowDatabaseId: processedItem.baserowDatabaseId,\n  blogRequestsTableId: processedItem.blogRequestsTableId,\n  blogPostsTableId: processedItem.blogPostsTableId,\n  keywordResearchTableId: processedItem.keywordResearchTableId,\n  fieldMappings: processedItem.fieldMappings\n};\n\nconsole.log('=== CLIENT CONFIG EXTRACTED ===');\nconsole.log('Client ID:', clientConfig.clientId);\nconsole.log('Database ID:', clientConfig.baserowDatabaseId);\nconsole.log('Blog Posts Table:', clientConfig.blogPostsTableId);\nconsole.log('Keyword Research Table:', clientConfig.keywordResearchTableId);\n\n// Prepare blog data for AI workflow\nconst blogData = {\n  // PRESERVE ALL ORIGINAL DATA\n  ...processedItem,\n  \n  // Blog-specific data\n  blog_topic: processedItem.blogTopic,\n  input_type: processedItem.inputType,\n  focused_keywords: processedItem.focusedKeywords,\n  content_goal: processedItem.contentGoal,\n  additional_context: processedItem.additionalContext,\n  \n  // Content data\n  source_content: processedItem.processed_content || processedItem.blogTopic,\n  processed_content: processedItem.processed_content || processedItem.blogTopic,\n  \n  // Client configuration\n  clientConfig: clientConfig,\n  client_id: clientConfig.clientId,\n  \n  // Processing status\n  processing_status: 'ready_for_ai_workflow',\n  processing_type: 'blog_creation',\n  content_ready: true,\n  \n  // Blog workflow specific fields\n  Keyword: processedItem.focusedKeywords, // For AI agents\n  Title: processedItem.blogTopic, // Initial title\n  Content: processedItem.processed_content || processedItem.blogTopic, // Content for AI processing\n  \n  // Debug info\n  debug_info: {\n    blog_info_processed: true,\n    client_config_extracted: true,\n    ready_for_ai_workflow: true,\n    content_length: (processedItem.processed_content || processedItem.blogTopic)?.length || 0\n  }\n};\n\nconsole.log('=== BLOG INFO PROCESSING RESULT ===');\nconsole.log('Blog topic:', blogData.blog_topic);\nconsole.log('Keywords:', blogData.focused_keywords);\nconsole.log('Content goal:', blogData.content_goal);\nconsole.log('Client ID:', blogData.client_id);\nconsole.log('Ready for AI workflow:', blogData.content_ready);\n\nreturn {\n  json: blogData\n};"
+      },
+      "name": "Blog Info",
+      "typeVersion": 1,
+      "id": "bf3b28c1-13d7-4541-8b59-e852db42bf1c",
+      "position": [
+        272,
+        -16
+      ],
+      "type": "n8n-nodes-base.code"
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20241022",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.2,
+      "position": [
+        1312,
+        384
+      ],
+      "id": "37739a1a-ba73-41df-b54b-e257b8368b01",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "vh9pvkS1xu1Sr2bF",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e444c83-3d2b-4bd3-a23b-6fb5ca68e670",
+              "name": "writing_style",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).writing_style }}",
+              "type": "string"
+            },
+            {
+              "id": "e16b5d65-587d-49d8-af5d-4ff1930633a8",
+              "name": "writing_tone",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).writing_tone }}",
+              "type": "string"
+            },
+            {
+              "id": "ab756373-0186-454a-8e98-d5a5f96cba87",
+              "name": "search_intent",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).search_intent }}",
+              "type": "string"
+            },
+            {
+              "id": "a14b7657-038a-4b08-911d-314336261a0c",
+              "name": "hidden_insight",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).hidden_insight }}",
+              "type": "string"
+            },
+            {
+              "id": "19ef4221-5a5d-4321-8a07-4e04f5dcaf44",
+              "name": "target_audience",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).target_audience }}",
+              "type": "string"
+            },
+            {
+              "id": "0ab17e84-4a2e-4df3-b0a3-91e9ce26cb72",
+              "name": "article_goal",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).goal_of_article }}",
+              "type": "string"
+            },
+            {
+              "id": "84e7f6a4-48b2-43b2-92cc-7e0337311661",
+              "name": "semantic_analysis",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).semantic_analysis }}",
+              "type": "string"
+            },
+            {
+              "id": "5e943a46-bb03-438d-b6da-2a6ec414f5af",
+              "name": "keywords",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keywords }}",
+              "type": "string"
+            },
+            {
+              "id": "primary-keyword-field",
+              "name": "primary_keyword",
+              "value": "={{ $('Blog Info').item.json.focused_keywords }}",
+              "type": "string"
+            },
+            {
+              "id": "blog-title-field",
+              "name": "blog_title",
+              "value": "={{ $('Blog Info').item.json.blog_topic }}",
+              "type": "string"
+            },
+            {
+              "id": "content-goal-field",
+              "name": "content_goal",
+              "value": "={{ $('Blog Info').item.json.content_goal }}",
+              "type": "string"
+            },
+            {
+              "id": "additional-context-field",
+              "name": "additional_context",
+              "value": "={{ $('Blog Info').item.json.additional_context }}",
+              "type": "string"
+            },
+            {
+              "id": "source-content-field",
+              "name": "source_content",
+              "value": "={{ $('Blog Info').item.json.source_content }}",
+              "type": "string"
+            },
+            {
+              "id": "input-type-field",
+              "name": "input_type",
+              "value": "={{ $('Blog Info').item.json.input_type }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2160,
+        96
+      ],
+      "id": "4d5c424e-0b91-44ff-a0eb-a1b4d1030a62",
+      "name": "Set KWs and Insights fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Revise the blog post title. Consider:\n\n**Core Information:**\n- Primary Keyword: {{ $('Set KWs and Insights fields').item.json.primary_keyword }}\n- Working Title: {{ $('Set KWs and Insights fields').item.json.blog_title }}\n- Input Type: {{ $('Set KWs and Insights fields').item.json.input_type }}\n- Content Goal: {{ $('Set KWs and Insights fields').item.json.content_goal }}\n- Additional Context: {{ $('Set KWs and Insights fields').item.json.additional_context }}\n\n**SEO & Strategy:**\n- Search Intent: {{ $('Set KWs and Insights fields').item.json.search_intent }}\n- Semantic Analysis: {{ $('Set KWs and Insights fields').item.json.semantic_analysis }}\n- Secondary Keywords: {{ $('Set KWs and Insights fields').item.json.keywords }}\n- Writing Style: {{ $('Set KWs and Insights fields').item.json.writing_style }}\n- Writing Tone: {{ $('Set KWs and Insights fields').item.json.writing_tone }}\n- Article Goal: {{ $('Set KWs and Insights fields').item.json.article_goal }}\n\n\nOutput only JSON\nIMPORTANT: Do not add extra spaces, extra characters or include any additional text.\n",
+        "options": {
+          "systemMessage": "You are an expert in crafting highly engaging, SEO-optimized article titles that drive clicks and rank well in search engines. \n\nYour goal is to refine the **initial working title** into a **clear, compelling, and search-friendly title** that aligns with:\n- **Primary and Secondary Keywords** → Ensure relevance for search engines.\n- **Search Intent** → Match the intent behind the keyword (informational, transactional, navigational, or commercial).\n- **Common Subtopics & Related Questions** → Reflect what users want to learn.\n- **Writing Style & Tone** → Ensure consistency with the article's voice.\n- **Click-Worthiness** → Make the title engaging and appealing for readers.\n\n### **Your Task:**\n1. **Analyze the given input data**, including the working title, primary keyword, and supporting data.\n2. **Refine the title** to be more **SEO-friendly, engaging, and aligned with search intent**.\n3. **Incorporate relevant keywords naturally**, without keyword stuffing.\n4. **Ensure clarity and readability**—avoid overly complex or vague titles.\n5. **Return only the final refined title as a plain text string.**\n\n---\n### **Title Guidelines:**\n- Keep it **between 50-60 characters** (ideal for SEO).\n- Use **power words** or numbers when appropriate (e.g., \"10 Proven Ways,\" \"Ultimate Guide\").\n- Avoid unnecessary words or fluff.\n- Ensure it **reads naturally** and **appeals to human curiosity**.\n\n---\n### **Example Inputs & Outputs:**\n\n#### **Example 1**\n**Working Title:** \"Understanding AI Automation for Businesses\"  \n**Primary Keyword:** \"AI automation for small businesses\"  \n**Search Intent:** Informational  \n**Refined Title Output:** **AI Automation for Small Businesses: How to Save Time & Boost Revenue**\n\n---\n#### **Example 2**\n**Working Title:** \"The Best Winter Gear for Cyclists\"  \n**Primary Keyword:** \"best winter gear for cyclists\"  \n**Search Intent:** Commercial  \n**Refined Title Output:** **Best Winter Cycling Gear: Stay Warm & Ride Safely in Cold Weather**\n\n---\n### **Output Format:**\nReturn the refined title in standard JSON. Do not include triple ''' or extra line breaks or spaces.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2656,
+        96
+      ],
+      "id": "7d91f471-7ced-4238-8176-b6e594680d58",
+      "name": "Refine the Title"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eafbe44d-f811-4660-9f89-0ebe61febdcc",
+              "name": "key_takeaways",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3856,
+        128
+      ],
+      "id": "bc28c981-964a-4d30-a3e4-d03db689fe53",
+      "name": "Set Key Takeaways"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create Key Takeaways using:\n\n- **Title**: {{ $('Sets New Title Field').item.json.new_title }}\n- **Primary Keyword**: {{ $('Set KWs and Insights fields').item.json.primary_keyword }}\n- **Original Title**: {{ $('Set KWs and Insights fields').item.json.blog_title }}\n- **Input Type**: {{ $('Set KWs and Insights fields').item.json.input_type }}\n- **Content Goal**: {{ $('Set KWs and Insights fields').item.json.content_goal }}\n- **Additional Context**: {{ $('Set KWs and Insights fields').item.json.additional_context }}\n- **Source Content**: {{ $('Set KWs and Insights fields').item.json.source_content }}\n- **Hidden Insight**: {{ $('Set KWs and Insights fields').item.json.hidden_insight }}\n- **Search Intent**: {{ $('Set KWs and Insights fields').item.json.search_intent }}\n- **Semantic Analysis**: {{ $('Set KWs and Insights fields').item.json.semantic_analysis }}\n- **Secondary Keywords**: {{ $('Set KWs and Insights fields').item.json.keywords }}\n- **Writing Style**: {{ $('Set KWs and Insights fields').item.json.writing_style }}\n- **Writing Tone**: {{ $('Set KWs and Insights fields').item.json.writing_tone }}\n- **Article Goal**: {{ $('Set KWs and Insights fields').item.json.article_goal }}\n\n\n\n",
+        "options": {
+          "systemMessage": "=You are an expert content strategist specializing in crafting structured, insightful, and engaging **key takeaways** for articles. Your goal is to summarize the most important information while ensuring the takeaways are **concise, impactful, and easy to digest**.\n\n### **Your Task:**\n1. **Generate an introductory paragraph** that sets up the key takeaways and provides context for the reader.\n2. **Extract the most valuable takeaways** from the provided data:\n   - **Key concepts** covered in the article.\n   - **Relevant semantic subtopics** that align with the topic.\n   - **Hidden insights** (if applicable) that add unique value.\n3. **Format each takeaway in Markdown** as:\n[Action-driven bolded heading]: Concise explanation inline.\n- The **bolded heading** should be **engaging and impactful** (not generic).  \n- The **explanation should be concise and inline with the heading**.  \n- **No section headers, extra spaces, or dividers**.  \n4. **Ensure takeaways provide substantial knowledge** but are not overwhelming:\n- If the **hidden insight** adds value, incorporate it as a **dedicated takeaway** or **enhance an existing one**.\n- If the **hidden insight does not fit naturally**, exclude it.\n5. **Write an outro paragraph** that smoothly leads into the main body of the article.\n\n### **Formatting & Style Guidelines**\n✅ **Use Markdown for formatting**  \n✅ **Bullet points with inline bolded headings**  \n✅ **No extra section headers, dividers, or spaces**  \n✅ **Use engaging, action-driven takeaway headers** (e.g., \"Beyond fixed rules: AI adapts in real time\" instead of \"A paradigm shift from traditional automation\")  \n✅ **Ensure takeaways are concise yet informative**  \n\n### **Example Inputs & Outputs**\n---\n#### **Input Example**\n**Article Title:** `\"AI Automation for Small Businesses: How to Save Time & Boost Revenue\"`  \n**Primary Keyword:** `\"AI automation for small businesses\"`  \n**Hidden Insight:** `\"Most AI automation content focuses on efficiency, but a major benefit is reducing decision fatigue.\"`  \n**Common Subtopics:** `[\"What is AI automation?\", \"How small businesses can use AI\", \"Best AI tools for automation\"]`\n\n---\n#### **Output Example**\n```markdown\nAI automation is transforming small businesses by optimizing workflows, improving efficiency, and enhancing decision-making. Below are the key takeaways highlighting its potential.\n\n- **AI enables true autonomy through adaptive learning:** Unlike traditional systems, AI learns and evolves over time, reducing human supervision by refining its decision-making processes independently.  \n- **Beyond fixed rules: AI adapts in real time:** Traditional AI follows static rules, whereas AI-driven automation dynamically adjusts to changing environments, solving complex, unsupervised tasks.  \n- **AI agents optimize complex workflows effortlessly:** These intelligent systems manage intricate processes with greater efficiency, improving operations like customer support, supply chain management, and fraud detection.  \n- **Seamless integration into business operations:** AI integrates with existing systems like CRMs and ERP platforms, allowing businesses to modernize workflows without overhauling infrastructure.  \n- **Scalability without added complexity:** AI systems manage process complexity and expand capabilities, enabling businesses to scale efficiently without requiring proportional increases in resources.  \n- **AI minimizes decision fatigue, maximizing human focus:** By handling routine and complex decisions autonomously, AI reduces cognitive load on human teams, allowing them to focus on high-value tasks.  \n- **AI ensures resilience through continuous optimization:** Through machine learning, AI refines its models over time, ensuring consistent performance even in dynamic and unpredictable environments.  \n- **AI innovation transforming industries:** Sectors like manufacturing, healthcare, and finance leverage AI for predictive maintenance, personalized care, and risk assessment.  \n\nAI-driven automation offers a new frontier for workflow innovation by replacing static rule-based automation with intelligent, adaptive systems. In the sections ahead, we’ll explore its core components, industry applications, and strategies for seamless business integration.\n\nOutput Format:\nReturn the final takeaways in Markdown format, structured as:\n\nIntro paragraph\nBullet points with inline bolded headings and concise explanations\nOutro paragraph\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        3424,
+        112
+      ],
+      "id": "8d9cc730-8a5e-4669-9db4-e1b4b0b888a0",
+      "name": "Key Takeaways AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe43bcff-a163-4cac-aca8-cf97241b834b",
+              "name": "introduction",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4656,
+        128
+      ],
+      "id": "aedc0a31-8855-4189-98be-57f2b5ef9be7",
+      "name": "Set Introduction Field"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a detailed outline for a blog post with the following details:\n\n- **Title**: {{ $('Sets New Title Field').item.json.new_title }}\n- **Key Takeaways**: {{ $('Set Key Takeaways').item.json.key_takeaways }}\n- **Introduction**: {{ $json.introduction }}\n- **Primary Keyword**: {{ $('Set KWs and Insights fields').item.json.primary_keyword }}\n- **Original Title**: {{ $('Set KWs and Insights fields').item.json.blog_title }}\n- **Input Type**: {{ $('Set KWs and Insights fields').item.json.input_type }}\n- **Content Goal**: {{ $('Set KWs and Insights fields').item.json.content_goal }}\n- **Additional Context**: {{ $('Set KWs and Insights fields').item.json.additional_context }}\n- **Source Content**: {{ $('Set KWs and Insights fields').item.json.source_content }}\n- **Search Intent**: {{ $('Set KWs and Insights fields').item.json.search_intent }}\n- **Semantic Analysis**: {{ $('Set KWs and Insights fields').item.json.semantic_analysis }}\n- **Secondary Keywords**: {{ $('Set KWs and Insights fields').item.json.keywords }}\n- **Writing Style**: {{ $('Set KWs and Insights fields').item.json.writing_style }}\n- **Writing Tone**: {{ $('Set KWs and Insights fields').item.json.writing_tone }}\n- **Article Goal**: {{ $('Set KWs and Insights fields').item.json.article_goal }}\n\nFormatting Instructions:\n\nOutput must be in Markdown format and structured correctly.\nDo NOT add any commentary, explanations, or extra text about what the agent did.\nDo NOT include dividers (---), line breaks (\\n), or unnecessary whitespace.\nOnly return the required Markdown content—nothing more.\n",
+        "options": {
+          "systemMessage": "You are an expert content strategist specializing in structuring articles for clarity, engagement, and SEO effectiveness. Your goal is to generate a **detailed, logical outline** that ensures a smooth reading experience and maximizes content relevance.\n\n### **Your Task:**\n1. **Analyze the provided inputs**, including the article title, primary keyword, key takeaways, semantic analysis, secondary keywords, and hidden insights (if applicable).\n2. **Generate an optimized outline** by:\n   - Structuring the article with a **clear hierarchy of sections**.\n   - Aligning with **SEO best practices** and **user intent**.\n   - Ensuring **logical progression** from start to finish.\n   - Incorporating **hidden insights** if they enhance the content.\n   - **Using secondary keywords and semantic elements (common subtopics & related questions) naturally in headings/subheadings** for SEO.\n3. **Ensure the outline includes:**\n   - **Main sections covering key aspects of the topic**\n   - **Logical sub-sections** that break down complex ideas\n4. **The article title, introduction, and conclusion should be used as references but NOT included in the outline.**\n5. **Format the output in Markdown**:\n   - Use `##` for main sections.\n   - Use `###` for subsections.\n   - Avoid unnecessary headings—keep sections focused and purposeful.\n\n### **Formatting & Style Guidelines**\n✅ **Use Markdown formatting.**  \n✅ **Ensure a logical, structured progression from start to finish.**  \n✅ **Incorporate hidden insights if they enhance the outline.**  \n✅ **Use secondary keywords and semantic elements naturally in headings.**  \n✅ **Exclude the article title, introduction, and conclusion from the final outline.**  \n✅ **Use concise but descriptive section explanations.**  \n\n### **Example Inputs & Outputs**\n---\n#### **Input Example**\n**Article Title:** `\"AI Automation for Small Businesses: How to Save Time & Boost Revenue\"`  \n**Primary Keyword:** `\"AI automation for small businesses\"`  \n**Secondary Keywords:** `[\"AI workflow automation\", \"small business AI tools\", \"automating business operations\"]`  \n**Key Takeaways:** `[\"AI automation reduces decision fatigue.\", \"It improves operational efficiency and workflow management.\", \"Small businesses can implement AI affordably.\"]`  \n**Hidden Insight:** `\"Most discussions on AI automation focus on efficiency, but its real impact is on business adaptability—helping companies pivot faster in changing markets.\"`  \n**Semantic Analysis:**  \n- **Common Subtopics:** `[\"What is AI automation?\", \"How small businesses can use AI\", \"Best AI tools for automation\"]`  \n- **Related Questions:** `[\"What are the best AI automation tools for small businesses?\", \"How does AI improve small business efficiency?\"]`  \n\n---\n#### **Output Example** markdown\n## What is AI Automation?  \n### Understanding AI-powered business automation *(Secondary Keyword Applied)*  \n- Definition of AI automation and its key components.  \n- How AI-powered automation differs from traditional workflow automation.  \n\n### Why small businesses need AI workflow automation *(Semantic & SEO Applied)*  \n- How AI helps small businesses optimize time and improve operations.  \n- Examples of industries benefiting from AI-driven efficiency.  \n\n## Key Benefits of AI in Small Business Operations  \n### Reducing decision fatigue in business owners *(Key Takeaway Applied)*  \n- How AI automation minimizes repetitive decision-making.  \n- Freeing up business owners to focus on strategy and innovation.  \n\n### Boosting efficiency with small business AI tools *(Secondary Keyword Applied)*  \n- The role of AI in automating workflows, customer interactions, and task management.  \n- How automation tools improve productivity.  \n\n### Improving business adaptability with AI *(Hidden Insight Applied)*  \n- How AI enables businesses to pivot quickly in response to market changes.  \n- Case studies on AI-driven adaptability.  \n\n## Implementing AI for Small Business Growth  \n### Choosing the best AI automation tools *(Semantic & SEO Applied)*  \n- Factors to consider when selecting AI-powered solutions.  \n- Overview of top AI tools for small businesses.  \n\n### Automating business operations without disrupting workflows *(Secondary Keyword Applied)*  \n- Best practices for integrating AI seamlessly into existing processes.  \n- How to ensure a smooth transition without disrupting operations.  \n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        928,
+        736
+      ],
+      "id": "c9c88401-860c-4467-89fe-564168e7ce66",
+      "name": "Outline Agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        912
+      ],
+      "id": "47e3f845-5845-4679-bf24-494568d4810b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b6a40be-b640-4caf-a531-50a45df07be8",
+              "name": "outline",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        736
+      ],
+      "id": "acb5e2a7-a84c-4b66-8023-b18e9e70a3af",
+      "name": "Set Outline Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "options": {
+          "systemMessage": "=You are an AI writing agent responsible for generating only the main body of an article based on a structured prompt. Your writing must be well-formatted in Markdown, insightful, logically structured, and engaging for the target audience.\n\nGuidelines\n✅ Follow the provided prompt exactly. Ensure adherence to the user-provided outline and structure.\n✅ Format the article in Markdown using:\n\nH2 (##) for main sections\nH3 (###) for subsections\nBullet points (-), numbered lists (1. 2. 3.), and bold formatting (**bold text**) where necessary.\n✅ Ensure smooth transitions between sections.\nEnd sections with a transition sentence that leads into the next topic.\nAvoid abrupt shifts—maintain logical flow.\n✅ Enhance depth with real-world case studies.\nProvide measurable outcomes (e.g., \"A 20% efficiency gain led to $5M in annual savings\").\nDetail implementation challenges, solutions, and business results.\n✅ Balance readability with a mix of paragraphs & lists.\nUse bullet points sparingly—convert them into mini-paragraphs where needed.\nLists should highlight key takeaways, not dominate sections.\n✅ Ensure keyword optimization.\nNaturally integrate primary and secondary keywords within the article.\nAvoid overuse—prioritize readability over keyword stuffing.\n✅ Fact-driven & logically structured.\nAvoid redundant explanations—each section should introduce new insights.\nEnsure distinctions between related topics (e.g., “Managing Complexity” should not repeat “Adaptive Learning”).\n✅ No introduction or conclusion.\nFocus only on the main body sections based on the structured prompt.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1936,
+        736
+      ],
+      "id": "a2408143-fc73-432c-8d68-b97c748462fa",
+      "name": "Content Writer Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write an engaging introduction for a blog post with the following details:\n\n- **Title**: {{ $('Sets New Title Field').item.json.new_title }}\n- **Key Takeaways**: {{ $json.key_takeaways }}\n- **Primary Keyword**: {{ $('Set KWs and Insights fields').item.json.primary_keyword }}\n- **Original Title**: {{ $('Set KWs and Insights fields').item.json.blog_title }}\n- **Input Type**: {{ $('Set KWs and Insights fields').item.json.input_type }}\n- **Content Goal**: {{ $('Set KWs and Insights fields').item.json.content_goal }}\n- **Additional Context**: {{ $('Set KWs and Insights fields').item.json.additional_context }}\n- **Source Content**: {{ $('Set KWs and Insights fields').item.json.source_content }}\n- **Search Intent**: {{ $('Set KWs and Insights fields').item.json.search_intent }}\n- **Semantic Analysis**: {{ $('Set KWs and Insights fields').item.json.semantic_analysis }}\n- **Secondary Keywords**: {{ $('Set KWs and Insights fields').item.json.keywords }}\n- **Writing Style**: {{ $('Set KWs and Insights fields').item.json.writing_style }}\n- **Writing Tone**: {{ $('Set KWs and Insights fields').item.json.writing_tone }}\n- **Article Goal**: {{ $('Set KWs and Insights fields').item.json.article_goal }}\n\n\nThe introduction should:\n- Hook the reader with a surprising fact, question, or statement.\n- Explain why the topic matters and how it benefits the reader.\n- Transition naturally into the body of the article.\n- Use keywords naturally but sparingly.\n\nExample Introduction:\nImagine having an extra pair of hands to handle your business's repetitive tasks while you focus on the big picture—growing your company. It might sound like a luxury, but AI agents are making it a reality for small businesses everywhere.\n\nSmall business owners often juggle countless responsibilities, from managing operations to engaging customers. AI agents provide a way to streamline routine tasks, improve productivity, and even elevate customer experiences, all while saving time and resources.\n\nThis article dives into how AI agents can transform your business, helping you scale operations, save time, and stay competitive. Whether you’re seeking efficiency or growth, you’ll discover how this powerful technology can work for you.\n\nFormatting Instructions:\n\nOutput must be in Markdown format and structured correctly.\nDo NOT add any commentary, explanations, or extra text about what the agent did.\nDo NOT include dividers (---), line breaks (\\n), or unnecessary whitespace.\nOnly return the required Markdown content—nothing more.",
+        "options": {
+          "systemMessage": "You are an expert content writer specializing in crafting compelling introductions for articles. Your goal is to **hook the reader, set expectations, and establish relevance** while maintaining clarity and engagement.\n\n### **Your Task:**\n1. **Analyze the provided inputs**, including the article title, primary keyword, key takeaways, and target audience.\n2. **Write a compelling introduction** that:\n   - **Opens with a direct, concise statement** that immediately presents the topic.\n   - **Avoids generic phrases** like *\"In today’s fast-paced world...\"* or *\"Businesses are constantly evolving...\"*.\n   - **Clearly states the article’s purpose** and what the reader will learn.\n   - **Flows naturally into the main body** without being overly long.\n3. **Match the article’s writing style and tone** to ensure consistency.\n4. **Incorporate the primary keyword naturally** for SEO without forcing it.\n5. **Ensure readability and engagement**:\n   - Keep the introduction concise (2-3 short paragraphs).\n   - Avoid fluff—make every sentence valuable.\n   - **Use streamlined transition sentences** (e.g., *\"Let’s explore how...\"* instead of *\"In this article, we will explore...\"*).\n\n### **Formatting & Style Guidelines**\n✅ **Use Markdown formatting.**  \n✅ **Start with a direct, engaging opening sentence.**  \n✅ **Avoid generic phrases or overused business clichés.**  \n✅ **Keep it concise yet informative (2-3 short paragraphs).**  \n✅ **Ensure a smooth transition into the main body.**  \n✅ **Maintain a natural, compelling flow that matches the writing tone & style.**  \n\n### **Example Inputs & Outputs**\n---\n#### **Input Example**\n**Article Title:** `\"AI Automation for Small Businesses: How to Save Time & Boost Revenue\"`  \n**Primary Keyword:** `\"AI automation for small businesses\"`  \n**Key Takeaways:** `[\"AI automation reduces decision fatigue.\", \"It improves operational efficiency and workflow management.\", \"Small businesses can implement AI affordably.\"]`  \n**Writing Style:** `\"Engaging and storytelling\"`  \n**Writing Tone:** `\"Friendly and conversational\"`  \n\n---\n#### **Output Example** markdown\nTraditional automation is falling behind in today’s fast-moving business world. Enter agentic AI automation—a transformative technology that redefines efficiency and decision-making by enabling systems to think, learn, and act autonomously. Unlike static rule-based systems, these intelligent automation solutions continuously adapt and optimize without constant human intervention.  \n\nFor businesses, this means more than just convenience; it’s the promise of streamlined operations, scalable solutions, and reduced cognitive load for teams. From managing intricate workflows to integrating seamlessly with existing tools, agentic AI bridges the gap between innovation and practicality.  \n\nLet’s explore how agentic AI is revolutionizing industries, boosting productivity, and setting a new benchmark for intelligent automation.  \n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        4048,
+        128
+      ],
+      "id": "57462b83-d0d6-4cfb-b026-9076250349bc",
+      "name": "Introduction Agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        912
+      ],
+      "id": "e6eac933-a1d9-4f6f-935e-85d869beb443",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Assemble the article from the following components into a single cohesive output formatted in Markdown:\n\n- **Key Takeaways**: {{ $('Set Key Takeaways').item.json.key_takeaways }}\n- **Introduction**: {{ $('Introduction Agent').item.json.output }}\n- **Main Content**: {{ $('Edit Fields3').item.json['main body'] }}\n- **Conclusion**: {{ $json.conclusion }}\n\n### Output Format:\n- Use `##` for main section headings like Key Takeaways, Introduction, and Conclusion.\n- Use `##` for primary headings (H2s) in the main content.\n- Use `###` for subheadings (H3s) under those primary headings.\n- Format lists as bulleted lists using `-`.\n- Write paragraphs in plain text, separated by line breaks.\n\nExample Output:\n\n## Key Takeaways\n- AI automation reduces costs and improves efficiency for SMBs.\n- Examples show how AI streamlines workflows and enhances customer service.\n- Step-by-step advice helps SMBs adopt AI effectively.\n\n## Introduction\nAI automation is a transformative tool for small businesses, offering improved efficiency, cost reduction, and scalability.\n\n## How Intelligent Process Automation Works\nIntelligent process automation (IPA) isn’t just about speed—it’s about working smarter.\n\n### Reducing Manual Work and Process Errors with Automation\nAutomating manual tasks like payroll processing slashes error rates by up to 90%.\n\n### Boosting Process Efficiency Across Business Functions\nFrom HR to sales, IPA ensures consistency and efficiency.\n\n## Conclusion\nAI automation is a pathway to transforming how small businesses operate and grow. By streamlining workflows, enhancing customer experiences, and enabling smarter decision-making, AI empowers businesses to achieve more with less effort.\n\n\n",
+        "options": {
+          "systemMessage": "You are an expert content assembler. Your task is to take separate elements of an article—key takeaways, introduction, main content (including subheadings), and conclusion—and assemble them into a single cohesive output. The final output should be formatted in Markdown for a CMS blog post field.\n\nGuidelines:\n\n1. Use `##` for section headings (Key Takeaways, Introduction, and Conclusion).\n2. Use `##` for primary headings (H2s) from the main content.\n3. Use `###` for subheadings (H3s) under those primary headings.\n4. Write paragraphs as plain text, separated by line breaks.\n5. Ensure the output is clean and properly formatted in Markdown without unnecessary placeholders like \"Main Content.\"\n6. Do not include triple backticks (''') or any additional spaces or text outside of the conclusion itself.\nEnsure clean and structured formatting without unnecessary dividers or extra line breaks.\n\n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        3568,
+        736
+      ],
+      "id": "80711a43-52b5-473c-8258-fcf7113c1686",
+      "name": "Article Assembly Agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        3536,
+        912
+      ],
+      "id": "a245c882-ce3d-4312-a84e-aa6bd9a99103",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following blog request and use the available DataforSEO tools to gather comprehensive SEO data, then provide optimized writing guidelines:\n\n**Original Blog Request:**\n- Blog Topic: {{ $('Blog Info').item.json.blog_topic }}\n- Input Type: {{ $('Blog Info').item.json.input_type }}\n- Content Goal: {{ $('Blog Info').item.json.content_goal }}\n- Focused Keywords: {{ $('Blog Info').item.json.focused_keywords }}\n- Additional Context: {{ $('Blog Info').item.json.additional_context }}\n- Source Content: {{ $('Blog Info').item.json.source_content }}\n\n**Your Task:**\n1. Use the HTTP Related Keywords tool to get related keyword data with search volume, difficulty, and CPC\n2. Use the HTTP Keyword Ideas tool to get keyword suggestions and long-tail variations\n3. Use the HTTP SERPs tool to get competitor SERP data including titles, descriptions, and People Also Ask questions\n4. Use the Generate Subtopics tool to get AI-generated content structure ideas\n5. Use the Generate Meta Tags tool to get meta description suggestions\n6. Analyze all gathered data and provide optimized writing guidelines\n\n**After gathering all SEO data, analyze and provide this JSON output:**\n\n{\n  \"search_intent\": \"<string: informational | transactional | navigational | commercial>\",\n  \"writing_style\": \"<string: based on competitor analysis and search data>\",\n  \"writing_tone\": \"<string: matching user intent and audience>\",\n  \"hidden_insight\": \"<string: unique competitive insight or 'No significant insights detected beyond existing content trends.'>\",\n  \"target_audience\": \"<string: based on keyword data and search patterns>\",\n  \"goal_of_article\": \"<string: optimized objective based on search intent and competition>\",\n  \"semantic_analysis\": {\n    \"common_subtopics\": [\n      \"<string: from generated subtopics and competitor analysis>\",\n      \"<string: subtopic 2>\",\n      \"<string: subtopic 3>\"\n    ],\n    \"related_questions\": [\n      \"<string: from PAA data>\",\n      \"<string: question 2>\", \n      \"<string: question 3>\"\n    ]\n  },\n  \"keywords\": {\n    \"primary_keyword\": \"<string: original focused keyword>\",\n    \"secondary_keywords\": [\n      \"<string: high-volume related keywords>\",\n      \"<string: secondary keyword 2>\",\n      \"<string: secondary keyword 3>\"\n    ],\n    \"semantic_keywords\": [\n      \"<string: semantic keyword 1>\",\n      \"<string: semantic keyword 2>\",\n      \"<string: semantic keyword 3>\"\n    ],\n    \"long_tail_keywords\": [\n      \"<string: from PAA and keyword suggestions>\",\n      \"<string: long-tail keyword 2>\",\n      \"<string: long-tail keyword 3>\"\n    ]\n  },\n  \"keyword_research_data\": {\n    \"search_volume\": \"<number: search volume from DataforSEO>\",\n    \"keyword_difficulty\": \"<number: difficulty score from DataforSEO>\",\n    \"cpc\": \"<number: cost per click from DataforSEO>\",\n    \"competition_level\": \"<string: low | medium | high based on difficulty>\",\n    \"related_keywords\": \"<string: comma-separated related keywords>\",\n    \"serp_features\": \"<string: featured snippets, PAA, etc. from SERP analysis>\",\n    \"opportunity_score\": \"<number: calculated opportunity score 1-100>\",\n    \"is_selected\": true\n  },\n  \"content_structure_suggestions\": {\n    \"suggested_subtopics\": [\n      \"<string: from DataforSEO subtopics>\",\n      \"<string: subtopic 2>\",\n      \"<string: subtopic 3>\"\n    ],\n    \"meta_description_options\": [\n      \"<string: from generated meta tags>\",\n      \"<string: alternative option 2>\"\n    ]\n  },\n  \"competitor_insights\": {\n    \"top_ranking_domains\": [\n      \"<string: domain 1 from SERP data>\",\n      \"<string: domain 2>\",\n      \"<string: domain 3>\"\n    ],\n    \"common_title_patterns\": \"<string: analysis of competitor titles>\",\n    \"content_gaps\": \"<string: opportunities identified from PAA vs SERP analysis>\"\n  }\n}\n\n**IMPORTANT:** \n- Gather ALL SEO data using the available DataforSEO tools\n- Analyze the collected data to provide the JSON output\n- Output ONLY the final JSON object\n- No additional text, introduction, or formatting\n```\n",
+        "options": {
+          "systemMessage": "=You are an advanced AI content strategist with access to comprehensive SEO data from DataforSEO APIs. Your expertise lies in analyzing real SERP data, keyword metrics, competitor intelligence, and content opportunities to generate precise writing guidelines for SEO-optimized blog posts.\nYour Task:\nYou will receive rich SEO data from multiple DataforSEO endpoints and must analyze this data to provide optimized writing guidelines with structured JSON output.\nData Sources You'll Receive:\n\nRelated Keywords Data: Keywords with search volume, difficulty, CPC, search intent\nKeyword Suggestions Data: Long-tail variations with metrics\nSERP Results Data: Top-ranking competitor titles, descriptions, domains\nPeople Also Ask Data: Real user questions from Google\nGenerated Subtopics: AI-generated content structure ideas\nGenerated Meta Tags: AI-suggested meta descriptions\n\nAnalysis Framework:\n1️⃣ Search Intent Detection\n\nAnalyze SERP results patterns (titles, descriptions, domains)\nCross-reference with keyword intent data from DataforSEO\nDetermine primary intent: informational | transactional | navigational | commercial\n\n2️⃣ Competitor Intelligence & Hidden Insights\n\nAnalyze competitor title patterns and messaging strategies\nIdentify content gaps from PAA questions not addressed by top results\nSpot unique angles or underserved aspects of the topic\nIf no significant insight found, return: \"No significant insights detected beyond existing content trends.\"\n\n3️⃣ Writing Style & Tone Optimization\n\nAnalyze competitor content approach (technical vs. accessible, formal vs. conversational)\nConsider search volume and competition metrics\nMatch style to user intent and target audience\n\n4️⃣ Semantic Content Strategy\n\nUtilize generated subtopics for content structure\nIncorporate PAA questions as semantic elements\nOrganize related keywords by relevance and search volume\n\n5️⃣ Keyword Strategy Development\n\nPrimary: Use the original focused keyword\nSecondary: High-volume related keywords\nSemantic: Related terms from keyword suggestions\nLong-tail: Questions and phrases from PAA and suggestions\n\nOutput Requirements:\nReturn ONLY valid JSON without any additional text, formatting, or explanations."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1632,
+        96
+      ],
+      "id": "cf5f1495-c421-493a-98af-dcd693692e72",
+      "name": "SERPs, Writing, KWs, Insights"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "438738d8-d610-47e3-9ddf-efcfb97d3701",
+              "name": "new_title",
+              "value": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).refined_title }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3040,
+        128
+      ],
+      "id": "1345a94b-8099-4dae-87b7-5767f036f2dc",
+      "name": "Sets New Title Field"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        2704,
+        352
+      ],
+      "id": "a1976e8a-eed9-4f58-8bfa-7831b21f0535",
+      "name": "Open AI",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        3424,
+        352
+      ],
+      "id": "8c51564f-c7f0-461b-9091-31dcb5ce15ff",
+      "name": "OpenAI Key Takeaways",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        4032,
+        352
+      ],
+      "id": "da45035f-c354-409c-baf1-c210231ae340",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create a comprehensive, SEO-optimized prompt for an AI article writer using the data below.\n\n**Core Information:**\n- Primary Keyword: {{ $('Set KWs and Insights fields').item.json.primary_keyword }}\n- Original Title: {{ $('Set KWs and Insights fields').item.json.blog_title }}\n- Input Type: {{ $('Set KWs and Insights fields').item.json.input_type }}\n- Content Goal: {{ $('Set KWs and Insights fields').item.json.content_goal }}\n- Additional Context: {{ $('Set KWs and Insights fields').item.json.additional_context }}\n- Source Content: {{ $('Set KWs and Insights fields').item.json.source_content }}\n\n**SEO & Strategy:**\n- Hidden Insight: {{ $('Set KWs and Insights fields').item.json.hidden_insight }}\n- Search Intent: {{ $('Set KWs and Insights fields').item.json.search_intent }}\n- Semantic Analysis: {{ $('Set KWs and Insights fields').item.json.semantic_analysis }}\n- Secondary Keywords: {{ $('Set KWs and Insights fields').item.json.keywords }}\n- Writing Style: {{ $('Set KWs and Insights fields').item.json.writing_style }}\n- Writing Tone: {{ $('Set KWs and Insights fields').item.json.writing_tone }}\n- Article Goal: {{ $('Set KWs and Insights fields').item.json.article_goal }}\n\n**Structure:**\n- Outline: {{ $json.outline }}",
+        "options": {
+          "systemMessage": "=Your Role & Task\nYou are an AI prompt engineering specialist with expertise in crafting structured, SEO-optimized, and adaptable writing prompts.\nYour job is to generate a concise yet effective prompt that will guide an AI writing agent in producing a high-quality, well-structured article body based on the provided inputs.\n\nPrompt Requirements\nYour generated prompt should:\n✅ Guide the AI writing agent to write only the main body sections—the introduction, key takeaways, and conclusion are handled separately.\n✅ Follow the article’s outline as a guiding framework, ensuring natural flow and logical transitions between sections.\n✅ Encourage informative, engaging, and well-structured writing, tailored to the topic and audience.\n✅ Incorporate SEO best practices naturally, ensuring primary and secondary keywords are used in relevant sections without forced placement.\n✅ Evaluate the relevance of hidden insights—if useful, include them as a core argument or supporting detail; if not, leave them out.\n✅ Use semantic analysis, related questions, and common subtopics to strengthen content depth.\n✅ Ensure flexibility—allow the AI writing agent to expand on ideas, incorporate examples, and maintain logical coherence.\n\nExample Inputs & Outputs\nExample Inputs\nTitle: \"The Best Fishing Destinations in North America\"\nPrimary Keyword: \"best fishing destinations\"\nSecondary Keywords: \"top fishing spots, fishing in North America, best places for fishing\"\nSearch Intent: \"Informational\"\nWriting Style: \"Engaging and expert-driven\"\nWriting Tone: \"Conversational yet authoritative\"\nArticle Goal: \"Provide anglers with a comprehensive guide to the best fishing destinations, key factors to consider, and seasonal variations.\"\nSemantic Analysis (Common Subtopics & Related Questions):\n{\n  \"common_subtopics\": [\n    \"Freshwater vs. saltwater fishing: Key differences\",\n    \"Best fishing seasons for different regions\",\n    \"Gear recommendations based on fishing style\"\n  ],\n  \"related_questions\": [\n    \"What are the best fishing spots in North America?\",\n    \"Where can I find great deep-sea fishing locations?\",\n    \"What’s the best time of year to go fishing?\"\n  ]\n}\nHidden Insight (if applicable): \"Many top-ranked fishing destinations have conservation programs that impact seasonal availability, which most travel guides overlook.\"\nOutline:\n## Best Freshwater Fishing Spots  \nExploring the top lakes and rivers for freshwater fishing.  \n\n## Best Deep-Sea Fishing Destinations  \nHighlighting prime locations for saltwater and offshore fishing.  \n\n## Seasonal Considerations  \nHow different seasons affect fishing opportunities.  \n\n## Essential Gear & Preparation Tips  \nWhat to bring for a successful fishing trip.  \n\nxample Output (Generated Writing Prompt for the AI Writing Agent)\nWriting Prompt: The Best Fishing Destinations in North America\nObjective:\nCraft a well-structured, SEO-optimized, and engaging article body focusing on fishing destinations in North America. The article should provide actionable insights, expert recommendations, and real-world considerations to help anglers choose the best locations.\n\nTarget Audience:\nRecreational and professional anglers looking for detailed guidance on fishing locations, seasonal factors, and essential gear.\n\nGuidelines for the AI Writing Agent\n1. Follow the Outline for Logical Structure & Expansion\nUse the provided outline as a structural blueprint, ensuring smooth transitions between sections.\nExpand each section with relevant insights, expert opinions, and practical examples rather than merely summarizing.\nDO NOT include an introduction or conclusion—focus strictly on main body sections.\n2. Natural Integration of Keywords (SEO-Optimized)\nPrimary Keyword: \"{{Primary Keyword}}\" should appear organically in relevant sections.\nSecondary Keywords: \"{{Secondary Keywords}}\" should be integrated contextually to enhance SEO without overuse.\nLong-Tail & Semantic Keywords: Use these strategically in discussions, answering key questions where applicable.\nAvoid forced keyword placement—prioritize readability and clarity.\n3. Adapt Writing Style & Tone Based on Topic\nFor technical/business content: Maintain a formal, authoritative, and data-driven approach.\nFor consumer, lifestyle, or travel content: Use an engaging, expert-guide tone with practical insights.\nEnsure clear, well-researched content that suits the target audience.\n4. Expand on Semantic Insights & Related Questions\nAddress common subtopics where relevant, such as:\nDefining key concepts to establish clarity.\nComparing approaches, tools, or strategies for deeper understanding.\nExploring industry-specific challenges & solutions where applicable.\nIntegrate related questions naturally—e.g., \"What are the best fishing spots in North America?\" or \"How does AI automation impact business efficiency?\"\n5. Use Hidden Insights Only If Relevant\nEvaluate whether the hidden insight adds value to the article.\nIf applicable, incorporate it as a key supporting argument to enrich the content.\nIf not relevant, omit it rather than forcing inclusion.\n6. Provide Real-World Applications & Actionable Advice\nOffer examples, case studies, or industry applications to enhance reader engagement.\nProvide actionable steps where applicable (e.g., how to implement AI tools, how to choose the right fishing destination, best practices for content marketing).\n7. Formatting for Readability & Engagement\nUse subheadings, bullet points, and short paragraphs for easy scanning.\nInclude lists, tips, or expert recommendations where useful.\nEnsure logical section transitions while maintaining engagement.\n8. No Introduction or Conclusion—Only Write Main Body Sections\nDO NOT include an introduction or conclusion—focus strictly on the main body content as structured in the outline.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1520,
+        736
+      ],
+      "id": "faf3d48c-4527-4b10-a6ea-38ee8cec55fd",
+      "name": "Main Body Prompt Writer"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-2024-11-20",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-2024-11-20"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1472,
+        960
+      ],
+      "id": "a8f9a8b0-2b29-4263-ab49-d61a2c2f06c3",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Use the main body content of an article to write a conclusion. Output markdown format.\n\nMain Body\n{{ $json['main body'] }}",
+        "options": {
+          "systemMessage": "You are an expert writing assistant specializing in crafting concise, insightful, and impactful conclusions for articles across various topics. Your goal is to summarize the key takeaways, reinforce the article’s value, and leave the reader with a lasting impression.\n\nGuidelines for Generating the Conclusion:\n\n✅ Summarize Key Takeaways Without Repetition\n\nIdentify the most essential points from the article without repeating entire sentences from the main body.\n\nHighlight core insights, trends, or findings in a concise manner.\n\n✅ Reinforce the Article’s Value & Relevance\n\nEmphasize why the information matters in the broader context of the topic.\n\nAlign with the article’s purpose—whether it’s to educate, inform, persuade, or provide solutions.\n\n✅ Deliver a Strong Final Thought\n\nEnd with a compelling, forward-looking, or actionable statement.\n\nConsider:\n\nA thought-provoking question\n\nA call to action (if relevant)\n\nA statement on future implications or ongoing developments\n\nAvoid generic phrases (e.g., “This is just the beginning” or “The future looks bright”).\n\nFormatting & Style:\n\nKeep it concise—the conclusion should be around 100-150 words.\n\nUse clear, authoritative, and engaging language.\n\nAdapt tone and style to match the article (technical, business, educational, etc.).\n\nInput:\n\nThe main body of the article (excluding introduction & key takeaways)\n\nThe article's title (for context)\n\nOutput:A well-structured conclusion that effectively summarizes key points, reinforces relevance, and ends with a compelling thought.\n\nExample Conclusion for a Business Article\n\n(Title: \"The Rise of Agentic AI in Workflow Automation\")\n\nAs businesses seek greater efficiency and adaptability, agentic AI automation is emerging as a transformative force in workflow management. By reducing cognitive load, managing complexity, and enabling continuous improvement, these systems empower organizations to operate with unprecedented precision and scalability.\n\nHowever, successful implementation requires a strategic approach—ensuring seamless integration, robust governance, and continuous refinement. Organizations that embrace this shift will gain a significant competitive edge, optimizing operations while driving innovation.\n\nFor businesses evaluating their automation strategies, the key question is no longer if agentic AI will play a role—but how soon they will adopt it to stay ahead in a rapidly evolving digital landscape.\n\nExample Conclusion for a Consumer Guide\n\n(Title: \"How to Choose the Best Electric Bike for Your Needs\")\n\nChoosing the right electric bike depends on your lifestyle, terrain, and riding preferences. Whether you need a powerful e-bike for commuting or a lightweight model for weekend adventures, understanding motor types, battery life, and key features ensures a smarter purchase.\n\nBy evaluating your specific needs and budget, you can invest in an e-bike that enhances both convenience and sustainability. As technology continues to improve, e-bikes are becoming more affordable, efficient, and accessible—making now an excellent time to explore your options.\n\nBefore making a final decision, test ride different models, compare specifications, and consider long-term factors like maintenance and warranty coverage. The right e-bike isn’t just about performance—it’s about finding the perfect balance between comfort, power, and practicality for your everyday life.\n\nOutput Requirements\nFormat the output in Markdown using ## for the conclusion heading.\nDo not include triple backticks (''') or any additional spaces or text outside of the conclusion itself.\nEnsure clean and structured formatting without unnecessary dividers or extra line breaks."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2784,
+        736
+      ],
+      "id": "9a3579f2-1b77-47e5-ba99-d44f173551a7",
+      "name": "AI Agent Conclusion Writer"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e24bb1b-7f69-4a4b-a414-d4acf444313e",
+              "name": "conclusion",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3344,
+        736
+      ],
+      "id": "43d01004-925a-4384-82b7-bc1e7b889b50",
+      "name": "Set Conclusion"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-2024-11-20",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-2024-11-20"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3904,
+        960
+      ],
+      "id": "7e0f557b-d51a-442a-a363-bf7291388cb8",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-2024-11-20",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-2024-11-20"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1952,
+        960
+      ],
+      "id": "387be58b-d3ed-4522-9772-903123f80554",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Perform the final edit on:\n {{ $json.output }}",
+        "options": {
+          "systemMessage": "You are an expert SEO-optimized content final editor.\n\nYour task is to enhance and expand the provided article to near-perfect quality (9.5+/10) while maintaining clarity, logical flow, and readability. The final article should be well-structured, engaging, and adaptable to any topic, including (but not limited to) business, healthcare, technology, education, finance, environmental science, legal, consumer guides, and marketing.\n\n✅ General Refinement Guidelines\n1️⃣ Expand, Don’t Cut\nPreserve all valuable content while adding depth where necessary.\nDo not shorten or remove sections unless redundant or unclear.\nIf something feels incomplete, expand rather than delete it.\n2️⃣ Strengthen Section Transitions for Seamless Flow\nEnsure smooth transitions between sections by adding brief lead-ins before introducing a new concept.\nEach section should naturally build on the previous one—avoiding abrupt shifts.\nImplementation:\nIf a new section introduces a major topic, insert a transition sentence summarizing why the previous section matters.\nExample:\nBefore (Abrupt Shift):\n\"While automation improves efficiency, its true power emerges when integrated with existing systems.\"\nAfter (Smoother Transition):\n\"Efficiency gains are only part of the equation—true business impact comes from seamlessly integrating automation with existing workflows to ensure sustainable improvements.\"\n✅ Ensures smoother flow between ideas.\n\n3️⃣ Diversify Real-World Applications Across More Industries\nDo NOT over-focus on one industry or domain (e.g., AI, tech, or automation).\nWhere applicable, ensure varied examples in fields like:\nHealthcare (diagnostic automation, patient management)\nFinance (risk assessment, fraud detection, portfolio management)\nEducation (personalized learning, curriculum adaptation)\nLegal (contract automation, compliance monitoring)\nMarketing (data-driven campaigns, customer behavior analysis)\nRetail & E-commerce (inventory optimization, demand forecasting)\nConsumer Behavior (product recommendations, pricing strategies)\nEnvironmental Science (climate impact modeling, resource allocation)\nImplementation:\nIf the article lacks industry diversity, add 1–2 additional sector applications.\nExample:\nBefore (Too Narrow):\n\"Predictive analytics is transforming logistics and finance.\"\nAfter (Expanded with More Fields):\n\"Predictive analytics is transforming industries beyond logistics and finance. In healthcare, it enhances diagnostic accuracy; in education, it customizes learning paths; in marketing, it optimizes ad spend by predicting customer behavior.\"\n✅ Expands article relevance to a broader audience.\n\n4️⃣ Strengthen the Conclusion with a Future-Focused Perspective\nAvoid generic wrap-ups—end with a compelling strategic takeaway or challenge.\nEnsure future trends, competitive implications, and thought-provoking insights are included.\nImplementation:\nInstead of simply summarizing, pose a challenge or future opportunity.\nExample:\nBefore (Weak Ending):\n\"The question remains: How will businesses use this technology to redefine operations? The time to act is now.\"\nAfter (More Forward-Thinking):\n\"Looking ahead, businesses that embrace adaptable strategies and data-driven decision-making will lead in an increasingly competitive landscape. Whether through emerging technologies, customer-first innovation, or operational agility, the next era of success will belong to those who can not just adapt—but anticipate change. The real question isn’t if you’ll adopt these advancements—but how effectively you’ll use them to gain a competitive edge.\"\n✅ Leaves the reader with a clear action step or thought-provoking challenge.\n\n\n5️⃣ Expand Instead of Reduce Content\nDO NOT cut content unless it is redundant or weakens clarity.\nIf a section feels too brief or lacks depth, expand it by:\nProviding real-world examples\nAdding practical applications\nElaborating on key insights\nStrengthening data-backed statements\nExample Fix:\nBefore (Overly brief):\n\"Sustainable practices benefit businesses.\"\nAfter (More informative & engaging):\n\"Sustainable practices provide both environmental and financial advantages. Businesses that invest in renewable energy, reduce waste, and optimize resource consumption see long-term cost savings and increased brand loyalty.\"\n\n6. Do not add any commentary on what improvements you made. Just output the refined article.\n7. Do not add dividing lines between sections (\"---\") or any extra spacing or line breaks.\n\nMake every article a 9.5+/10 by refining structure, depth, and industry relevance while keeping it universally applicable across topics."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        3936,
+        736
+      ],
+      "id": "7971cdce-857f-4739-b50c-80732b4a1fbf",
+      "name": "Final Edit Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4d5ae86e-7aec-4a4c-9256-7042d2e32497",
+              "name": "final_article",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4304,
+        736
+      ],
+      "id": "ddf63d41-a698-41d8-ba9f-c7590a7414bf",
+      "name": "Final Article"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $('Add Final Article').item.json.documentId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "=\n{{ $json.message.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        1296
+      ],
+      "id": "c388e492-fe35-4769-9c63-f91d53e988be",
+      "name": "Add Meta Description"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an AI-powered Image Prompt Generator. Your task is to generate a detailed, visually engaging image prompt for an AI image-generation model. The image should serve as the featured image for the article, representing its key themes and attracting user attention.\n\nGuidelines:\n✅ Visual Representation of the Article:\n\nThe image should capture the essence of the topic in a compelling, high-quality way.\nAvoid overly generic imagery—ensure the image aligns with the article's subject matter and industry (e.g., AI automation, business processes, workflow management, etc.).\n✅ Descriptive Detail for Image Generation:\n\nUse rich visual descriptions that include:\nScene setting (e.g., futuristic cityscape, high-tech office, dynamic team collaboration).\nElements & objects (e.g., digital interfaces, robots, data visualizations, business professionals).\nMood & lighting (e.g., cinematic lighting, energetic atmosphere, professional and modern tone).\nPerspective (e.g., wide-angle, close-up, action shot, aerial view).\n✅ Consistency & Formatting:\n\nOutput must be in Markdown format with an ## Image Prompt heading.\nEnd the image prompt with --ar 16:9 to specify the 16:9 aspect ratio for better compatibility.\nExamples:\nBefore (Weak Example):\n\"An image of AI and business automation.\" ❌ Too vague, lacks engagement.\n\nAfter (Optimized Example):## Image Prompt  \nA futuristic digital workspace with AI-powered automation interfaces, holographic data charts, and robotic assistants collaborating with business professionals. The environment is sleek and modern, illuminated by ambient blue neon lighting, symbolizing innovation and efficiency. --ar 16:9  \n",
+              "role": "system"
+            },
+            {
+              "content": "=Generate an AI image prompt that visually represents the following article. Ensure the description is detailed, engaging, and optimized for an eye-catching featured image.\n\n {{ $('Final Article').item.json.final_article }}\n\n## Image Prompt  \n[Your detailed AI image prompt here] --ar 16:9\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1632,
+        1296
+      ],
+      "id": "4c5575f2-7319-4e94-b944-49cb24af0ed1",
+      "name": "OpenAI Image Prompt",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-2024-11-20",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-2024-11-20"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an SEO-optimized Meta Description Generator. Your task is to generate a compelling, keyword-rich meta description for the provided article. The description should be concise, engaging, and optimized for search engines while accurately summarizing the article’s core value.\n\nGuidelines:\n✅ Length: Keep the meta description between 150–160 characters to ensure full visibility in search results.\n✅ Keyword Optimization: Incorporate primary and secondary keywords naturally, focusing on high-impact phrases relevant to the article.\n✅ Engagement & Clarity:\n\nWrite in an active voice with a clear and compelling hook.\nSummarize the key benefit of the article—why should someone read it?\nAvoid vague statements—be specific about what the article covers.\n✅ Call to Action (Optional, but Preferred): Where possible, include a soft CTA to encourage clicks (e.g., “Discover how…”, “Learn the best strategies…”).\n✅ Formatting:\nUse Markdown format with an ## Meta Description heading.\nNo extra spacing or unnecessary formatting—the output should be clean and ready to use.\nExamples:\nBefore (Weak Example):\n\"This article discusses agentic AI and how it can be used in businesses.\" ❌ Too vague, lacks engagement.\n\nAfter (Optimized Example):\n## Meta Description  \nUnlock the power of agentic AI automation! Learn how businesses enhance efficiency, decision-making, and scalability with self-evolving AI-driven workflows.\n",
+              "role": "system"
+            },
+            {
+              "content": "=Generate an SEO-optimized meta description for the following article. Ensure it is concise (150-160 characters), engaging, and includes high-impact keywords.\n{{ $('Final Article').item.json.final_article }}\nFormat the output in Markdown as follows:"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        960,
+        1296
+      ],
+      "id": "8233fdd0-b22b-4544-84ad-3a82495949bc",
+      "name": "OpenAI Meta",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $('Add Meta Description').item.json.documentId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "=\n{{ $json.message.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2032,
+        1296
+      ],
+      "id": "fb0a9f74-c59e-40ff-ab5f-dee39637ee77",
+      "name": "Add Image Prompt"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b5d2b743-090c-4432-a7e7-c25b2e4bd76f",
+              "name": "url",
+              "value": "=https://docs.google.com/document/d/{{ $('Add Final Article').item.json.documentId }}/edit",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        1296
+      ],
+      "id": "c1fe5b55-371f-4b2c-905e-266a66f5f1fd",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7c282be5-3020-44b9-bf77-61639e3dd763",
+              "name": "main body",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2544,
+        736
+      ],
+      "id": "6e38d48a-d7a9-4266-a981-963bfdf76448",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "content": "## Get Working Title, Description, Keywords from Airtable Article Writer\n\nGet's this data for use in the first agent that creates the writing style, tone, target audience/persona and goal.\n\nTriggered by status field in the Article Writer table. Create Article = Write Article",
+        "height": 480,
+        "width": 660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "c7489cf5-0031-4c2b-9d78-955e12fc923c",
+      "name": "Sticky Note27"
+    },
+    {
+      "parameters": {
+        "content": "## Dynamic Writing Guidelines and Hidden Insights\nBased on real-world search results and competitor analysis, ensuring that your AI-generated articles align with user intent better than static SEO methods.\n\nUses working title, description (both from keyword categorization), and top 5 search results to generate writing style and tone, goal of the article, hidden insights from AI analysis, semantic insights and keywords. All for use throughout the workflow. ",
+        "height": 600,
+        "width": 780
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -128
+      ],
+      "id": "64be6499-b3c6-4fae-a2f5-784554989e84",
+      "name": "Sticky Note28"
+    },
+    {
+      "parameters": {
+        "content": "## Refine the Working Title - Set New Title in Baserow\nUses all the input and generated info to create an SEO optimized title.\n\nThe airtable record is updated.",
+        "height": 600,
+        "width": 800
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        -128
+      ],
+      "id": "f73577c2-9d3d-4f1b-8e5e-5b1816ca5fac",
+      "name": "Sticky Note29"
+    },
+    {
+      "parameters": {
+        "content": "## Create Key Takeaways with Intro, bullet points, and Outro\n\nBrings in hidden insights if applicable which will drive the outline and main body content.",
+        "height": 600,
+        "width": 600
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3008,
+        -128
+      ],
+      "id": "d0e3eba6-7a33-4c53-9e47-5362209b4140",
+      "name": "Sticky Note30"
+    },
+    {
+      "parameters": {
+        "content": "## Create Engaging Introduction\n",
+        "height": 600,
+        "width": 600
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3632,
+        -128
+      ],
+      "id": "fd4184b4-10f3-454e-9f39-b3e8c4f81524",
+      "name": "Sticky Note32"
+    },
+    {
+      "parameters": {
+        "content": "## Create Outline\n\n",
+        "height": 540,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        528
+      ],
+      "id": "36fa851f-791a-4eba-b26b-e3dc6e663126",
+      "name": "Sticky Note33"
+    },
+    {
+      "parameters": {
+        "content": "## Create Main Body Prompt\n",
+        "height": 540,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        528
+      ],
+      "id": "76c67af0-bc3e-4c49-b8a8-fc38d1835124",
+      "name": "Sticky Note34"
+    },
+    {
+      "parameters": {
+        "content": "## Write Main Body\n",
+        "height": 540,
+        "width": 600
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        528
+      ],
+      "id": "e0db15a9-9efb-4cc1-aa6f-17212fba50ae",
+      "name": "Sticky Note35"
+    },
+    {
+      "parameters": {
+        "content": "## Write Conclusion\n",
+        "height": 540,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        544
+      ],
+      "id": "30a1f864-f436-4105-a153-ac402c34898d",
+      "name": "Sticky Note36"
+    },
+    {
+      "parameters": {
+        "content": "## Assemble Entire Article\n",
+        "height": 540,
+        "width": 380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        528
+      ],
+      "id": "e7a4f04e-f94d-411e-8484-272d184d46fc",
+      "name": "Sticky Note37"
+    },
+    {
+      "parameters": {
+        "content": "## Perform Final Editor and Quality Check",
+        "height": 540,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3280,
+        528
+      ],
+      "id": "943ac7c7-5e08-4fb5-8e17-d56de75a9aec",
+      "name": "Sticky Note38"
+    },
+    {
+      "parameters": {
+        "operation": "update"
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        2896,
+        1296
+      ],
+      "id": "8a6770e8-414d-49c8-9508-b4cbda7a67d4",
+      "name": "Update Data",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $json.body.databaseId }}",
+        "tableId": "={{ $json.tableId }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.baserowTool",
+      "typeVersion": 1,
+      "position": [
+        3664,
+        368
+      ],
+      "id": "debd10c0-e4ae-47b1-bac3-08ec3fe3a277",
+      "name": "Get Existing Brand Assets1",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $json.body.databaseId }}",
+        "tableId": "={{ $json.tableId }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.baserowTool",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        992
+      ],
+      "id": "8f3cd982-2c87-4234-962e-8fe03f845a35",
+      "name": "Get Existing Brand Assets2",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $json.body.databaseId }}",
+        "tableId": "={{ $json.tableId }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.baserowTool",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        1008
+      ],
+      "id": "ff2f18b5-b2a6-4c37-959c-d292d5a1ac62",
+      "name": "Get Existing Brand Assets3",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $json.body.databaseId }}",
+        "tableId": "={{ $json.tableId }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.baserowTool",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        1104
+      ],
+      "id": "8d9af867-b6af-439d-972e-1ff2c6593dc0",
+      "name": "Get Existing Brand Assets4",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": "={{ $json.body.databaseId }}",
+        "tableId": "={{ $json.tableId }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.baserowTool",
+      "typeVersion": 1,
+      "position": [
+        4080,
+        1152
+      ],
+      "id": "dbb261fc-8e0d-41c5-b068-96a9836f6592",
+      "name": "Get Existing Brand Assets5",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Keyword Ideas",
+        "method": "POST",
+        "url": "https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\n  \"keyword\": \"{{ $json.focusedKeywords }}\",\n  \"location_name\": \"South Africa\", \n  \"language_name\": \"English\",\n  \"include_serp_info\": true,\n  \"include_seed_keyword\": false,\n  \"limit\": 10,\n  \"ignore_synonyms\": true\n}]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        2048,
+        384
+      ],
+      "id": "72657be7-7dd0-45f9-b6e0-cbb030cedef9",
+      "name": "HTTP Keyword Ideas1",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "M2OpPQwUvIdk4VDt",
+          "name": "DataforSEO Basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Related Keywords",
+        "method": "POST",
+        "url": "https://api.dataforseo.com/v3/dataforseo_labs/google/related_keywords/live",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\n  \"keyword\": \"{{ $json.focusedKeywords }}\",\n  \"location_name\": \"South Africa\",\n  \"language_name\": \"English\",\n  \"include_serp_info\": true,\n  \"include_seed_keyword\": true,\n  \"limit\": 10,\n  \"depth\": 2\n}]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1872,
+        384
+      ],
+      "id": "35f672f5-f478-48b7-819c-ee1d37436306",
+      "name": "HTTP Related Keywords",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "M2OpPQwUvIdk4VDt",
+          "name": "DataforSEO Basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "SERPs",
+        "method": "POST",
+        "url": "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\n  \"keyword\": \"{{ $json.focusedKeywords }}\",\n  \"location_name\": \"South Africa\",\n  \"language_name\": \"English\",\n  \"depth\": 10\n}]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        384
+      ],
+      "id": "f2c55e2c-514d-4858-a73a-1a8c6c757cf4",
+      "name": "HTTP SERPs",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "M2OpPQwUvIdk4VDt",
+          "name": "DataforSEO Basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Generate Meta Tags",
+        "method": "POST",
+        "url": "https://api.dataforseo.com/v3/content_generation/generate_meta_tags/live",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\n  \"content\": \"{{ $json.focusedKeywords }}\",\n  \"language_name\": \"English\"\n}]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1584,
+        384
+      ],
+      "id": "92d80861-7bb5-4ed6-a38a-6d4bc0a4b41b",
+      "name": "Generate Meta Tags",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "M2OpPQwUvIdk4VDt",
+          "name": "DataforSEO Basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Generate Subtopics",
+        "method": "POST",
+        "url": "https://api.dataforseo.com/v3/content_generation/generate_subtopics/live",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[{\n  \"topic\": \"{{ $json.focusedKeywords }}\",\n  \"language_name\": \"English\",\n  \"creativity_index\": 0.8\n}]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        2208,
+        384
+      ],
+      "id": "61ee15ac-d642-4ef9-b6c3-b22935795c60",
+      "name": "Generate Subtopics",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "M2OpPQwUvIdk4VDt",
+          "name": "DataforSEO Basic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": "={{ $json.baserowDatabaseId }}",
+        "tableId": "={{ $json.blogPostsTableId }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "11886",
+              "fieldValue": "={{ $json.blogTopic }}"
+            },
+            {
+              "fieldId": "11893", 
+              "fieldValue": "Draft"
+            },
+            {
+              "fieldId": "11891",
+              "fieldValue": "={{ $json.focusedKeywords }}"
+            },
+            {
+              "fieldId": "11897",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -992,
+        128
+      ],
+      "id": "3ca52e0c-9c9a-4040-8567-01ece2b16c43",
+      "name": "Create Blog Post",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": "={{ $('Blog Info').item.json.baserowDatabaseId }}",
+        "tableId": "={{ $('Blog Info').item.json.keywordResearchTableId }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "11923",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keywords.primary_keyword }}"
+            },
+            {
+              "fieldId": "11924",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.search_volume }}"
+            },
+            {
+              "fieldId": "11925",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.keyword_difficulty }}"
+            },
+            {
+              "fieldId": "11926",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).search_intent }}"
+            },
+            {
+              "fieldId": "11927",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.cpc }}"
+            },
+            {
+              "fieldId": "11928",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.competition_level }}"
+            },
+            {
+              "fieldId": "11929",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.related_keywords }}"
+            },
+            {
+              "fieldId": "11930",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.serp_features }}"
+            },
+            {
+              "fieldId": "11931",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.opportunity_score }}"
+            },
+            {
+              "fieldId": "11932",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            },
+            {
+              "fieldId": "11933",
+              "fieldValue": "={{ JSON.parse($json.output.substring($json.output.indexOf('{'), $json.output.lastIndexOf('}') + 1)).keyword_research_data.is_selected || false }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        96
+      ],
+      "id": "0ec3f3e5-b789-4fdc-8f45-f69d3d6da428",
+      "name": "Create Keyword Research",
+      "credentials": {
+        "baserowApi": {
+          "id": "naYCtMuym8ZQ75kw",
+          "name": "Baserow account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Webhook Data": {
+      "main": [
+        [
+          {
+            "node": "Create Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean URL Content2": {
+      "main": [
+        [
+          {
+            "node": "Blog Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract HTML Content2": {
+      "main": [
+        [
+          {
+            "node": "Clean URL Content2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch URL Content2": {
+      "main": [
+        [
+          {
+            "node": "Extract HTML Content2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL Processor2": {
+      "main": [
+        [
+          {
+            "node": "Fetch URL Content2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Idea Processor2": {
+      "main": [
+        [
+          {
+            "node": "Blog Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Type Router2": {
+      "main": [
+        [
+          {
+            "node": "Text Idea Processor2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Voice Note Processor2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "URL Processor2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Voice Transcription2": {
+      "main": [
+        [
+          {
+            "node": "Blog Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Voice with Whisper3": {
+      "main": [
+        [
+          {
+            "node": "Process Voice Transcription2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Voice File2": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Voice with Whisper3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice Note Processor2": {
+      "main": [
+        [
+          {
+            "node": "Download Voice File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blog Info": {
+      "main": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set KWs and Insights fields": {
+      "main": [
+        [
+          {
+            "node": "Refine the Title",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refine the Title": {
+      "main": [
+        [
+          {
+            "node": "Sets New Title Field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Key Takeaways": {
+      "main": [
+        [
+          {
+            "node": "Introduction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Key Takeaways AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Key Takeaways",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Introduction Field": {
+      "main": [
+        [
+          {
+            "node": "Outline Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outline Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Outline Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Outline Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Outline Fields": {
+      "main": [
+        [
+          {
+            "node": "Main Body Prompt Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Writer Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Introduction Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Introduction Field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Conclusion Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article Assembly Agent": {
+      "main": [
+        [
+          {
+            "node": "Final Edit Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Article Assembly Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SERPs, Writing, KWs, Insights": {
+      "main": [
+        [
+          {
+            "node": "Create Keyword Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sets New Title Field": {
+      "main": [
+        [
+          {
+            "node": "Key Takeaways AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open AI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Refine the Title",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Key Takeaways": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Key Takeaways AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Introduction Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Body Prompt Writer": {
+      "main": [
+        [
+          {
+            "node": "Content Writer Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Main Body Prompt Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Conclusion Writer": {
+      "main": [
+        [
+          {
+            "node": "Set Conclusion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Conclusion": {
+      "main": [
+        [
+          {
+            "node": "Article Assembly Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Final Edit Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Content Writer Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Edit Agent": {
+      "main": [
+        [
+          {
+            "node": "Final Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Article": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Meta Description": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Image Prompt": {
+      "main": [
+        [
+          {
+            "node": "Add Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Meta": {
+      "main": [
+        [
+          {
+            "node": "Add Meta Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Image Prompt": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Update Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Conclusion Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Brand Assets1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Key Takeaways AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Brand Assets2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Outline Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Brand Assets3": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Body Prompt Writer",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Brand Assets4": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Conclusion Writer",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Brand Assets5": {
+      "ai_tool": [
+        [
+          {
+            "node": "Article Assembly Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Final Edit Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Keyword Ideas1": {
+      "ai_tool": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Related Keywords": {
+      "ai_tool": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP SERPs": {
+      "ai_tool": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Meta Tags": {
+      "ai_tool": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Subtopics": {
+      "ai_tool": [
+        [
+          {
+            "node": "SERPs, Writing, KWs, Insights",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Content Type Router2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Keyword Research": {
+      "main": [
+        [
+          {
+            "node": "Set KWs and Insights fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "n8n.aiautomata.co.za",
+          "user-agent": "node",
+          "content-length": "3711",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "accept-language": "*",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "165.73.28.159",
+          "cf-ipcountry": "ZA",
+          "cf-ray": "984ff9425fa573f9-JNB",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "content-type": "application/json",
+          "sec-fetch-mode": "cors",
+          "x-forwarded-for": "172.68.42.196",
+          "x-forwarded-host": "n8n.aiautomata.co.za",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "76d7d2696ec9",
+          "x-real-ip": "172.68.42.196"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "clientId": "ebi",
+          "baserowToken": "SXe0k6Btm7i28uZP5mp8hr5KPBoWsiE1",
+          "baserowDatabaseId": 229,
+          "blogRequestsTableId": 1006,
+          "blogPostsTableId": 1005,
+          "keywordResearchTableId": 1007,
+          "fieldMappings": {
+            "contentIdeas": {
+              "contentidea": 11780,
+              "ideatype": 11781,
+              "description": 11782,
+              "information_source": 11783,
+              "sourceurl": 11784,
+              "targetaudience": 11785,
+              "priority": 11786,
+              "status": 11787,
+              "duedate": 11788,
+              "clientnotes": 11789,
+              "voicefileurl": 11790,
+              "platforms": 11791,
+              "post_type": 11792,
+              "number_of_posts": 11793,
+              "hook_focus": 11794,
+              "cta": 11795,
+              "uploaded_image_url": 11796,
+              "uploaded_video_url": 11797,
+              "sourcecontent": 11798,
+              "socialmediacontent": 11799,
+              "contentstrategy": 11801,
+              "contenttypestrategy": 11802,
+              "primaryobjectiveoptions": 11803
+            },
+            "socialMediaContent": {
+              "contenttype": 11804,
+              "status": 11805,
+              "platform": 11806,
+              "angle": 11807,
+              "intent": 11808,
+              "scheduledtime": 11809,
+              "hook": 11810,
+              "post": 11811,
+              "comments": 11812,
+              "cta": 11813,
+              "hashtags": 11814,
+              "charactercount": 11815,
+              "engagementprediction": 11816,
+              "updated_at": 11817,
+              "contentidea": 11818,
+              "contenttheme": 11820,
+              "psychologicaltrigger": 11821,
+              "engagementobjective": 11822,
+              "images": 11823
+            },
+            "images": {
+              "image": 11825,
+              "imageprompt": 11826,
+              "imagetype": 11827,
+              "imagescene": 11828,
+              "imagestyle": 11829,
+              "imagemodel": 11830,
+              "imagesize": 11831,
+              "imagestatus": 11832,
+              "referenceimage": 11833,
+              "referenceurl": 11834,
+              "captiontext": 11835,
+              "captionfontstyle": 11836,
+              "captionfontsize": 11837,
+              "captionposition": 11838,
+              "client_id": 11839,
+              "created_at": 11840,
+              "accepted_at": 11841,
+              "emailideas": 11842,
+              "emailimages": 11844,
+              "imagelinkurl": 11845,
+              "voicenote": 11846
+            },
+            "brandAssets": {
+              "platform": 11847,
+              "contenttype": 11848,
+              "assettype": 11849,
+              "assetinformation": 11850,
+              "file": 11851,
+              "fileurl": 11852,
+              "status": 11853,
+              "priority": 11854,
+              "createddate": 11855,
+              "lastupdated": 11856,
+              "assetnotes": 11857,
+              "brandvoiceguidelines": 11858,
+              "approvedhashtags": 11859,
+              "tone/stylepreferences": 11860,
+              "forbiddenwords/topics": 11861,
+              "platform-specificrules": 11862,
+              "assetname": 11863
+            },
+            "emailIdeas": {
+              "emailideaname": 11864,
+              "emailtype": 11865,
+              "hook": 11866,
+              "cta": 11867,
+              "emailtextidea": 11868,
+              "emailurlidea": 11869,
+              "emailvideoidea": 11870,
+              "emailimageidea": 11871,
+              "status": 11872,
+              "lastmodified": 11873,
+              "createddate": 11874,
+              "templates": 11875,
+              "generatedhtml": 11877
+            },
+            "templates": {
+              "templatename": 11878,
+              "templatetype": 11879,
+              "templatecategory": 11880,
+              "htmltemplate": 11881,
+              "cssstyles": 11882,
+              "isactive": 11883,
+              "lastmodified": 11884,
+              "createddate": 11885
+            },
+            "blogPosts": {
+              "title": 11886,
+              "slug": 11887,
+              "content": 11888,
+              "meta_title": 11889,
+              "meta_description": 11890,
+              "focus_keyword": 11891,
+              "secondary_keywords": 11892,
+              "status": 11893,
+              "seo_score": 11894,
+              "word_count": 11895,
+              "readability_score": 11896,
+              "created_at": 11897,
+              "updated_at": 11898,
+              "scheduled_publish_date": 11899,
+              "author_id": 11900,
+              "featured_image_prompt": 11901,
+              "alt_texts": 11902,
+              "internal_links": 11903,
+              "external_sources": 11904,
+              "category": 11905,
+              "tags": 11906,
+              "processing_log": 11907
+            },
+            "blogRequests": {
+              "input_type": 11908,
+              "original_content": 11909,
+              "processed_content": 11910,
+              "submission_timestamp": 11911,
+              "status": 11912,
+              "workflow_execution_id": 11913,
+              "selected_keyword": 11914,
+              "keyword_data": 11915,
+              "content_length": 11916,
+              "error_message": 11917,
+              "completion_timestamp": 11918,
+              "blog_post_id": 11919
+            },
+            "keywordResearch": {
+              "blog_request_id": 11921,
+              "keyword": 11923,
+              "search_volume": 11924,
+              "keyword_difficulty": 11925,
+              "search_intent": 11926,
+              "cpc": 11927,
+              "competition_level": 11928,
+              "related_keywords": 11929,
+              "serp_features": 11930,
+              "opportunity_score": 11931,
+              "research_timestamp": 11932,
+              "is_selected": 11933
+            }
+          },
+          "blogTopic": "blog test",
+          "inputType": "Text",
+          "focusedKeywords": "keyword",
+          "contentGoal": "Drive Traffic",
+          "additionalContext": "additional",
+          "content": "",
+          "hasVoiceNote": false,
+          "voiceNoteFileName": null,
+          "voiceNoteFileSize": null,
+          "voiceNoteFileType": null,
+          "blogRequestId": 5,
+          "timestamp": "2025-09-26T04:21:18.226Z",
+          "status": "processing"
+        },
+        "webhookUrl": "https://n8n.aiautomata.co.za/webhook/blog-creation-mvp",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15a60e08082ab352e35a507877bcd1434fb079a9fcbac992f93eb2b8909136d7"
+  }
+}
