@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, FileText, Image, Video, Mail, Lightbulb, Users, Settings } from 'lucide-react'
+import NextImage from 'next/image'
 
 export default function Home() {
   const router = useRouter()
@@ -51,10 +52,16 @@ export default function Home() {
       {/* Header */}
       <header className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
+          <div className="flex items-center space-x-3">
+            <NextImage 
+              src="/aida-logo.webp" 
+              alt="AiDa Logo" 
+              width={120} 
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
+            <div className="h-8 w-px bg-gray-300"></div>
             <h1 className="text-2xl font-bold text-gray-900">Content Engine</h1>
           </div>
           <Button onClick={handleGetStarted} className="bg-blue-600 hover:bg-blue-700">
