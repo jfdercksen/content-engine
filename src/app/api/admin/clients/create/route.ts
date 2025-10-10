@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { STANDARD_TABLE_TEMPLATES, STANDARD_FIELD_MAPPINGS } from '@/lib/types/client'
 import { DynamicClientConfig } from '@/lib/config/dynamicClients'
+import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 import { EnvironmentManager } from '@/lib/config/environmentManager'
 
 export async function POST(request: NextRequest) {
@@ -12,6 +13,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: clientName, displayName' },
         { status: 400 }
+      )
+    }
+
+    // Check if client already exists (check database first, then file)
+    let existingClient = await DatabaseClientConfig.clientExists(clientName)
+    
+    if (!existingClient) {
+      // Also check file-based config
+      await DynamicClientConfig.initialize()
+      existingClient = DynamicClientConfig.getClient(clientName) !== null
+    }
+    
+    if (existingClient) {
+      console.log(`⚠️ Client already exists: ${clientName}`)
+      return NextResponse.json(
+        { error: `Client "${clientName}" already exists. Please use a different client name.` },
+        { status: 409 }
       )
     }
 
@@ -1040,10 +1058,34 @@ async function storeClientConfiguration(clientConfig: any) {
   try {
     console.log('Storing client configuration...')
     
-    // Store in dynamic client configuration system
-    await DynamicClientConfig.addClient(clientConfig)
+    let dbSuccess = false
+    let fileSuccess = false
     
-    console.log('Client configuration stored successfully')
+    // Try to store in database first (production)
+    try {
+      await DatabaseClientConfig.addClient(clientConfig)
+      dbSuccess = true
+      console.log('✅ Stored in Baserow database')
+    } catch (dbError) {
+      console.log('⚠️ Could not store in database:', dbError instanceof Error ? dbError.message : 'Unknown error')
+      console.log('This may be due to permissions on Client Configurations table')
+    }
+    
+    // Try to store in file system (development)
+    try {
+      await DynamicClientConfig.addClient(clientConfig)
+      fileSuccess = true
+      console.log('✅ Stored in local clients.json')
+    } catch (fileError) {
+      console.log('⚠️ Could not write to clients.json (expected in production - read-only file system)')
+    }
+    
+    // At least one must succeed
+    if (!dbSuccess && !fileSuccess) {
+      throw new Error('Failed to store client configuration in both database and file system')
+    }
+    
+    console.log(`Client configuration stored successfully (database: ${dbSuccess}, file: ${fileSuccess})`)
     return true
   } catch (error) {
     console.error('Error storing client configuration:', error)

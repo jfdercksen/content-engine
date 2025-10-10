@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { DynamicClientConfig } from '@/lib/config/dynamicClients'
+import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 
 export async function GET(
   request: Request,
@@ -8,9 +9,15 @@ export async function GET(
   try {
     const { clientId } = await params
     
-    // Initialize and get client config
-    await DynamicClientConfig.initialize()
-    const clientConfig = DynamicClientConfig.getClientConfig(clientId)
+    // Try to get client config from database first (production)
+    let clientConfig = await DatabaseClientConfig.getClient(clientId)
+    
+    // Fallback to file-based config (development)
+    if (!clientConfig) {
+      console.log('⚠️ Client not found in database, trying file-based config')
+      await DynamicClientConfig.initialize()
+      clientConfig = DynamicClientConfig.getClientConfig(clientId)
+    }
     
     if (!clientConfig) {
       return NextResponse.json({

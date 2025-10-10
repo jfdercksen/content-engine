@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DynamicClientConfig } from '@/lib/config/dynamicClients'
+import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 import { BaserowAPI } from '@/lib/baserow/api'
 import { EnvironmentManager } from '@/lib/config/environmentManager'
 import fs from 'fs'
@@ -7,11 +8,15 @@ import path from 'path'
 
 export async function GET() {
   try {
-    // Initialize and load from file if needed
-    await DynamicClientConfig.initialize()
+    // Get all clients from database (production) or file (development)
+    let clients = await DatabaseClientConfig.getAllClients()
     
-    // Get all clients from the dynamic client configuration
-    const clients = DynamicClientConfig.getAllClients()
+    // Fallback to file-based config if database is empty (development)
+    if (clients.length === 0) {
+      console.log('⚠️ No clients in database, falling back to file-based config')
+      await DynamicClientConfig.initialize()
+      clients = DynamicClientConfig.getAllClients()
+    }
     
     // Transform the data to match the expected format
     const formattedClients = clients.map(client => ({
@@ -66,11 +71,15 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`🗑️ Starting deletion process for client: ${clientId}`)
 
-    // Initialize and load from file if needed
-    await DynamicClientConfig.initialize()
+    // Get client configuration before deletion (try database first)
+    let client = await DatabaseClientConfig.getClient(clientId)
     
-    // Get client configuration before deletion
-    const client = DynamicClientConfig.getClient(clientId)
+    // Fallback to file-based config if not in database
+    if (!client) {
+      await DynamicClientConfig.initialize()
+      client = DynamicClientConfig.getClient(clientId)
+    }
+    
     if (!client) {
       return NextResponse.json(
         { success: false, error: 'Client not found' },
@@ -107,15 +116,20 @@ export async function DELETE(request: NextRequest) {
       // Continue with app cleanup even if Baserow deletion fails
     }
 
-    // Step 2: Remove client from dynamic configuration
-    console.log(`📝 Removing client from app configuration`)
-    const deleteResult = DynamicClientConfig.deleteClient(clientId)
+    // Step 2: Remove client from database configuration
+    console.log(`📝 Removing client from database configuration`)
+    const dbDeleteResult = await DatabaseClientConfig.deleteClient(clientId)
     
-    if (!deleteResult) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete client from configuration' },
-        { status: 500 }
-      )
+    // Also try to delete from file-based config (development)
+    try {
+      DynamicClientConfig.deleteClient(clientId)
+      console.log(`✅ Also removed from local clients.json`)
+    } catch (fileError) {
+      console.log(`⚠️ Could not remove from clients.json (expected in production)`)
+    }
+    
+    if (!dbDeleteResult) {
+      console.log(`⚠️ Client not found in database, but continuing with cleanup`)
     }
 
     // Step 3: Remove environment variables (database in production, .env.local in development)
