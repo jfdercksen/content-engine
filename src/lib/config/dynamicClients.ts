@@ -103,6 +103,15 @@ async function saveClientConfigurations(): Promise<void> {
 // Default configurations will be loaded during initialization
 
 export class DynamicClientConfig {
+  private static instance: DynamicClientConfig
+
+  static getInstance(): DynamicClientConfig {
+    if (!DynamicClientConfig.instance) {
+      DynamicClientConfig.instance = new DynamicClientConfig()
+    }
+    return DynamicClientConfig.instance
+  }
+
   static get isInitialized(): boolean {
     return isInitialized
   }

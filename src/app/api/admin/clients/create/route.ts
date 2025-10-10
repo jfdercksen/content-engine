@@ -79,6 +79,34 @@ export async function POST(request: NextRequest) {
       await storeEnvironmentVariables(clientName, clientConfig)
       console.log('Environment variables stored successfully')
       
+      // Step 9: Initialize default settings and preferences
+      console.log('Step 9: Initializing default settings...')
+      try {
+        const settingsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/settings/${clientName}/initialize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            webhooks: {
+              social_media_processor: process.env.WEBHOOK_SOCIAL_MEDIA_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/social-media-processor',
+              image_generator: process.env.WEBHOOK_IMAGE_GENERATOR || 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
+              blog_processor: process.env.WEBHOOK_BLOG_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
+              email_processor: process.env.WEBHOOK_EMAIL_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/email-processor',
+              uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+            }
+          })
+        })
+        if (settingsResponse.ok) {
+          console.log('✅ Default settings initialized successfully')
+        } else {
+          console.log('⚠️ Failed to initialize settings, but client creation will continue')
+        }
+      } catch (settingsError) {
+        console.log('⚠️ Settings initialization failed:', settingsError)
+        console.log('Client created successfully, but settings need to be configured manually')
+      }
+      
     } catch (error) {
       console.error('Error during client creation, initiating rollback...', error)
       

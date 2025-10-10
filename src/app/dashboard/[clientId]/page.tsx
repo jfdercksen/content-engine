@@ -95,7 +95,7 @@ export default function DashboardPage() {
             description: 'Configure system preferences and integrations',
             icon: Settings,
             color: 'bg-gray-500',
-            available: false,
+            available: true,
             route: `/dashboard/${clientId}/settings`
         }
     ]

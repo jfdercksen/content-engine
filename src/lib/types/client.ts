@@ -13,6 +13,16 @@ export interface ClientConfiguration {
     templates: string
   }
   fieldMappings: Record<string, string>
+  branding?: {
+    primaryColor?: string
+    secondaryColor?: string
+    description?: string
+    websiteUrl?: string
+    contactEmail?: string
+    targetAudience?: string
+    brandVoice?: string
+    contentGuidelines?: string
+  }
   isActive: boolean
   createdAt: Date
   updatedAt: Date
