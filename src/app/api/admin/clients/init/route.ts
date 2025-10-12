@@ -40,18 +40,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create initial client information record
-    // Note: For select fields, we need to match exact Baserow option text or leave empty
+    // Create initial client information record with MINIMAL fields only
+    // We'll add more fields in Steps 2-5 via updates
     const success = await ClientInformationManager.createClientInfo({
       clientId,
       companyName,
       displayName: companyName,
-      industry: industry || '',
-      companySize: '', // Leave empty for now - will be set in update if needed
+      // Only send non-empty, non-select fields
       foundedYear: foundedYear || null,
       websiteUrl: websiteUrl || '',
-      onboardingStatus: 'Step 1 Complete',
-      // Empty fields for now - will be filled in later steps
+      timezone: 'UTC',
+      primaryBrandColor: '#3B82F6',
+      secondaryBrandColor: '#10B981',
+      // All other fields left undefined - won't be sent to Baserow
+      industry: '',
+      companySize: '',
       blogUrl: '',
       facebookUrl: '',
       instagramHandle: '',
@@ -60,7 +63,6 @@ export async function POST(request: NextRequest) {
       tiktokHandle: '',
       country: '',
       city: '',
-      timezone: 'UTC',
       primaryContactName: '',
       primaryContactEmail: '',
       primaryContactPhone: '',
@@ -70,8 +72,7 @@ export async function POST(request: NextRequest) {
       brandVoice: '',
       postingFrequency: '',
       languages: '',
-      primaryBrandColor: '#3B82F6',
-      secondaryBrandColor: '#10B981',
+      onboardingStatus: '', // Don't set this - it's a select field
       accountManager: '',
       monthlyBudget: null
     })
