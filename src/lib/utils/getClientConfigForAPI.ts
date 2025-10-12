@@ -1,4 +1,5 @@
 import { DynamicClientConfig } from '@/lib/config/dynamicClients'
+import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 
 interface ClientConfigForAPI {
   id: string
@@ -41,9 +42,15 @@ interface ClientConfigForAPI {
 
 export async function getClientConfigForAPI(clientId: string): Promise<ClientConfigForAPI | null> {
   try {
-    // Initialize and get client config from new system
-    await DynamicClientConfig.initialize()
-    const clientConfig = DynamicClientConfig.getClientConfig(clientId)
+    // Try to get client config from database first (production)
+    let clientConfig = await DatabaseClientConfig.getClient(clientId)
+    
+    // Fallback to file-based config (development)
+    if (!clientConfig) {
+      console.log(`Client not in database, trying file-based config for: ${clientId}`)
+      await DynamicClientConfig.initialize()
+      clientConfig = DynamicClientConfig.getClientConfig(clientId)
+    }
     
     if (!clientConfig) {
       console.log(`Client config not found for: ${clientId}`)
