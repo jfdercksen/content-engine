@@ -222,7 +222,7 @@ export default function ContentIdeasTable({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {contentIdeas.map((idea) => (
-        <Card key={idea.id} className="hover:shadow-md transition-shadow">
+        <Card key={idea.id} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -313,35 +313,33 @@ export default function ContentIdeasTable({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <div className="flex items-center gap-1">
-                    {onViewIdea && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCardClick(idea)}
-                        className="h-8 px-2"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View Posts
-                      </Button>
-                    )}
-                    
-                    {onViewBrandAssets && idea.brandAssetsCount && idea.brandAssetsCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onViewBrandAssets(idea.id)
-                        }}
-                        className="h-8 px-2"
-                      >
-                        <Palette className="h-3 w-3 mr-1" />
-                        Assets
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex gap-2 pt-2 border-t opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onViewIdea && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCardClick(idea)}
+                      className="flex-1"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                  )}
+                  
+                  {onViewSocialContent && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onViewSocialContent(idea.id)
+                      }}
+                      className="flex-1"
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Posts
+                    </Button>
+                  )}
 
                   {onRegenerateContent && (
                     <Button
@@ -351,11 +349,11 @@ export default function ContentIdeasTable({
                         e.stopPropagation()
                         onRegenerateContent(idea.id)
                       }}
-                      className="h-8 px-2"
+                      className="flex-1"
                       disabled={idea.generationStatus === 'processing'}
                     >
                       <TrendingUp className="h-3 w-3 mr-1" />
-                      {idea.generationStatus === 'processing' ? 'Generating...' : 'Generate'}
+                      {idea.generationStatus === 'processing' ? '...' : 'Gen'}
                     </Button>
                   )}
                 </div>
