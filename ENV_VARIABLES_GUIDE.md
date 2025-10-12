@@ -15,6 +15,9 @@ Add these variables in **Vercel Project Settings > Environment Variables**
 ```bash
 # Main Baserow API URL
 BASEROW_API_URL=https://baserow.aiautomata.co.za
+BASEROW_USERNAME=johan@aiautomations.co.za
+BASEROW_PASSWORD=P@ssw0rd.123
+
 
 # Modern Management Token (Primary Client)
 BASEROW_MODERN_MANAGEMENT_TOKEN=SXe0k6Btm7i28uZP5mp8hr5KPBoWsiE1
@@ -54,7 +57,7 @@ WEBHOOK_ONBOARDING=https://n8n.aiautomata.co.za/webhook/onboarding
 
 ```bash
 # App URL (for internal API calls)
-NEXT_PUBLIC_APP_URL=https://your-app-url.vercel.app
+NEXT_PUBLIC_APP_URL=https://content-engine-xi.vercel.app
 
 # Node Environment (auto-set by Vercel)
 NODE_ENV=production

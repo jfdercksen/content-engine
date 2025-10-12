@@ -52,8 +52,7 @@ OPTIONAL BUT RECOMMENDED (for Modern Management fallback)
     Value: 176
 
 13. NEXT_PUBLIC_APP_URL
-    Value: https://content-engine-3yep6vgjc-content-engines-projects.vercel.app
-    (Update this with your actual Vercel URL)
+    Value: https://content-engine-xi.vercel.app
 
 ================================================================================
 NOTES

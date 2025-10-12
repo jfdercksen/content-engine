@@ -52,12 +52,12 @@ Vercel will automatically deploy your main branch.
 ## Step 4: Post-Deployment Testing
 
 ### Test 1: Homepage
-Visit: `https://your-app.vercel.app`
+Visit: `https://content-engine-xi.vercel.app`
 - ✅ Should show homepage with AiDa logo
 - ✅ No errors in browser console
 
 ### Test 2: Create a Test Client
-1. Go to: `https://your-app.vercel.app/admin/clients`
+1. Go to: `https://content-engine-xi.vercel.app/admin/clients`
 2. Click "Create New Client"
 3. Fill in the onboarding form
 4. Submit
@@ -71,7 +71,7 @@ Visit: `https://your-app.vercel.app`
 - ✅ No errors in Vercel logs
 
 ### Test 3: Access Client Dashboard
-Visit: `https://your-app.vercel.app/dashboard/{client_id}`
+Visit: `https://content-engine-xi.vercel.app/dashboard/{client_id}`
 - ✅ Dashboard loads with all cards
 - ✅ Can navigate to each section
 - ✅ Cards and tables display properly
