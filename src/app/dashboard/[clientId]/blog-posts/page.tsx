@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BlogPostCard } from '@/components/cards/BlogPostCard'
+import { ViewToggle } from '@/components/ui/view-toggle'
 import { 
   Plus, 
   Search, 
@@ -51,6 +53,7 @@ export default function BlogPostsPage() {
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [filters, setFilters] = useState<BlogPostFilters>({
     status: 'all',
     category: 'all'
@@ -270,6 +273,7 @@ export default function BlogPostsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <ViewToggle view={viewMode} onViewChange={setViewMode} />
             </div>
           </div>
         </CardContent>
@@ -305,6 +309,17 @@ export default function BlogPostsPage() {
             )}
           </CardContent>
         </Card>
+      ) : viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredBlogPosts.map((post) => (
+            <BlogPostCard
+              key={post.id}
+              post={post}
+              onView={(id) => router.push(`/dashboard/${clientId}/blog-posts/${id}`)}
+              onEdit={(id) => router.push(`/dashboard/${clientId}/blog-posts/${id}`)}
+            />
+          ))}
+        </div>
       ) : (
         <div className="grid gap-4">
           {filteredBlogPosts.map((post) => (

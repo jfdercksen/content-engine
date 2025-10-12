@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EmailIdea, EMAIL_TYPES, EMAIL_STATUS } from '@/lib/types/content'
 import EmailIdeaForm from '@/components/forms/EmailIdeaForm'
 import EmailPreviewModal from '@/components/modals/EmailPreviewModal'
+import { EmailIdeaCard } from '@/components/cards/EmailIdeaCard'
+import { ViewToggle } from '@/components/ui/view-toggle'
 
 export default function EmailIdeasPage() {
   const params = useParams()
@@ -26,6 +28,7 @@ export default function EmailIdeasPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingEmailIdea, setEditingEmailIdea] = useState<EmailIdea | null>(null)
   const [previewingEmailIdea, setPreviewingEmailIdea] = useState<EmailIdea | null>(null)
@@ -306,6 +309,7 @@ export default function EmailIdeasPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <ViewToggle view={viewMode} onViewChange={setViewMode} />
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by type" />
@@ -349,6 +353,26 @@ export default function EmailIdeasPage() {
                     Create Email Idea
                   </Button>
                 )}
+              </div>
+            ) : viewMode === 'cards' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredEmailIdeas.map((idea) => (
+                  <EmailIdeaCard
+                    key={idea.id}
+                    email={{
+                      id: idea.id,
+                      emailideaname: idea.emailIdeaName,
+                      emailtype: idea.emailType,
+                      hook: idea.hook,
+                      cta: idea.cta,
+                      emailtextidea: idea.emailTextIdea,
+                      status: idea.status,
+                      createddate: idea.createdDate
+                    }}
+                    onView={() => setPreviewingEmailIdea(idea)}
+                    onEdit={() => { setEditingEmailIdea(idea); setShowCreateForm(true); }}
+                  />
+                ))}
               </div>
             ) : (
               <div className="space-y-4">

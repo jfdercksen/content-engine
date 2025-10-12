@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { useClientConfig } from '@/hooks/useClientConfig'
 import SocialMediaContentTable from '@/components/tables/SocialMediaContentTable'
 import SocialMediaContentForm from '@/components/forms/SocialMediaContentForm'
+import { SocialMediaContentCard } from '@/components/cards/SocialMediaContentCard'
+import { ViewToggle } from '@/components/ui/view-toggle'
 import ClientOnly from '@/components/ClientOnly'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +23,7 @@ export default function SocialMediaContentPage() {
   const [editingContent, setEditingContent] = useState<SocialMediaContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [filteredForIdea, setFilteredForIdea] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [stats, setStats] = useState({
     total: 0,
     byPlatform: {} as Record<string, number>,
@@ -379,24 +382,58 @@ export default function SocialMediaContentPage() {
           </Card>
         )}
 
-        {/* Social Media Content Table */}
+        {/* Social Media Content - Cards or Table View */}
         <Card>
           <CardHeader>
-            <CardTitle>All Social Media Content</CardTitle>
-            <CardDescription>
-              View, edit, and manage all your social media posts
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>All Social Media Content</CardTitle>
+                <CardDescription>
+                  View, edit, and manage all your social media posts
+                </CardDescription>
+              </div>
+              <ViewToggle view={viewMode} onViewChange={setViewMode} />
+            </div>
           </CardHeader>
           <CardContent>
-            <SocialMediaContentTable
-              socialMediaContent={socialMediaContent}
-              isLoading={isLoading}
-              onEdit={handleEditClick}
-              onView={handleViewContent}
-              onStatusUpdate={handleStatusUpdate}
-              clientPrimaryColor={clientConfig.branding.primaryColor}
-              showContentIdea={true}
-            />
+            {viewMode === 'table' ? (
+              <SocialMediaContentTable
+                socialMediaContent={socialMediaContent}
+                isLoading={isLoading}
+                onEdit={handleEditClick}
+                onView={handleViewContent}
+                onStatusUpdate={handleStatusUpdate}
+                clientPrimaryColor={clientConfig.branding.primaryColor}
+                showContentIdea={true}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isLoading ? (
+                  [...Array(6)].map((_, i) => (
+                    <div key={i} className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>
+                  ))
+                ) : socialMediaContent.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No social media content yet</h3>
+                    <p className="text-gray-600 mb-4">Create your first post to get started</p>
+                    <Button onClick={() => setShowForm(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Post
+                    </Button>
+                  </div>
+                ) : (
+                  socialMediaContent.map((content) => (
+                    <SocialMediaContentCard
+                      key={content.id}
+                      content={content}
+                      onView={handleViewContent}
+                      onEdit={handleEditClick}
+                    />
+                  ))
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
