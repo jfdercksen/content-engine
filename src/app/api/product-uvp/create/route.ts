@@ -66,16 +66,16 @@ export async function POST(request: NextRequest) {
 
     console.log('Product UVP record created in Baserow:', productUvpRecord)
 
-    // Prepare webhook payload
-    const webhookUrl = process.env.N8N_UVP_WEBHOOK_URL
+    // Get webhook URL from client settings or environment
+    const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
+    const webhookUrl = await getWebhookUrl(clientConfig.id, 'uvp_creation')
     
-    console.log('🔍 Checking webhook URL...')
-    console.log('N8N_UVP_WEBHOOK_URL from env:', webhookUrl)
-    console.log('All N8N env vars:', Object.keys(process.env).filter(key => key.includes('N8N')))
+    console.log('🔍 Checking UVP webhook URL...')
+    console.log('📡 Webhook URL:', webhookUrl || 'Not configured')
     
     if (!webhookUrl) {
       console.warn('⚠️ UVP webhook URL not configured, skipping webhook call')
-      console.warn('Available env vars:', Object.keys(process.env).filter(key => key.startsWith('N8N') || key.startsWith('BASEROW')))
+      console.warn('Please configure webhook in Settings to enable AI UVP generation')
     } else {
       const webhookPayload = {
         clientId: clientConfig.id,

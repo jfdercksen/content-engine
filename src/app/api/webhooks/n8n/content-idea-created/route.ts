@@ -135,14 +135,15 @@ export async function POST(request: NextRequest) {
     console.log('DEBUG: n8n payload record_id:', n8nPayload.record_id)
     console.log('DEBUG: n8n payload ideaId:', n8nPayload.ideaId)
 
-    // Send to n8n webhook
-    const n8nWebhookUrl = process.env.N8N_CONTENT_IDEA_WEBHOOK_URL || 'https://n8n.aiautomata.co.za/webhook/social-media-processor'
+    // Get webhook URL from client settings or environment
+    const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
+    const n8nWebhookUrl = await getWebhookUrl(clientId, 'social_media_processor')
 
     if (!n8nWebhookUrl) {
-      console.log('n8n webhook URL not configured, skipping webhook trigger')
+      console.log('⚠️ Social media webhook URL not configured, skipping webhook trigger')
       return NextResponse.json({
         success: true,
-        message: 'Content idea created, webhook not configured'
+        message: 'Content idea created, but webhook not configured. Please configure in Settings.'
       })
     }
 

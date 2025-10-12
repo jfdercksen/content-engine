@@ -229,14 +229,18 @@ export async function POST(request: NextRequest) {
       BASEROW_BASE_URL: process.env.BASEROW_BASE_URL
     })
     
-    // Use the dedicated email idea webhook URL
-    const n8nWebhookUrl = process.env.N8N_EMAIL_IDEA_WEBHOOK_URL || 'https://n8n.aiautomata.co.za/webhook/email-processor'
-    console.log('Using webhook URL:', n8nWebhookUrl)
-
+    // Get webhook URL from client settings or environment
+    const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
+    const n8nWebhookUrl = await getWebhookUrl(clientId, 'email_processor')
+    
     if (!n8nWebhookUrl) {
-      console.error('Email idea webhook URL not configured')
-      return NextResponse.json({ error: 'Email idea webhook URL not configured' }, { status: 500 })
+      console.error('❌ Email webhook URL not configured')
+      return NextResponse.json({ 
+        error: 'Email webhook URL not configured. Please configure in Settings.' 
+      }, { status: 500 })
     }
+    
+    console.log('📡 Using email webhook:', n8nWebhookUrl)
 
     console.log('Sending email idea generation request to n8n with record ID:', finalRecordId)
     console.log('Updated n8n payload:', n8nPayload)

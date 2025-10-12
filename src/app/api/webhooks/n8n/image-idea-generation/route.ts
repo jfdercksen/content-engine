@@ -189,16 +189,18 @@ export async function POST(request: NextRequest) {
       BASEROW_BASE_URL: process.env.BASEROW_BASE_URL
     })
     
-    // Use the dedicated image idea webhook URL or fallback to a general one
-    const n8nWebhookUrl = process.env.N8N_IMAGE_IDEA_WEBHOOK_URL || 
-                         process.env.N8N_CONTENT_IDEA_WEBHOOK_URL || 
-                         'https://n8n.aiautomata.co.za/webhook/image-generator-webhook'
-    console.log('Using webhook URL:', n8nWebhookUrl)
-
+    // Get webhook URL from client settings or environment
+    const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
+    const n8nWebhookUrl = await getWebhookUrl(clientId, 'image_generator')
+    
     if (!n8nWebhookUrl) {
-      console.error('Image idea webhook URL not configured')
-      return NextResponse.json({ error: 'Image idea webhook URL not configured' }, { status: 500 })
+      console.error('❌ Image webhook URL not configured')
+      return NextResponse.json({ 
+        error: 'Image webhook URL not configured. Please configure in Settings.' 
+      }, { status: 500 })
     }
+    
+    console.log('📡 Using image webhook:', n8nWebhookUrl)
 
     console.log('Sending image idea generation request to n8n with record ID:', finalRecordId)
     console.log('Updated n8n payload:', n8nPayload)
