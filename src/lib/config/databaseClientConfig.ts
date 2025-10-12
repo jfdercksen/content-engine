@@ -69,7 +69,14 @@ export class DatabaseClientConfig {
                     clients.push(config)
                     this.cache.set(config.id, config)
                 } catch (parseError) {
-                    console.error('Error parsing client config row:', parseError)
+                    console.error('❌ Error parsing client config row:', parseError)
+                    console.error('❌ Problematic row data:', JSON.stringify({
+                        id: row.id,
+                        'Client ID': row['Client ID'],
+                        'Database ID': row['Database ID'],
+                        'Token': row['Token'] ? '***set***' : '***missing***'
+                    }))
+                    // Skip this row and continue with others
                 }
             }
 
@@ -301,16 +308,27 @@ export class DatabaseClientConfig {
      * Parse a Baserow row into ClientConfiguration
      */
     private static parseBaserowRow(row: BaserowClientConfig): ClientConfiguration {
+        // Validate required fields
+        if (!row['Client ID']) {
+            throw new Error('Missing required field: Client ID')
+        }
+        if (!row['Database ID']) {
+            throw new Error(`Missing Database ID for client: ${row['Client ID']}`)
+        }
+        if (!row['Token']) {
+            throw new Error(`Missing Token for client: ${row['Client ID']}`)
+        }
+
         return {
             id: row['Client ID'],
-            name: row['Client Name'],
-            displayName: row['Display Name'],
-            baserowWorkspaceId: row['Workspace ID'],
-            baserowDatabaseId: row['Database ID'].toString(),
+            name: row['Client Name'] || row['Client ID'],
+            displayName: row['Display Name'] || row['Client Name'] || row['Client ID'],
+            baserowWorkspaceId: row['Workspace ID'] || 129,
+            baserowDatabaseId: row['Database ID']?.toString() || '',
             baserowToken: row['Token'],
             tables: JSON.parse(row['Table IDs'] || '{}'),
             fieldMappings: JSON.parse(row['Field Mappings'] || '{}'),
-            isActive: row['Is Active'],
+            isActive: row['Is Active'] !== false, // Default to true if not set
             createdAt: new Date(row['Created on']),
             updatedAt: new Date(row['Last modified'])
         }
