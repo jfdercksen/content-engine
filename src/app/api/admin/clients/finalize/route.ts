@@ -21,12 +21,16 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔄 Finalizing client setup for:', clientId)
+    
+    // Update status to in_progress
+    const configWithStatus = { ...clientConfig, finalizationStatus: 'in_progress' }
+    
     const results: any = {}
 
     // Step 7: Store client configuration in database
     try {
       console.log('Step 7: Storing client configuration...')
-      await DatabaseClientConfig.addClient(clientConfig)
+      await DatabaseClientConfig.addClient(configWithStatus)
       results.configurationSaved = true
       console.log('✅ Client configuration saved')
     } catch (error) {
@@ -145,8 +149,18 @@ export async function POST(request: NextRequest) {
                        results.clientInformationSaved && 
                        results.settingsInitialized
 
+    // Update final status
+    const finalStatus = allSuccess ? 'complete' : 'failed'
+    try {
+      await DatabaseClientConfig.updateClient(clientId, { finalizationStatus: finalStatus })
+      console.log(`✅ Finalization status updated to: ${finalStatus}`)
+    } catch (error) {
+      console.error('⚠️ Could not update finalization status:', error)
+    }
+
     return NextResponse.json({
       success: allSuccess,
+      finalizationStatus: finalStatus,
       message: allSuccess 
         ? 'Client setup finalized successfully' 
         : 'Client setup partially completed - see details',

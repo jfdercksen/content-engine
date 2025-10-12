@@ -20,6 +20,7 @@ interface BaserowClientConfig {
     'Table IDs': string // JSON string
     'Field Mappings': string // JSON string
     'Is Active': boolean
+    'Finalization Status': string
     'Created on': string
     'Last modified': string
 }
@@ -135,6 +136,7 @@ export class DatabaseClientConfig {
                         'Table IDs': JSON.stringify(config.tables),
                         'Field Mappings': JSON.stringify(config.fieldMappings || {}),
                         'Is Active': config.isActive !== false,
+                        'Finalization Status': config.finalizationStatus || 'pending',
                     }),
                 }
             )
@@ -329,6 +331,7 @@ export class DatabaseClientConfig {
             tables: JSON.parse(row['Table IDs'] || '{}'),
             fieldMappings: JSON.parse(row['Field Mappings'] || '{}'),
             isActive: row['Is Active'] !== false, // Default to true if not set
+            finalizationStatus: (row['Finalization Status'] || 'pending') as 'pending' | 'in_progress' | 'complete' | 'failed',
             createdAt: new Date(row['Created on']),
             updatedAt: new Date(row['Last modified'])
         }

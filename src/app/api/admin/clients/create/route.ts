@@ -89,116 +89,13 @@ export async function POST(request: NextRequest) {
         isActive: true,
         isMock: false, // Real JWT-based setup with workspace and dedicated token
         isWorkspaceOnly: database.isWorkspaceOnly || false, // Indicates if this client uses workspace-only approach
+        finalizationStatus: 'pending', // Steps 7-10 will run on dashboard load
         createdAt: new Date(),
         updatedAt: new Date()
       }
 
-      // Step 7: Persist client configuration
-      console.log('Step 7: Storing client configuration...')
-      await storeClientConfiguration(clientConfig)
-      console.log('Client configuration stored successfully')
-      
-      // Step 8: Store environment variables (database in production, .env.local in development)
-      console.log('Step 8: Storing environment variables...')
-      await storeEnvironmentVariables(clientName, clientConfig)
-      console.log('Environment variables stored successfully')
-      
-      // Step 9: Store client information (onboarding data)
-      if (clientInfo) {
-        console.log('Step 9: Storing client information...')
-        console.log('📋 Client info data:', JSON.stringify(clientInfo, null, 2))
-        console.log('🔧 Using environment variables:')
-        console.log('  - BASEROW_API_URL:', process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za')
-        console.log('  - BASEROW_CLIENT_INFORMATION_TABLE_ID:', process.env.BASEROW_CLIENT_INFORMATION_TABLE_ID || '3232')
-        console.log('  - BASEROW_MODERN_MANAGEMENT_TOKEN:', process.env.BASEROW_MODERN_MANAGEMENT_TOKEN ? '***set***' : '***NOT SET***')
-        console.log('  - WEBHOOK_ONBOARDING:', process.env.WEBHOOK_ONBOARDING || 'https://n8n.aiautomata.co.za/webhook/onboarding')
-        
-        try {
-          await ClientInformationManager.createClientInfo({
-            clientId: clientName,
-            companyName: clientInfo.companyName || displayName,
-            displayName: displayName,
-            industry: clientInfo.industry || '',
-            companySize: clientInfo.companySize || '',
-            foundedYear: clientInfo.foundedYear,
-            websiteUrl: clientInfo.websiteUrl,
-            blogUrl: clientInfo.blogUrl,
-            facebookUrl: clientInfo.facebookUrl,
-            instagramHandle: clientInfo.instagramHandle,
-            linkedinUrl: clientInfo.linkedinUrl,
-            xHandle: clientInfo.xHandle,
-            tiktokHandle: clientInfo.tiktokHandle,
-            country: clientInfo.country || '',
-            city: clientInfo.city,
-            timezone: clientInfo.timezone || 'UTC',
-            primaryContactName: clientInfo.primaryContactName,
-            primaryContactEmail: clientInfo.primaryContactEmail,
-            primaryContactPhone: clientInfo.primaryContactPhone,
-            targetAudience: clientInfo.targetAudience,
-            mainCompetitors: clientInfo.mainCompetitors,
-            businessGoals: clientInfo.businessGoals,
-            brandVoice: clientInfo.brandVoice,
-            postingFrequency: clientInfo.postingFrequency,
-            languages: clientInfo.languages,
-            primaryBrandColor: clientInfo.primaryBrandColor,
-            secondaryBrandColor: clientInfo.secondaryBrandColor,
-            onboardingStatus: 'Complete',
-            accountManager: clientInfo.accountManager,
-            monthlyBudget: clientInfo.monthlyBudget
-          })
-          console.log('✅ Client information stored and sent to onboarding webhook')
-        } catch (infoError: any) {
-          console.error('❌ Failed to store client information:', infoError)
-          console.error('❌ Error message:', infoError?.message)
-          console.error('❌ Error stack:', infoError?.stack)
-          console.log('⚠️ Client created successfully, but onboarding data was not saved')
-        }
-      } else {
-        console.log('⚠️ No clientInfo provided - skipping Step 9')
-      }
-      
-      // Step 10: Initialize default settings and preferences
-      console.log('Step 10: Initializing default settings...')
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://content-engine-xi.vercel.app'
-      const settingsUrl = `${appUrl}/api/settings/${clientName}/initialize`
-      console.log('📡 Settings API URL:', settingsUrl)
-      
-      try {
-        console.log('🔧 Calling settings initialization API...')
-        const settingsResponse = await fetch(settingsUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            webhooks: {
-              social_media_processor: process.env.WEBHOOK_SOCIAL_MEDIA_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/social-media-processor',
-              image_generator: process.env.WEBHOOK_IMAGE_GENERATOR || 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
-              blog_processor: process.env.WEBHOOK_BLOG_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
-              email_processor: process.env.WEBHOOK_EMAIL_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/email-processor',
-              uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
-            }
-          })
-        })
-        
-        console.log('📊 Settings API response status:', settingsResponse.status, settingsResponse.statusText)
-        
-        if (settingsResponse.ok) {
-          const settingsData = await settingsResponse.json()
-          console.log('✅ Default settings initialized successfully:', settingsData)
-        } else {
-          const errorText = await settingsResponse.text()
-          console.error('❌ Failed to initialize settings')
-          console.error('❌ Status:', settingsResponse.status, settingsResponse.statusText)
-          console.error('❌ Response:', errorText)
-          console.log('⚠️ Client created, but settings initialization failed')
-        }
-      } catch (settingsError: any) {
-        console.error('❌ Settings initialization exception:', settingsError)
-        console.error('❌ Error message:', settingsError?.message)
-        console.error('❌ Error stack:', settingsError?.stack)
-        console.log('⚠️ Client created successfully, but settings need to be configured manually')
-      }
+      console.log('✅ Phase 1 complete (Steps 1-6)')
+      console.log('ℹ️ Client configuration ready for finalization (Steps 7-10 will run on dashboard load)')
       
     } catch (error) {
       console.error('Error during client creation, initiating rollback...', error)
@@ -241,7 +138,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       clientConfig,
-      message: `Client '${displayName}' has been successfully onboarded with dedicated workspace (${workspace.id}), dedicated token, real base (${database.id}), complete table structure with fields, and environment variables updated.`
+      clientInfo,
+      needsFinalization: true,
+      finalizationStatus: 'pending',
+      message: `Client '${displayName}' workspace created successfully! Redirecting to dashboard for final setup...`
     })
 
   } catch (error) {

@@ -1,17 +1,81 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import ClientHeader from '@/components/layout/ClientHeader'
 import ClientOnly from '@/components/ClientOnly'
 import { Card, CardContent } from '@/components/ui/card'
-import { FileText, Image, Video, Mail, Lightbulb, ArrowRight, Palette, Settings, Sparkles } from 'lucide-react'
+import { FileText, Image, Video, Mail, Lightbulb, ArrowRight, Palette, Settings, Sparkles, Loader2 } from 'lucide-react'
 import { useClientConfig } from '@/hooks/useClientConfig'
+import { toast } from 'sonner'
 
 export default function DashboardPage() {
     const params = useParams()
     const router = useRouter()
     const clientId = params.clientId as string
     const { clientConfig, isLoading, error } = useClientConfig(clientId)
+    const [isFinalizing, setIsFinalizing] = useState(false)
+
+    // Handle finalization on mount if needed
+    useEffect(() => {
+        const pendingData = sessionStorage.getItem('pendingFinalization')
+        if (pendingData) {
+            const data = JSON.parse(pendingData)
+            if (data.clientId === clientId && data.needsFinalization) {
+                // Clear immediately to prevent re-triggering
+                sessionStorage.removeItem('pendingFinalization')
+                
+                // Start finalization
+                handleFinalization(data)
+            }
+        }
+    }, [clientId])
+
+    const handleFinalization = async (data: any) => {
+        setIsFinalizing(true)
+        
+        toast.info('Finalizing setup...', {
+            description: 'Setting up configuration and preferences',
+            duration: 5000
+        })
+
+        try {
+            const response = await fetch('/api/admin/clients/finalize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    clientId: data.clientId,
+                    clientConfig: data.clientConfig,
+                    clientInfo: data.clientInfo
+                })
+            })
+
+            if (response.ok) {
+                const result = await response.json()
+                
+                if (result.success) {
+                    toast.success('Setup complete!', {
+                        description: 'Your workspace is fully configured and ready to use'
+                    })
+                } else {
+                    toast.warning('Setup partially complete', {
+                        description: 'Some settings may need manual configuration'
+                    })
+                }
+            } else {
+                throw new Error('Finalization failed')
+            }
+        } catch (error) {
+            console.error('Finalization error:', error)
+            toast.error('Setup finalization failed', {
+                description: 'Some features may not work correctly. Please contact support.'
+            })
+        } finally {
+            setIsFinalizing(false)
+        }
+    }
 
     const contentTypes = [
         {
@@ -118,13 +182,20 @@ export default function DashboardPage() {
         }
     }
 
-    if (isLoading) {
+    if (isLoading || isFinalizing) {
         return (
             <div className="container mx-auto p-6">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Loading client configuration...</p>
+                        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+                        <p className="mt-4 text-gray-600">
+                            {isFinalizing ? 'Finalizing setup...' : 'Loading client configuration...'}
+                        </p>
+                        {isFinalizing && (
+                            <p className="mt-2 text-sm text-gray-500">
+                                Setting up configuration, preferences, and webhooks
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

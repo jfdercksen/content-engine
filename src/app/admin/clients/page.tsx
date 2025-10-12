@@ -90,17 +90,22 @@ export default function AdminClientsPage() {
         const result = await response.json()
         console.log('Client created successfully:', result)
         
-        // Refresh clients list
-        await fetchClients()
-        
         // Close dialog
         setShowCreateDialog(false)
         
-        toast.success(`Client '${result.clientConfig.displayName}' created successfully!`, {
-          description: 'Client onboarded and all systems configured'
+        toast.success(`Workspace created for '${result.clientConfig.displayName}'!`, {
+          description: 'Redirecting to dashboard for final setup...'
         })
 
-        // Navigate to new client dashboard
+        // Navigate to dashboard with finalization data
+        // Store in sessionStorage to trigger finalization
+        sessionStorage.setItem('pendingFinalization', JSON.stringify({
+          clientId,
+          clientConfig: result.clientConfig,
+          clientInfo: result.clientInfo,
+          needsFinalization: result.needsFinalization
+        }))
+        
         router.push(`/dashboard/${clientId}`)
       } else {
         const error = await response.json()

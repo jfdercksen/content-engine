@@ -24,6 +24,7 @@ export interface ClientConfiguration {
     contentGuidelines?: string
   }
   isActive: boolean
+  finalizationStatus?: 'pending' | 'in_progress' | 'complete' | 'failed'
   createdAt: Date
   updatedAt: Date
 }
