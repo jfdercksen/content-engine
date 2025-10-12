@@ -29,14 +29,23 @@ export async function getWebhookUrl(
     'uvp_creation': process.env.N8N_UVP_WEBHOOK_URL || process.env.WEBHOOK_UVP_CREATION
   }
 
-  const webhookUrl = envMap[webhookType]
+  let webhookUrl = envMap[webhookType]
   
-  if (webhookUrl) {
+  // Final fallback to hardcoded default URLs (system-wide)
+  if (!webhookUrl) {
+    const defaults: Record<string, string> = {
+      'social_media_processor': 'https://n8n.aiautomata.co.za/webhook/social-media-processor',
+      'image_generator': 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
+      'blog_processor': 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
+      'email_processor': 'https://n8n.aiautomata.co.za/webhook/email-processor',
+      'uvp_creation': 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+    }
+    webhookUrl = defaults[webhookType]
+    console.log(`✅ Using default ${webhookType} webhook (hardcoded fallback)`)
+  } else {
     console.log(`✅ Using ${webhookType} webhook from environment variables`)
-    return webhookUrl
   }
-
-  console.error(`❌ ${webhookType} webhook not configured in settings or environment`)
-  return null
+  
+  return webhookUrl
 }
 
