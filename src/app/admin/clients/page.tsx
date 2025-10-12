@@ -151,8 +151,11 @@ export default function AdminClientsPage() {
             <ClientOnboardingForm 
               onSuccess={(clientId) => {
                 setShowCreateDialog(false)
-                toast.success('Client onboarded successfully!')
-                router.push(`/dashboard/${clientId}`)
+                toast.success('Workspace created successfully!', {
+                  description: 'Complete setup by configuring your settings...'
+                })
+                // Redirect to settings for first-time configuration
+                router.push(`/dashboard/${clientId}/settings?firstTime=true`)
                 fetchClients()
               }}
             />

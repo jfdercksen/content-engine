@@ -47,6 +47,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState<string | null>(null)
+    const [isFirstTime, setIsFirstTime] = useState(false)
     
     const [webhooks, setWebhooks] = useState({
         social_media_processor: '',
@@ -93,8 +94,49 @@ export default function SettingsPage() {
     })
 
     useEffect(() => {
-        fetchSettings()
+        // Check if this is first-time setup
+        const urlParams = new URLSearchParams(window.location.search)
+        const firstTime = urlParams.get('firstTime') === 'true' || sessionStorage.getItem('firstTimeSetup') === 'true'
+        
+        if (firstTime) {
+            setIsFirstTime(true)
+            sessionStorage.removeItem('firstTimeSetup') // Clear flag
+            // Pre-populate with defaults instead of fetching
+            loadDefaultSettings()
+        } else {
+            fetchSettings()
+        }
     }, [clientId])
+
+    const loadDefaultSettings = () => {
+        console.log('📋 Loading default settings for first-time setup...')
+        
+        // Pre-populate with default values from environment
+        setWebhooks({
+            social_media_processor: 'https://n8n.aiautomata.co.za/webhook/social-media-processor',
+            image_generator: 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
+            blog_processor: 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
+            email_processor: 'https://n8n.aiautomata.co.za/webhook/email-processor',
+            uvp_creation: 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+        })
+
+        setAiSettings({
+            default_model: 'gpt-4',
+            temperature: '0.7',
+            max_tokens: '2000',
+            content_tone: 'professional'
+        })
+
+        setPublishing({
+            auto_publish: false,
+            default_time: '09:00',
+            timezone: 'UTC',
+            require_approval: true
+        })
+
+        setLoading(false)
+        console.log('✅ Default settings loaded')
+    }
 
     const fetchSettings = async () => {
         try {
@@ -102,7 +144,10 @@ export default function SettingsPage() {
             const response = await fetch(`/api/settings/${clientId}`)
             
             if (!response.ok) {
-                throw new Error('Failed to fetch settings')
+                // If no settings found, load defaults
+                console.log('⚠️ No settings found, loading defaults...')
+                loadDefaultSettings()
+                return
             }
 
             const data: SettingsData = await response.json()
@@ -179,6 +224,56 @@ export default function SettingsPage() {
         }
     }
 
+    const handleSaveAll = async () => {
+        setSaving(true)
+        try {
+            console.log('💾 Saving all settings for first-time setup...')
+            
+            const response = await fetch(`/api/settings/${clientId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    settings: {
+                        Webhooks: webhooks,
+                        Integrations: integrations,
+                        WordPress: wordpress
+                    },
+                    preferences: {
+                        'AI Settings': aiSettings,
+                        Publishing: publishing,
+                        Notifications: notifications
+                    }
+                }),
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to save settings')
+            }
+
+            console.log('✅ Settings saved successfully')
+            
+            toast.success('🎉 Setup Complete!', {
+                description: 'All settings saved. Redirecting to dashboard...'
+            })
+
+            // Hide banner and redirect after short delay
+            setTimeout(() => {
+                setIsFirstTime(false)
+                router.push(`/dashboard/${clientId}`)
+            }, 1500)
+            
+        } catch (error) {
+            console.error('Error saving settings:', error)
+            toast.error('Failed to save settings', {
+                description: 'Please try again or skip for now'
+            })
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const copyToClipboard = (text: string, field: string) => {
         navigator.clipboard.writeText(text)
         setCopied(field)
@@ -229,6 +324,60 @@ export default function SettingsPage() {
                     Back to Dashboard
                 </Button>
             </div>
+
+            {/* First-Time Setup Banner */}
+            {isFirstTime && (
+                <Card className="border-blue-500 bg-blue-50">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+                                <Sparkles className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-blue-900">👋 Welcome! Complete Your Setup</CardTitle>
+                                <CardDescription className="text-blue-700">
+                                    Your workspace has been created successfully! Please review and save these settings to complete your setup.
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2 text-sm text-blue-800">
+                            <p>✅ <strong>Step 1-4:</strong> Client information saved</p>
+                            <p>✅ <strong>Step 5:</strong> Workspace created (base, tables, fields)</p>
+                            <p>🔄 <strong>Final Step:</strong> Review settings below and click "Save All Settings"</p>
+                        </div>
+                        <div className="mt-4 flex gap-3">
+                            <Button 
+                                onClick={handleSaveAll}
+                                className="bg-blue-600 hover:bg-blue-700"
+                                disabled={saving}
+                            >
+                                {saving ? (
+                                    <>
+                                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="mr-2 h-4 w-4" />
+                                        Save All Settings
+                                    </>
+                                )}
+                            </Button>
+                            <Button 
+                                onClick={() => {
+                                    setIsFirstTime(false)
+                                    router.push(`/dashboard/${clientId}`)
+                                }}
+                                variant="outline"
+                            >
+                                Skip for Now
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Settings Sections */}
             <div className="grid grid-cols-1 gap-6">

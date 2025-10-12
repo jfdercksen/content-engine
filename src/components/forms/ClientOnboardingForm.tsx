@@ -265,7 +265,10 @@ export default function ClientOnboardingForm({ onSuccess }: ClientOnboardingForm
             // Clear onboarding data
             sessionStorage.removeItem('onboardingClientId')
 
-            // Call success callback
+            // Set flag for first-time settings setup
+            sessionStorage.setItem('firstTimeSetup', 'true')
+
+            // Call success callback with settings redirect
             onSuccess(clientId)
             
         } catch (error) {
