@@ -101,6 +101,13 @@ export async function POST(request: NextRequest) {
       // Step 9: Store client information (onboarding data)
       if (clientInfo) {
         console.log('Step 9: Storing client information...')
+        console.log('📋 Client info data:', JSON.stringify(clientInfo, null, 2))
+        console.log('🔧 Using environment variables:')
+        console.log('  - BASEROW_API_URL:', process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za')
+        console.log('  - BASEROW_CLIENT_INFORMATION_TABLE_ID:', process.env.BASEROW_CLIENT_INFORMATION_TABLE_ID || '3232')
+        console.log('  - BASEROW_MODERN_MANAGEMENT_TOKEN:', process.env.BASEROW_MODERN_MANAGEMENT_TOKEN ? '***set***' : '***NOT SET***')
+        console.log('  - WEBHOOK_ONBOARDING:', process.env.WEBHOOK_ONBOARDING || 'https://n8n.aiautomata.co.za/webhook/onboarding')
+        
         try {
           await ClientInformationManager.createClientInfo({
             clientId: clientName,
@@ -135,10 +142,14 @@ export async function POST(request: NextRequest) {
             monthlyBudget: clientInfo.monthlyBudget
           })
           console.log('✅ Client information stored and sent to onboarding webhook')
-        } catch (infoError) {
-          console.log('⚠️ Failed to store client information:', infoError)
-          console.log('Client created successfully, but onboarding data was not saved')
+        } catch (infoError: any) {
+          console.error('❌ Failed to store client information:', infoError)
+          console.error('❌ Error message:', infoError?.message)
+          console.error('❌ Error stack:', infoError?.stack)
+          console.log('⚠️ Client created successfully, but onboarding data was not saved')
         }
+      } else {
+        console.log('⚠️ No clientInfo provided - skipping Step 9')
       }
       
       // Step 10: Initialize default settings and preferences

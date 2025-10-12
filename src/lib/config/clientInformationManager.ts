@@ -88,9 +88,15 @@ export class ClientInformationManager {
     static async createClientInfo(clientInfo: ClientInformation): Promise<boolean> {
         try {
             console.log(`➕ Creating client information for: ${clientInfo.clientId}`)
+            console.log(`🌐 Baserow URL: ${this.baseUrl}`)
+            console.log(`📋 Table ID: ${this.clientInfoTableId}`)
+            console.log(`🔑 Token configured: ${this.baserowToken ? 'Yes' : 'No'}`)
+            
+            const requestUrl = `${this.baseUrl}/api/database/rows/table/${this.clientInfoTableId}/?user_field_names=true`
+            console.log(`📡 Full request URL: ${requestUrl}`)
 
             const response = await fetch(
-                `${this.baseUrl}/api/database/rows/table/${this.clientInfoTableId}/?user_field_names=true`,
+                requestUrl,
                 {
                     method: 'POST',
                     headers: {
@@ -132,14 +138,28 @@ export class ClientInformationManager {
                 }
             )
 
+            console.log(`📊 Response status: ${response.status} ${response.statusText}`)
+            
             if (!response.ok) {
-                const errorData = await response.json()
-                console.error('❌ Failed to create client info:', errorData)
-                throw new Error(`Failed to create client info: ${response.statusText}`)
+                const errorText = await response.text()
+                console.error('❌ Failed to create client info')
+                console.error('❌ Response status:', response.status, response.statusText)
+                console.error('❌ Response body:', errorText)
+                
+                let errorData
+                try {
+                    errorData = JSON.parse(errorText)
+                    console.error('❌ Error details:', JSON.stringify(errorData, null, 2))
+                } catch (e) {
+                    console.error('❌ Could not parse error response as JSON')
+                }
+                
+                throw new Error(`Failed to create client info: ${response.statusText} - ${errorText}`)
             }
 
             const result = await response.json()
             console.log(`✅ Client information created successfully`)
+            console.log(`✅ Baserow record ID: ${result.id}`)
 
             // Send to onboarding webhook
             await this.sendToOnboardingWebhook(clientInfo, result)
