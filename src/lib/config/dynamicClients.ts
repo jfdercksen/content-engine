@@ -11,9 +11,18 @@ let isInitialized = false
 
 // Ensure data directory exists
 function ensureDataDirectory() {
-  const dataDir = path.dirname(CLIENTS_FILE_PATH)
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true })
+  try {
+    const dataDir = path.dirname(CLIENTS_FILE_PATH)
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true })
+    }
+  } catch (error: any) {
+    // In production (Vercel), file system is read-only
+    if (error.code === 'EROFS') {
+      console.log('⚠️ Read-only file system - cannot create data directory (expected in production)')
+    } else {
+      throw error
+    }
   }
 }
 
@@ -76,8 +85,10 @@ async function loadClientConfigurations(): Promise<void> {
       console.log(`✅ Loaded ${savedConfigs.length} additional client configurations from file`)
     }
     
-    // Save the combined configuration to file
-    await saveClientConfigurations()
+    // Save the combined configuration to file (only in development)
+    if (process.env.NODE_ENV !== 'production') {
+      await saveClientConfigurations()
+    }
   } catch (error) {
     console.error('Error loading client configurations:', error)
     console.log(`✅ Using ${clientConfigurations.size} default client configurations (fallback)`)
@@ -94,9 +105,14 @@ async function saveClientConfigurations(): Promise<void> {
     
     fs.writeFileSync(CLIENTS_FILE_PATH, jsonContent, 'utf8')
     console.log(`✅ Saved ${configsArray.length} client configurations to file`)
-  } catch (error) {
-    console.error('Error saving client configurations:', error)
-    throw error
+  } catch (error: any) {
+    // In production (Vercel), file system is read-only, so this is expected
+    if (error.code === 'EROFS') {
+      console.log('⚠️ Read-only file system detected (production environment) - skipping file save')
+    } else {
+      console.error('Error saving client configurations:', error)
+      throw error
+    }
   }
 }
 
