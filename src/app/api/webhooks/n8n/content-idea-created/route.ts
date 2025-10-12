@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     // Get webhook URL from client settings or environment
     const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
-    const n8nWebhookUrl = await getWebhookUrl(clientId, 'social_media_processor')
+    const n8nWebhookUrl = await getWebhookUrl(payload.clientId, 'social_media_processor')
 
     if (!n8nWebhookUrl) {
       console.log('⚠️ Social media webhook URL not configured, skipping webhook trigger')
@@ -148,6 +148,8 @@ export async function POST(request: NextRequest) {
         message: 'Content idea created, but webhook not configured. Please configure in Settings.'
       })
     }
+    
+    console.log('📡 Using webhook URL:', n8nWebhookUrl)
 
     console.log('Sending to n8n webhook:', n8nWebhookUrl)
     console.log('Enhanced payload:', JSON.stringify(n8nPayload, null, 2))
