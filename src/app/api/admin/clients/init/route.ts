@@ -24,7 +24,11 @@ export async function POST(request: NextRequest) {
       .replace(/^_+|_+$/g, '')
 
     console.log('🆕 Initializing new client:', clientId)
-    console.log('📋 Step 1 data:', { companyName, industry, companySize })
+    console.log('📋 Step 1 data (raw):', { companyName, industry, companySize })
+    
+    // For select fields in Baserow, we need to send empty strings to avoid validation errors
+    // The user can update these later or we can add proper option mapping
+    console.log('ℹ️ Using empty strings for select fields to avoid validation errors')
 
     // Check if client already exists
     const existingClient = await ClientInformationManager.getClientInfo(clientId)
@@ -37,12 +41,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create initial client information record
+    // Note: For select fields, we need to match exact Baserow option text or leave empty
     const success = await ClientInformationManager.createClientInfo({
       clientId,
       companyName,
       displayName: companyName,
       industry: industry || '',
-      companySize: companySize || '',
+      companySize: '', // Leave empty for now - will be set in update if needed
       foundedYear: foundedYear || null,
       websiteUrl: websiteUrl || '',
       onboardingStatus: 'Step 1 Complete',
