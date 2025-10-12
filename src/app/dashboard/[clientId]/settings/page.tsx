@@ -22,7 +22,8 @@ import {
     Check,
     Globe,
     ExternalLink,
-    FileDown
+    FileDown,
+    Building2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -49,6 +50,14 @@ export default function SettingsPage() {
     const [copied, setCopied] = useState<string | null>(null)
     const [isFirstTime, setIsFirstTime] = useState(false)
     
+    // Client Information
+    const [clientInfo, setClientInfo] = useState({
+        industry: '',
+        companySize: '',
+        accountManager: '',
+        monthlyBudget: ''
+    })
+
     const [webhooks, setWebhooks] = useState({
         social_media_processor: '',
         image_generator: '',
@@ -76,7 +85,8 @@ export default function SettingsPage() {
         default_model: 'gpt-4',
         temperature: '0.7',
         max_tokens: '2000',
-        content_tone: 'professional'
+        content_tone: 'professional',
+        preferred_content_types: ''
     })
 
     const [publishing, setPublishing] = useState({
@@ -124,7 +134,8 @@ export default function SettingsPage() {
             default_model: 'gpt-4',
             temperature: '0.7',
             max_tokens: '2000',
-            content_tone: 'professional'
+            content_tone: 'Professional',
+            preferred_content_types: 'Blog Posts, Social Media, Email Marketing'
         })
 
         setPublishing({
@@ -132,6 +143,14 @@ export default function SettingsPage() {
             default_time: '09:00',
             timezone: 'UTC',
             require_approval: true
+        })
+
+        // Client info left empty - user can fill in
+        setClientInfo({
+            industry: '',
+            companySize: '',
+            accountManager: '',
+            monthlyBudget: ''
         })
 
         setLoading(false)
@@ -229,6 +248,31 @@ export default function SettingsPage() {
         try {
             console.log('💾 Saving all settings for first-time setup...')
             
+            // Save client information to Client Information table (3232)
+            if (clientInfo.industry || clientInfo.companySize || clientInfo.accountManager || clientInfo.monthlyBudget) {
+                console.log('📋 Updating client information...')
+                const clientInfoResponse = await fetch(`/api/admin/clients/${clientId}/update-info`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        step: 6, // Post-onboarding
+                        data: {
+                            industry: clientInfo.industry,
+                            companySize: clientInfo.companySize,
+                            accountManager: clientInfo.accountManager,
+                            monthlyBudget: clientInfo.monthlyBudget ? parseInt(clientInfo.monthlyBudget) : null
+                        }
+                    })
+                })
+
+                if (!clientInfoResponse.ok) {
+                    console.error('⚠️ Failed to save client information, continuing with settings...')
+                } else {
+                    console.log('✅ Client information updated')
+                }
+            }
+            
+            // Save settings and preferences to tables 1061 & 1062
             const response = await fetch(`/api/settings/${clientId}`, {
                 method: 'PATCH',
                 headers: {
@@ -252,7 +296,7 @@ export default function SettingsPage() {
                 throw new Error('Failed to save settings')
             }
 
-            console.log('✅ Settings saved successfully')
+            console.log('✅ Settings and preferences saved successfully')
             
             toast.success('🎉 Setup Complete!', {
                 description: 'All settings saved. Redirecting to dashboard...'
@@ -381,6 +425,82 @@ export default function SettingsPage() {
 
             {/* Settings Sections */}
             <div className="grid grid-cols-1 gap-6">
+                {/* Client Information */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <Building2 className="h-5 w-5 text-indigo-600" />
+                            <CardTitle>Client Information</CardTitle>
+                        </div>
+                        <CardDescription>
+                            Company details and business information
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="industry">Industry</Label>
+                                <select
+                                    id="industry"
+                                    value={clientInfo.industry}
+                                    onChange={(e) => setClientInfo(prev => ({ ...prev, industry: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Select Industry</option>
+                                    <option value="Automotive">Automotive</option>
+                                    <option value="Software/SaaS">Software/SaaS</option>
+                                    <option value="Professional Services">Professional Services</option>
+                                    <option value="Manufacturing">Manufacturing</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Financial Services">Financial Services</option>
+                                    <option value="E-commerce/Retail">E-commerce/Retail</option>
+                                    <option value="Real Estate">Real Estate</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="companySize">Company Size</Label>
+                                <select
+                                    id="companySize"
+                                    value={clientInfo.companySize}
+                                    onChange={(e) => setClientInfo(prev => ({ ...prev, companySize: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Select Company Size</option>
+                                    <option value="1-10 employees">1-10 employees</option>
+                                    <option value="11-50 employees">11-50 employees</option>
+                                    <option value="51-200 employees">51-200 employees</option>
+                                    <option value="201-500 employees">201-500 employees</option>
+                                    <option value="501+ employees">501+ employees</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="accountManager">Account Manager</Label>
+                                <Input
+                                    id="accountManager"
+                                    value={clientInfo.accountManager}
+                                    onChange={(e) => setClientInfo(prev => ({ ...prev, accountManager: e.target.value }))}
+                                    placeholder="John Smith"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="monthlyBudget">Monthly Budget (USD)</Label>
+                                <Input
+                                    id="monthlyBudget"
+                                    type="number"
+                                    value={clientInfo.monthlyBudget}
+                                    onChange={(e) => setClientInfo(prev => ({ ...prev, monthlyBudget: e.target.value }))}
+                                    placeholder="5000"
+                                />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Webhook Integrations */}
                 <Card>
                     <CardHeader>
@@ -770,13 +890,23 @@ export default function SettingsPage() {
                                     onChange={(e) => setAiSettings(prev => ({ ...prev, content_tone: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                 >
-                                    <option value="professional">Professional</option>
-                                    <option value="casual">Casual</option>
-                                    <option value="friendly">Friendly</option>
-                                    <option value="authoritative">Authoritative</option>
-                                    <option value="playful">Playful</option>
+                                    <option value="Professional">Professional</option>
+                                    <option value="Casual">Casual</option>
+                                    <option value="Friendly">Friendly</option>
+                                    <option value="Authoritative">Authoritative</option>
+                                    <option value="Playful">Playful</option>
                                 </select>
                             </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="preferred_content_types">Preferred Content Types</Label>
+                            <Input
+                                id="preferred_content_types"
+                                value={aiSettings.preferred_content_types}
+                                onChange={(e) => setAiSettings(prev => ({ ...prev, preferred_content_types: e.target.value }))}
+                                placeholder="Blog Posts, Social Media, Email Marketing, Video Scripts"
+                            />
+                            <p className="text-xs text-gray-500">Comma-separated list of content types you create</p>
                         </div>
                     </CardContent>
                 </Card>
