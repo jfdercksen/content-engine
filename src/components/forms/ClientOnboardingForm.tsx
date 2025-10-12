@@ -240,23 +240,27 @@ export default function ClientOnboardingForm({ onSuccess }: ClientOnboardingForm
 
             console.log('✅ Branding preferences saved')
 
-            // Now call finalize to create the workspace
-            console.log('🏗️ Creating Baserow workspace...')
-            const finalizeResponse = await fetch('/api/admin/clients/finalize', {
+            // Now create the workspace (this will take ~60 seconds)
+            console.log('🏗️ Creating Baserow workspace (this may take up to 60 seconds)...')
+            
+            const createResponse = await fetch('/api/admin/clients/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    clientId
+                    clientName: clientId,
+                    displayName: data.displayName || data.companyName,
+                    clientInfo: null, // Already saved in Steps 1-4
+                    skipClientInfoSteps: true
                 })
             })
 
-            if (!finalizeResponse.ok) {
-                const error = await finalizeResponse.json()
+            if (!createResponse.ok) {
+                const error = await createResponse.json()
                 throw new Error(error.error || 'Failed to create workspace')
             }
 
-            const result = await finalizeResponse.json()
-            console.log('✅ Workspace created successfully')
+            const result = await createResponse.json()
+            console.log('✅ Workspace created successfully:', result)
 
             // Clear onboarding data
             sessionStorage.removeItem('onboardingClientId')
@@ -727,12 +731,12 @@ export default function ClientOnboardingForm({ onSuccess }: ClientOnboardingForm
                         {isSubmitting ? (
                             <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Creating Client...
+                                Creating Workspace (may take 60 seconds)...
                             </>
                         ) : (
                             <>
                                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                                Complete Onboarding
+                                Complete Setup & Create Workspace
                             </>
                         )}
                     </Button>
