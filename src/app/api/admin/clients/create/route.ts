@@ -21,9 +21,14 @@ export async function POST(request: NextRequest) {
     let existingClient = await DatabaseClientConfig.clientExists(clientName)
     
     if (!existingClient) {
-      // Also check file-based config
-      await DynamicClientConfig.initialize()
-      existingClient = DynamicClientConfig.getClient(clientName) !== null
+      // Also check file-based config (gracefully handle production read-only file system)
+      try {
+        await DynamicClientConfig.initialize()
+        existingClient = DynamicClientConfig.getClient(clientName) !== null
+      } catch (fileError) {
+        console.log('⚠️ Could not check file-based config (expected in production)')
+        // In production, we only use database, so this is fine
+      }
     }
     
     if (existingClient) {
@@ -1126,39 +1131,52 @@ async function deleteBase(baseId: number) {
 
 async function storeClientConfiguration(clientConfig: any) {
   try {
-    console.log('Storing client configuration...')
+    console.log('📝 Storing client configuration...')
+    console.log('📊 Config data:', JSON.stringify({
+      id: clientConfig.id,
+      name: clientConfig.name,
+      databaseId: clientConfig.baserowDatabaseId,
+      tablesCount: Object.keys(clientConfig.tables || {}).length
+    }))
     
     let dbSuccess = false
     let fileSuccess = false
     
     // Try to store in database first (production)
+    console.log('🔄 Attempting to store in Baserow database (table 3231)...')
     try {
       await DatabaseClientConfig.addClient(clientConfig)
       dbSuccess = true
       console.log('✅ Stored in Baserow database')
-    } catch (dbError) {
-      console.log('⚠️ Could not store in database:', dbError instanceof Error ? dbError.message : 'Unknown error')
-      console.log('This may be due to permissions on Client Configurations table')
+    } catch (dbError: any) {
+      console.error('❌ Could not store in database:')
+      console.error('  - Error:', dbError instanceof Error ? dbError.message : 'Unknown error')
+      console.error('  - Stack:', dbError?.stack)
+      console.log('⚠️ This may be due to permissions on Client Configurations table (3231)')
     }
     
     // Try to store in file system (development)
+    console.log('🔄 Attempting to store in local clients.json...')
     try {
       await DynamicClientConfig.addClient(clientConfig)
       fileSuccess = true
       console.log('✅ Stored in local clients.json')
-    } catch (fileError) {
+    } catch (fileError: any) {
       console.log('⚠️ Could not write to clients.json (expected in production - read-only file system)')
+      console.log('  - Error:', fileError instanceof Error ? fileError.message : 'Unknown error')
     }
     
     // At least one must succeed
     if (!dbSuccess && !fileSuccess) {
+      console.error('❌ CRITICAL: Failed to store client configuration in both database AND file system')
       throw new Error('Failed to store client configuration in both database and file system')
     }
     
-    console.log(`Client configuration stored successfully (database: ${dbSuccess}, file: ${fileSuccess})`)
+    console.log(`✅ Client configuration stored successfully (database: ${dbSuccess}, file: ${fileSuccess})`)
     return true
-  } catch (error) {
-    console.error('Error storing client configuration:', error)
+  } catch (error: any) {
+    console.error('❌ Error storing client configuration:', error)
+    console.error('❌ Error message:', error?.message)
     throw error
   }
 }
