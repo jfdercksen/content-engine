@@ -98,12 +98,62 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Phase 1 complete (Steps 1-6)')
       
-      // Skip Steps 7-10 if client info will be handled separately (progressive onboarding)
+      // ALWAYS run Steps 7-8 (config and env vars)
+      // Step 7: Store client configuration
+      console.log('Step 7: Storing client configuration...')
+      await storeClientConfiguration(clientConfig)
+      console.log('✅ Client configuration stored')
+      
+      // Step 8: Store environment variables
+      console.log('Step 8: Storing environment variables...')
+      await storeEnvironmentVariables(clientName, clientConfig)
+      console.log('✅ Environment variables stored')
+      
+      // Step 9: Client info - skip if already done in Steps 1-4
       if (skipClientInfoSteps) {
-        console.log('ℹ️ Skipping Steps 7-10 (will be handled via finalize endpoint)')
-      } else {
-        // Original flow: Complete all steps in one call
-        console.log('ℹ️ Client configuration ready for finalization (Steps 7-10 will run on dashboard load)')
+        console.log('ℹ️ Step 9 skipped (client info already saved in Steps 1-4)')
+      }
+      
+      // Step 10: Always initialize settings
+      console.log('Step 10: Initializing default settings...')
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://content-engine-xi.vercel.app'
+      const settingsUrl = `${appUrl}/api/settings/${clientName}/initialize`
+      console.log('📡 Settings API URL:', settingsUrl)
+      
+      try {
+        console.log('🔧 Calling settings initialization API...')
+        const settingsResponse = await fetch(settingsUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            webhooks: {
+              social_media_processor: process.env.WEBHOOK_SOCIAL_MEDIA_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/social-media-processor',
+              image_generator: process.env.WEBHOOK_IMAGE_GENERATOR || 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
+              blog_processor: process.env.WEBHOOK_BLOG_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
+              email_processor: process.env.WEBHOOK_EMAIL_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/email-processor',
+              uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+            }
+          })
+        })
+        
+        console.log('📊 Settings API response status:', settingsResponse.status, settingsResponse.statusText)
+        
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json()
+          console.log('✅ Default settings initialized successfully:', settingsData)
+        } else {
+          const errorText = await settingsResponse.text()
+          console.error('❌ Failed to initialize settings')
+          console.error('❌ Status:', settingsResponse.status, settingsResponse.statusText)
+          console.error('❌ Response:', errorText)
+          console.log('⚠️ Client created, but settings initialization failed')
+        }
+      } catch (settingsError: any) {
+        console.error('❌ Settings initialization exception:', settingsError)
+        console.error('❌ Error message:', settingsError?.message)
+        console.log('⚠️ Client created successfully, but settings need to be configured manually')
       }
       
     } catch (error) {
