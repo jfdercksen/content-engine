@@ -34,11 +34,14 @@ export async function PATCH(
     }
 
     // Merge new data with existing info
+    // Don't set onboardingStatus - it's a select field with predefined options
     const updatedInfo = {
       ...existingInfo,
-      ...data,
-      onboardingStatus: `Step ${step} Complete`
+      ...data
+      // Removed: onboardingStatus - this is a select field in Baserow
     }
+
+    console.log('📝 Merged update data:', JSON.stringify(updatedInfo, null, 2))
 
     // Update in Baserow
     const success = await ClientInformationManager.updateClientInfo(clientId, updatedInfo)
