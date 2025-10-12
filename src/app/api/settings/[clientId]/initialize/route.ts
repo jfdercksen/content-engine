@@ -13,7 +13,11 @@ export async function POST(
         const { clientId } = await params
         const body = await request.json()
 
-        console.log('Initializing settings for client:', clientId)
+        console.log('🔧 Initializing settings for client:', clientId)
+        console.log('📋 Request body:', JSON.stringify(body, null, 2))
+        console.log('🌐 Environment check:')
+        console.log('  - BASEROW_API_URL:', process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za')
+        console.log('  - BASEROW_MODERN_MANAGEMENT_TOKEN:', process.env.BASEROW_MODERN_MANAGEMENT_TOKEN ? '***set***' : '***NOT SET***')
 
         const results: { success: boolean; message: string }[] = []
 
@@ -27,19 +31,30 @@ export async function POST(
         }
 
         // Set webhook URLs
+        console.log('📡 Setting webhook URLs...')
         for (const [key, value] of Object.entries(webhooks)) {
-            const success = await SettingsManager.setSetting(
-                clientId,
-                'Webhooks',
-                key,
-                value,
-                `Webhook URL for ${key.replace(/_/g, ' ')}`,
-                false
-            )
-            results.push({
-                success,
-                message: `Webhook ${key}: ${success ? 'initialized' : 'failed'}`
-            })
+            console.log(`  - Setting webhook: ${key} = ${value}`)
+            try {
+                const success = await SettingsManager.setSetting(
+                    clientId,
+                    'Webhooks',
+                    key,
+                    value,
+                    `Webhook URL for ${key.replace(/_/g, ' ')}`,
+                    false
+                )
+                console.log(`  ${success ? '✅' : '❌'} Webhook ${key}: ${success ? 'success' : 'failed'}`)
+                results.push({
+                    success,
+                    message: `Webhook ${key}: ${success ? 'initialized' : 'failed'}`
+                })
+            } catch (webhookError) {
+                console.error(`  ❌ Error setting webhook ${key}:`, webhookError)
+                results.push({
+                    success: false,
+                    message: `Webhook ${key}: error - ${webhookError}`
+                })
+            }
         }
 
         // Initialize default AI settings
@@ -91,18 +106,36 @@ export async function POST(
         }
 
         const allSuccessful = results.every(r => r.success)
+        const failedCount = results.filter(r => !r.success).length
+
+        console.log('📊 Settings initialization summary:')
+        console.log(`  - Total: ${results.length}`)
+        console.log(`  - Successful: ${results.length - failedCount}`)
+        console.log(`  - Failed: ${failedCount}`)
+        
+        if (failedCount > 0) {
+            console.log('❌ Failed settings:')
+            results.filter(r => !r.success).forEach(r => {
+                console.log(`  - ${r.message}`)
+            })
+        }
 
         return NextResponse.json({
             success: allSuccessful,
             message: allSuccessful 
                 ? 'Settings initialized successfully' 
-                : 'Some settings failed to initialize',
+                : `Some settings failed to initialize (${failedCount}/${results.length} failed)`,
             results
         })
-    } catch (error) {
-        console.error('Error initializing settings:', error)
+    } catch (error: any) {
+        console.error('❌ Error initializing settings:', error)
+        console.error('❌ Error message:', error?.message)
+        console.error('❌ Error stack:', error?.stack)
         return NextResponse.json(
-            { error: 'Failed to initialize settings' },
+            { 
+                error: 'Failed to initialize settings',
+                message: error?.message || 'Unknown error'
+            },
             { status: 500 }
         )
     }

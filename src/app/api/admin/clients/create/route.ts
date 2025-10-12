@@ -154,8 +154,13 @@ export async function POST(request: NextRequest) {
       
       // Step 10: Initialize default settings and preferences
       console.log('Step 10: Initializing default settings...')
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://content-engine-xi.vercel.app'
+      const settingsUrl = `${appUrl}/api/settings/${clientName}/initialize`
+      console.log('📡 Settings API URL:', settingsUrl)
+      
       try {
-        const settingsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/settings/${clientName}/initialize`, {
+        console.log('🔧 Calling settings initialization API...')
+        const settingsResponse = await fetch(settingsUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -170,14 +175,24 @@ export async function POST(request: NextRequest) {
             }
           })
         })
+        
+        console.log('📊 Settings API response status:', settingsResponse.status, settingsResponse.statusText)
+        
         if (settingsResponse.ok) {
-          console.log('✅ Default settings initialized successfully')
+          const settingsData = await settingsResponse.json()
+          console.log('✅ Default settings initialized successfully:', settingsData)
         } else {
-          console.log('⚠️ Failed to initialize settings, but client creation will continue')
+          const errorText = await settingsResponse.text()
+          console.error('❌ Failed to initialize settings')
+          console.error('❌ Status:', settingsResponse.status, settingsResponse.statusText)
+          console.error('❌ Response:', errorText)
+          console.log('⚠️ Client created, but settings initialization failed')
         }
-      } catch (settingsError) {
-        console.log('⚠️ Settings initialization failed:', settingsError)
-        console.log('Client created successfully, but settings need to be configured manually')
+      } catch (settingsError: any) {
+        console.error('❌ Settings initialization exception:', settingsError)
+        console.error('❌ Error message:', settingsError?.message)
+        console.error('❌ Error stack:', settingsError?.stack)
+        console.log('⚠️ Client created successfully, but settings need to be configured manually')
       }
       
     } catch (error) {
