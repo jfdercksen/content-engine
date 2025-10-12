@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClientConfig } from '@/lib/config/clients'
 import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
 import { BaserowAPI } from '@/lib/baserow/api'
 

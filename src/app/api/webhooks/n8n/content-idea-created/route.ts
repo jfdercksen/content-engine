@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClientConfig } from '@/lib/config/clients'
+import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,15 +11,17 @@ export async function POST(request: NextRequest) {
     // (This is an internal API route called from our own application)
     console.log('Processing internal webhook call')
 
-    // Get client configuration to populate Baserow details
-    const clientConfig = getClientConfig(payload.clientId)
+    // Get client configuration (checks database first, then file)
+    const clientConfig = await getClientConfigForAPI(payload.clientId)
     if (!clientConfig) {
-      console.error('Client configuration not found for:', payload.clientId)
+      console.error('❌ Client configuration not found for:', payload.clientId)
       return NextResponse.json(
         { error: 'Client not found' },
         { status: 404 }
       )
     }
+    
+    console.log('✅ Client config found for:', payload.clientId)
 
     // Prepare enhanced data for n8n workflow
     const n8nPayload = {

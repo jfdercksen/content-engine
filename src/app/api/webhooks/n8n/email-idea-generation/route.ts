@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClientConfig } from '@/lib/config/clients'
+import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
 
 export async function POST(request: NextRequest) {
   try {
@@ -107,11 +107,14 @@ export async function POST(request: NextRequest) {
     // Get client ID from the request URL or form data
     const clientId = formData.get('clientId') as string || 'modern-management'
     console.log('Client ID:', clientId)
-    const clientConfig = getClientConfig(clientId)
+    const clientConfig = await getClientConfigForAPI(clientId)
     
     if (!clientConfig) {
+      console.error('❌ Client not found:', clientId)
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
+    
+    console.log('✅ Client config found for:', clientId)
 
     console.log('Client config:', {
       name: clientConfig.name,
