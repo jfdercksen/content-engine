@@ -132,7 +132,8 @@ export class ClientInformationManager {
                         ...(clientInfo.languages && { 'Languages': clientInfo.languages }),
                         'Primary Brand Color': clientInfo.primaryBrandColor || '#3B82F6',
                         'Secondary Brand Color': clientInfo.secondaryBrandColor || '#10B981',
-                        'Onboarding Status': clientInfo.onboardingStatus || 'Pending',
+                        // Onboarding Status is a select field - only include if it has a value
+                        ...(clientInfo.onboardingStatus && { 'Onboarding Status': clientInfo.onboardingStatus }),
                         ...(clientInfo.accountManager && { 'Account Manager': clientInfo.accountManager }),
                         ...(clientInfo.monthlyBudget && { 'Monthly Budget': clientInfo.monthlyBudget }),
                     }),

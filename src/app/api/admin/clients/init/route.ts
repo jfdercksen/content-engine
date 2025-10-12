@@ -72,10 +72,12 @@ export async function POST(request: NextRequest) {
       brandVoice: '',
       postingFrequency: '',
       languages: '',
-      onboardingStatus: '', // Don't set this - it's a select field
+      onboardingStatus: '', // Empty - won't be sent to Baserow (select field)
       accountManager: '',
       monthlyBudget: null
     })
+
+    console.log('✅ Minimal record created - only essential non-select fields sent')
 
     if (!success) {
       throw new Error('Failed to create client information record')
