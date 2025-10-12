@@ -12,6 +12,7 @@ import SocialMediaContentTable from '@/components/tables/SocialMediaContentTable
 import StatsCards from '@/components/dashboard/StatsCards'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ViewToggle } from '@/components/ui/view-toggle'
 
 interface BaserowField {
     id: number;
@@ -48,6 +49,7 @@ export default function SocialMediaPage() {
     const [contentIdeas, setContentIdeas] = useState<ContentIdeaState[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
     const [relatedSocialContent, setRelatedSocialContent] = useState<any[]>([]);
     const [isLoadingRelated, setIsLoadingRelated] = useState(false);
     // Add new state for social media content modal
@@ -551,6 +553,7 @@ export default function SocialMediaPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <ViewToggle view={viewMode} onViewChange={setViewMode} />
                         <Button
                             variant="outline"
                             onClick={() => router.push(`/dashboard/${clientId}/brand-assets`)}
