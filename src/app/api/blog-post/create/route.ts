@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
 import { BaserowAPI } from '@/lib/baserow/api'
+import { getWebhookUrl } from '@/lib/utils/getWebhookUrl'
 
 interface BlogPostFormData {
   blogTopic: string
@@ -69,11 +70,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get webhook URL from environment
-    const webhookUrl = process.env.N8N_BLOG_WORKFLOW_WEBHOOK_URL
+    // Get webhook URL (checks client settings first, then environment)
+    const webhookUrl = await getWebhookUrl(clientId, 'blog_processor')
+    
     if (!webhookUrl) {
       return NextResponse.json(
-        { error: 'Blog workflow webhook not configured' },
+        { error: 'Blog workflow webhook not configured. Please configure webhooks in Settings.' },
         { status: 500 }
       )
     }
