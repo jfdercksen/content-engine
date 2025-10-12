@@ -278,15 +278,23 @@ export class ClientInformationManager {
                 }
             )
 
+            console.log(`📊 Update response status: ${updateResponse.status} ${updateResponse.statusText}`)
+            
             if (!updateResponse.ok) {
-                throw new Error(`Failed to update client info: ${updateResponse.statusText}`)
+                const errorText = await updateResponse.text()
+                console.error('❌ Failed to update client info')
+                console.error('❌ Response status:', updateResponse.status, updateResponse.statusText)
+                console.error('❌ Response body:', errorText)
+                console.error('❌ Update data sent:', JSON.stringify(updateData, null, 2))
+                
+                throw new Error(`Failed to update client info: ${updateResponse.statusText} - ${errorText}`)
             }
 
             console.log(`✅ Client information updated: ${clientId}`)
             return true
         } catch (error) {
-            console.error('Error updating client information:', error)
-            return false
+            console.error('❌ Error updating client information:', error)
+            throw error
         }
     }
 
