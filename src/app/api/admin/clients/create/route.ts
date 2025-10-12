@@ -8,7 +8,7 @@ import { ClientInformationManager } from '@/lib/config/clientInformationManager'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientName, displayName, clientInfo } = body
+    const { clientName, displayName, clientInfo, skipClientInfoSteps } = body
 
     if (!clientName || !displayName) {
       return NextResponse.json(
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    console.log('📋 Create route called with:', { clientName, displayName, skipClientInfoSteps })
 
     // Check if client already exists (check database first, then file)
     let existingClient = await DatabaseClientConfig.clientExists(clientName)
@@ -95,7 +97,14 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('✅ Phase 1 complete (Steps 1-6)')
-      console.log('ℹ️ Client configuration ready for finalization (Steps 7-10 will run on dashboard load)')
+      
+      // Skip Steps 7-10 if client info will be handled separately (progressive onboarding)
+      if (skipClientInfoSteps) {
+        console.log('ℹ️ Skipping Steps 7-10 (will be handled via finalize endpoint)')
+      } else {
+        // Original flow: Complete all steps in one call
+        console.log('ℹ️ Client configuration ready for finalization (Steps 7-10 will run on dashboard load)')
+      }
       
     } catch (error) {
       console.error('Error during client creation, initiating rollback...', error)

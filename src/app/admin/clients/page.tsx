@@ -31,7 +31,6 @@ export default function AdminClientsPage() {
   const [clients, setClients] = useState<ClientConfig[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   useEffect(() => {
@@ -62,66 +61,8 @@ export default function AdminClientsPage() {
     }
   }
 
-  const handleCreateClient = async (onboardingData: any) => {
-    try {
-      setIsCreating(true)
-      
-      // Generate client ID from company name
-      const clientId = onboardingData.companyName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-
-      console.log('Creating client with onboarding data:', { clientId, ...onboardingData })
-
-      const response = await fetch('/api/admin/clients/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          clientName: clientId,
-          displayName: onboardingData.displayName,
-          clientInfo: onboardingData
-        })
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Client created successfully:', result)
-        
-        // Close dialog
-        setShowCreateDialog(false)
-        
-        toast.success(`Workspace created for '${result.clientConfig.displayName}'!`, {
-          description: 'Redirecting to dashboard for final setup...'
-        })
-
-        // Navigate to dashboard with finalization data
-        // Store in sessionStorage to trigger finalization
-        sessionStorage.setItem('pendingFinalization', JSON.stringify({
-          clientId,
-          clientConfig: result.clientConfig,
-          clientInfo: result.clientInfo,
-          needsFinalization: result.needsFinalization
-        }))
-        
-        router.push(`/dashboard/${clientId}`)
-      } else {
-        const error = await response.json()
-        toast.error(`Error creating client: ${error.error}`, {
-          description: error.details || 'Please try again'
-        })
-      }
-    } catch (error) {
-      console.error('Error creating client:', error)
-      toast.error('Error creating client', {
-        description: 'Please try again or contact support'
-      })
-    } finally {
-      setIsCreating(false)
-    }
-  }
+  // Client creation is now handled entirely by the ClientOnboardingForm component
+  // which saves progressively after each step
 
   const handleViewDashboard = (clientId: string) => {
     router.push(`/dashboard/${clientId}`)
@@ -208,8 +149,12 @@ export default function AdminClientsPage() {
             </DialogHeader>
             
             <ClientOnboardingForm 
-              onSubmit={handleCreateClient}
-              isSubmitting={isCreating}
+              onSuccess={(clientId) => {
+                setShowCreateDialog(false)
+                toast.success('Client onboarded successfully!')
+                router.push(`/dashboard/${clientId}`)
+                fetchClients()
+              }}
             />
           </DialogContent>
         </Dialog>

@@ -63,12 +63,12 @@ const onboardingSchema = z.object({
 type OnboardingFormData = z.infer<typeof onboardingSchema>
 
 interface ClientOnboardingFormProps {
-    onSubmit: (data: OnboardingFormData) => Promise<void>
-    isSubmitting: boolean
+    onSuccess: (clientId: string) => void
 }
 
-export default function ClientOnboardingForm({ onSubmit, isSubmitting }: ClientOnboardingFormProps) {
+export default function ClientOnboardingForm({ onSuccess }: ClientOnboardingFormProps) {
     const [currentStep, setCurrentStep] = useState(1)
+    const [isSubmitting, setIsSubmitting] = useState(false)
     const totalSteps = 5
 
     const {
@@ -76,7 +76,8 @@ export default function ClientOnboardingForm({ onSubmit, isSubmitting }: ClientO
         handleSubmit,
         formState: { errors },
         trigger,
-        watch
+        watch,
+        getValues
     } = useForm<OnboardingFormData>({
         resolver: zodResolver(onboardingSchema),
         defaultValues: {
@@ -95,13 +96,180 @@ export default function ClientOnboardingForm({ onSubmit, isSubmitting }: ClientO
         const fieldsToValidate = getFieldsForStep(currentStep)
         const isValid = await trigger(fieldsToValidate as any)
         
-        if (isValid) {
+        if (!isValid) {
+            return
+        }
+
+        // Save data for current step before moving to next
+        setIsSubmitting(true)
+        
+        try {
+            const formData = getValues()
+            
+            if (currentStep === 1) {
+                // Step 1: Initialize client
+                console.log('💾 Saving Step 1: Company Details...')
+                const response = await fetch('/api/admin/clients/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        companyName: formData.companyName,
+                        industry: formData.industry,
+                        companySize: formData.companySize,
+                        foundedYear: formData.foundedYear,
+                        websiteUrl: formData.websiteUrl
+                    })
+                })
+
+                if (!response.ok) {
+                    const error = await response.json()
+                    throw new Error(error.error || 'Failed to save company details')
+                }
+
+                const result = await response.json()
+                console.log('✅ Step 1 saved, clientId:', result.clientId)
+                
+                // Store clientId for subsequent steps
+                sessionStorage.setItem('onboardingClientId', result.clientId)
+                
+            } else if (currentStep >= 2 && currentStep <= 4) {
+                // Steps 2-4: Update client info
+                const clientId = sessionStorage.getItem('onboardingClientId')
+                if (!clientId) {
+                    throw new Error('Client ID not found. Please restart from Step 1.')
+                }
+
+                console.log(`💾 Saving Step ${currentStep}...`)
+                
+                let updateData: any = {}
+                
+                if (currentStep === 2) {
+                    // Online Presence
+                    updateData = {
+                        websiteUrl: formData.websiteUrl,
+                        blogUrl: formData.blogUrl,
+                        facebookUrl: formData.facebookUrl,
+                        instagramHandle: formData.instagramHandle,
+                        linkedinUrl: formData.linkedinUrl,
+                        xHandle: formData.xHandle,
+                        tiktokHandle: formData.tiktokHandle
+                    }
+                } else if (currentStep === 3) {
+                    // Location & Contact
+                    updateData = {
+                        country: formData.country,
+                        city: formData.city,
+                        timezone: formData.timezone,
+                        primaryContactName: formData.primaryContactName,
+                        primaryContactEmail: formData.primaryContactEmail,
+                        primaryContactPhone: formData.primaryContactPhone
+                    }
+                } else if (currentStep === 4) {
+                    // Business Details
+                    updateData = {
+                        targetAudience: formData.targetAudience,
+                        mainCompetitors: formData.mainCompetitors,
+                        businessGoals: formData.businessGoals,
+                        accountManager: formData.accountManager,
+                        monthlyBudget: formData.monthlyBudget
+                    }
+                }
+
+                const response = await fetch(`/api/admin/clients/${clientId}/update-info`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        step: currentStep,
+                        data: updateData
+                    })
+                })
+
+                if (!response.ok) {
+                    const error = await response.json()
+                    throw new Error(error.error || `Failed to save Step ${currentStep}`)
+                }
+
+                console.log(`✅ Step ${currentStep} saved`)
+            }
+
+            // Move to next step
             setCurrentStep(prev => Math.min(prev + 1, totalSteps))
+            
+        } catch (error) {
+            console.error('Error saving step:', error)
+            alert(`Failed to save step: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
     const handlePrevious = () => {
         setCurrentStep(prev => Math.max(prev - 1, 1))
+    }
+
+    const handleFinalSubmit = async (data: OnboardingFormData) => {
+        setIsSubmitting(true)
+        
+        try {
+            const clientId = sessionStorage.getItem('onboardingClientId')
+            if (!clientId) {
+                throw new Error('Client ID not found. Please restart onboarding from Step 1.')
+            }
+
+            console.log('🎯 Step 5: Creating workspace and finalizing setup...')
+
+            // Update client info with final branding data first
+            const response = await fetch(`/api/admin/clients/${clientId}/update-info`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    step: 5,
+                    data: {
+                        brandVoice: data.brandVoice,
+                        postingFrequency: data.postingFrequency,
+                        languages: data.languages,
+                        primaryBrandColor: data.primaryBrandColor,
+                        secondaryBrandColor: data.secondaryBrandColor
+                    }
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to save branding preferences')
+            }
+
+            console.log('✅ Branding preferences saved')
+
+            // Now call finalize to create the workspace
+            console.log('🏗️ Creating Baserow workspace...')
+            const finalizeResponse = await fetch('/api/admin/clients/finalize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId
+                })
+            })
+
+            if (!finalizeResponse.ok) {
+                const error = await finalizeResponse.json()
+                throw new Error(error.error || 'Failed to create workspace')
+            }
+
+            const result = await finalizeResponse.json()
+            console.log('✅ Workspace created successfully')
+
+            // Clear onboarding data
+            sessionStorage.removeItem('onboardingClientId')
+
+            // Call success callback
+            onSuccess(clientId)
+            
+        } catch (error) {
+            console.error('Error completing onboarding:', error)
+            alert(`Failed to complete onboarding: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const getFieldsForStep = (step: number) => {
@@ -143,7 +311,7 @@ export default function ClientOnboardingForm({ onSubmit, isSubmitting }: ClientO
     )
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(handleFinalSubmit)} className="space-y-6">
             {renderStepIndicator()}
 
             {/* Step 1: Company Details */}
