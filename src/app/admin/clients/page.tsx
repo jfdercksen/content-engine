@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Plus, Users, Database, Settings, Trash2 } from 'lucide-react'
+import ClientOnboardingForm from '@/components/forms/ClientOnboardingForm'
+import { toast } from 'sonner'
 
 interface ClientConfig {
   id: string
@@ -31,10 +31,7 @@ export default function AdminClientsPage() {
   const [clients, setClients] = useState<ClientConfig[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [newClient, setNewClient] = useState({
-    clientName: '',
-    displayName: ''
-  })
+  const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   useEffect(() => {
@@ -65,14 +62,28 @@ export default function AdminClientsPage() {
     }
   }
 
-  const handleCreateClient = async () => {
+  const handleCreateClient = async (onboardingData: any) => {
     try {
+      setIsCreating(true)
+      
+      // Generate client ID from company name
+      const clientId = onboardingData.companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+
+      console.log('Creating client with onboarding data:', { clientId, ...onboardingData })
+
       const response = await fetch('/api/admin/clients/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newClient)
+        body: JSON.stringify({
+          clientName: clientId,
+          displayName: onboardingData.displayName,
+          clientInfo: onboardingData
+        })
       })
 
       if (response.ok) {
@@ -82,18 +93,28 @@ export default function AdminClientsPage() {
         // Refresh clients list
         await fetchClients()
         
-        // Reset form and close dialog
-        setNewClient({ clientName: '', displayName: '' })
+        // Close dialog
         setShowCreateDialog(false)
         
-        alert(`Client '${result.clientConfig.displayName}' created successfully!`)
+        toast.success(`Client '${result.clientConfig.displayName}' created successfully!`, {
+          description: 'Client onboarded and all systems configured'
+        })
+
+        // Navigate to new client dashboard
+        router.push(`/dashboard/${clientId}`)
       } else {
         const error = await response.json()
-        alert(`Error creating client: ${error.error}`)
+        toast.error(`Error creating client: ${error.error}`, {
+          description: error.details || 'Please try again'
+        })
       }
     } catch (error) {
       console.error('Error creating client:', error)
-      alert('Error creating client. Please try again.')
+      toast.error('Error creating client', {
+        description: 'Please try again or contact support'
+      })
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -173,47 +194,18 @@ export default function AdminClientsPage() {
               Add New Client
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Client</DialogTitle>
+              <DialogTitle>Client Onboarding</DialogTitle>
               <DialogDescription>
-                Set up a new client with automatic workspace, token, database and table creation using JWT authentication.
+                Complete this 5-step onboarding process to set up a new client with all their information.
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="clientName">Client ID</Label>
-                <Input
-                  id="clientName"
-                  placeholder="e.g., new-client"
-                  value={newClient.clientName}
-                  onChange={(e) => setNewClient({ ...newClient, clientName: e.target.value })}
-                />
-                <p className="text-sm text-gray-500 mt-1">Unique identifier for the client</p>
-              </div>
-              
-              <div>
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  placeholder="e.g., New Client Company"
-                  value={newClient.displayName}
-                  onChange={(e) => setNewClient({ ...newClient, displayName: e.target.value })}
-                />
-                <p className="text-sm text-gray-500 mt-1">Human-readable name</p>
-              </div>
-              
-              
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateClient}>
-                  Create Client
-                </Button>
-              </div>
-            </div>
+            <ClientOnboardingForm 
+              onSubmit={handleCreateClient}
+              isSubmitting={isCreating}
+            />
           </DialogContent>
         </Dialog>
       </div>

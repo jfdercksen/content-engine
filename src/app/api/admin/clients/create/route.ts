@@ -3,11 +3,12 @@ import { STANDARD_TABLE_TEMPLATES, STANDARD_FIELD_MAPPINGS } from '@/lib/types/c
 import { DynamicClientConfig } from '@/lib/config/dynamicClients'
 import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 import { EnvironmentManager } from '@/lib/config/environmentManager'
+import { ClientInformationManager } from '@/lib/config/clientInformationManager'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientName, displayName } = body
+    const { clientName, displayName, clientInfo } = body
 
     if (!clientName || !displayName) {
       return NextResponse.json(
@@ -97,8 +98,51 @@ export async function POST(request: NextRequest) {
       await storeEnvironmentVariables(clientName, clientConfig)
       console.log('Environment variables stored successfully')
       
-      // Step 9: Initialize default settings and preferences
-      console.log('Step 9: Initializing default settings...')
+      // Step 9: Store client information (onboarding data)
+      if (clientInfo) {
+        console.log('Step 9: Storing client information...')
+        try {
+          await ClientInformationManager.createClientInfo({
+            clientId: clientName,
+            companyName: clientInfo.companyName || displayName,
+            displayName: displayName,
+            industry: clientInfo.industry || '',
+            companySize: clientInfo.companySize || '',
+            foundedYear: clientInfo.foundedYear,
+            websiteUrl: clientInfo.websiteUrl,
+            blogUrl: clientInfo.blogUrl,
+            facebookUrl: clientInfo.facebookUrl,
+            instagramHandle: clientInfo.instagramHandle,
+            linkedinUrl: clientInfo.linkedinUrl,
+            xHandle: clientInfo.xHandle,
+            tiktokHandle: clientInfo.tiktokHandle,
+            country: clientInfo.country || '',
+            city: clientInfo.city,
+            timezone: clientInfo.timezone || 'UTC',
+            primaryContactName: clientInfo.primaryContactName,
+            primaryContactEmail: clientInfo.primaryContactEmail,
+            primaryContactPhone: clientInfo.primaryContactPhone,
+            targetAudience: clientInfo.targetAudience,
+            mainCompetitors: clientInfo.mainCompetitors,
+            businessGoals: clientInfo.businessGoals,
+            brandVoice: clientInfo.brandVoice,
+            postingFrequency: clientInfo.postingFrequency,
+            languages: clientInfo.languages,
+            primaryBrandColor: clientInfo.primaryBrandColor,
+            secondaryBrandColor: clientInfo.secondaryBrandColor,
+            onboardingStatus: 'Complete',
+            accountManager: clientInfo.accountManager,
+            monthlyBudget: clientInfo.monthlyBudget
+          })
+          console.log('✅ Client information stored and sent to onboarding webhook')
+        } catch (infoError) {
+          console.log('⚠️ Failed to store client information:', infoError)
+          console.log('Client created successfully, but onboarding data was not saved')
+        }
+      }
+      
+      // Step 10: Initialize default settings and preferences
+      console.log('Step 10: Initializing default settings...')
       try {
         const settingsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/settings/${clientName}/initialize`, {
           method: 'POST',
