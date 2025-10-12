@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IMAGE_TYPES, IMAGE_STYLES, IMAGE_STATUS } from '@/lib/types/content'
 import ImageIdeaForm from '@/components/forms/ImageIdeaForm'
 import ImageViewModal from '@/components/modals/ImageViewModal'
+import { ImageIdeaCard } from '@/components/cards/ImageIdeaCard'
+import { ViewToggle } from '@/components/ui/view-toggle'
 
 // Image interface (using Images table structure)
 interface ImageIdea {
@@ -44,6 +46,7 @@ export default function ImageIdeasPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingImageIdea, setEditingImageIdea] = useState<ImageIdea | null>(null)
   const [viewingImageIdea, setViewingImageIdea] = useState<ImageIdea | null>(null)
@@ -367,6 +370,11 @@ export default function ImageIdeasPage() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium">View Mode</label>
+                <ViewToggle view={viewMode} onViewChange={setViewMode} />
+              </div>
+
             </div>
           </CardContent>
         </Card>
@@ -413,6 +421,25 @@ export default function ImageIdeasPage() {
               </div>
             </CardContent>
           </Card>
+        ) : viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredImageIdeas.map((idea) => (
+              <ImageIdeaCard
+                key={idea.id}
+                image={{
+                  id: idea.id,
+                  imageprompt: idea.imagePrompt,
+                  imagetype: idea.imageType,
+                  imagestyle: idea.imageStyle,
+                  imagestatus: typeof idea.imageStatus === 'string' ? idea.imageStatus : idea.imageStatus?.value || '',
+                  image: idea.image,
+                  referenceurl: idea.referenceUrl
+                }}
+                onView={() => setViewingImageIdea(idea)}
+                onEdit={() => { setEditingImageIdea(idea); setShowCreateForm(true); }}
+              />
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredImageIdeas.map((idea) => (
