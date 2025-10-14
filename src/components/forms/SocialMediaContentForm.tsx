@@ -806,19 +806,20 @@ export default function SocialMediaContentForm({
               <div className="p-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium text-gray-700">Attached Media</span>
-                </div>
+                  </div>
                 <div className="flex gap-2 overflow-x-auto">
                   {/* Combined display of all images */}
                   {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => (
                     <div key={image.id || index} className="relative flex-shrink-0">
                       <img
-                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
+                        src={image.image || (image as any).imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
                         alt={image.imagePrompt || 'Selected image'}
                         className="w-16 h-16 rounded-lg object-cover border border-gray-200"
                         onError={(e) => {
                           console.log('Attached media image failed to load')
                           const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-image.jpg'
+                          // Use a data URI placeholder instead of a file that might not exist
+                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
                         }}
                       />
                       {/* Show remove button for browsed and uploaded images */}
@@ -838,10 +839,10 @@ export default function SocialMediaContentForm({
                           <X className="w-3 h-3" />
                         </Button>
                       )}
-                    </div>
+                  </div>
                   ))}
                 </div>
-              </div>
+                  </div>
             )}
 
             {/* Action Icons */}
@@ -1076,14 +1077,15 @@ export default function SocialMediaContentForm({
                     return (
                       <>
                         <img
-                          src={firstImage?.image || (firstImage as any)?.imageUrl || '/placeholder-image.jpg'}
+                          src={firstImage?.image || (firstImage as any)?.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='}
                           alt={firstImage?.imagePrompt || 'Post image'}
                           className="w-full h-64 object-cover"
-                          onError={(e) => {
-                            console.log('Preview image failed to load')
-                            const target = e.target as HTMLImageElement
-                            target.src = '/placeholder-image.jpg'
-                          }}
+                        onError={(e) => {
+                          console.log('Preview image failed to load')
+                          const target = e.target as HTMLImageElement
+                          // Use a data URI placeholder instead of a file that might not exist
+                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
+                        }}
                         />
                         {/* Only show red banner if there's a CTA and a valid image */}
                         {watchedCta && (firstImage?.image || (firstImage as any)?.imageUrl) && (
@@ -1096,8 +1098,8 @@ export default function SocialMediaContentForm({
                       </>
                     )
                   })()}
-                </div>
-              )}
+                  </div>
+                )}
 
               {/* Engagement Bar */}
               <div className="p-3 border-t border-gray-100">
