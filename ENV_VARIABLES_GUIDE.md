@@ -46,6 +46,7 @@ WEBHOOK_IMAGE_GENERATOR=https://n8n.aiautomata.co.za/webhook/image-generator-web
 WEBHOOK_BLOG_PROCESSOR=https://n8n.aiautomata.co.za/webhook/blog-creation-mvp
 WEBHOOK_EMAIL_PROCESSOR=https://n8n.aiautomata.co.za/webhook/email-processor
 WEBHOOK_UVP_CREATION=https://n8n.aiautomata.co.za/webhook/uvp_creation
+WEBHOOK_WORDPRESS_PUBLISHER=https://n8n.aiautomata.co.za/webhook/blog_post
 WEBHOOK_ONBOARDING=https://n8n.aiautomata.co.za/webhook/onboarding
 ```
 
@@ -113,7 +114,8 @@ These are automatically stored in Baserow table 1030 when you create a new clien
 8. ✅ `WEBHOOK_BLOG_PROCESSOR`
 9. ✅ `WEBHOOK_EMAIL_PROCESSOR`
 10. ✅ `WEBHOOK_UVP_CREATION`
-11. ✅ `WEBHOOK_ONBOARDING`
+11. ✅ `WEBHOOK_WORDPRESS_PUBLISHER`
+12. ✅ `WEBHOOK_ONBOARDING`
 
 ### How It Works in Production:
 

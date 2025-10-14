@@ -27,7 +27,8 @@ export async function POST(
             image_generator: process.env.WEBHOOK_IMAGE_GENERATOR || 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
             blog_processor: process.env.WEBHOOK_BLOG_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
             email_processor: process.env.WEBHOOK_EMAIL_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/email-processor',
-            uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+            uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation',
+            wordpress_publisher: process.env.WEBHOOK_WORDPRESS_PUBLISHER || 'https://n8n.aiautomata.co.za/webhook/blog_post'
         }
 
         // Set webhook URLs
@@ -103,6 +104,40 @@ export async function POST(
                 success,
                 message: `Publishing Setting ${key}: ${success ? 'initialized' : 'failed'}`
             })
+        }
+
+        // Initialize WordPress settings (empty by default, client fills in)
+        console.log('🔧 Initializing WordPress settings...')
+        const wordpressSettings = body.wordpress || {
+            site_url: '',
+            username: '',
+            app_password: '',
+            publishing_enabled: false
+        }
+
+        for (const [key, value] of Object.entries(wordpressSettings)) {
+            try {
+                const dataType = typeof value === 'boolean' ? 'boolean' : 'text'
+                const success = await SettingsManager.setSetting(
+                    clientId,
+                    'WordPress',
+                    key,
+                    value,
+                    `WordPress ${key.replace(/_/g, ' ')}`,
+                    false
+                )
+                console.log(`  ${success ? '✅' : '❌'} WordPress ${key}: ${success ? 'success' : 'failed'}`)
+                results.push({
+                    success,
+                    message: `WordPress ${key}: ${success ? 'initialized' : 'failed'}`
+                })
+            } catch (wpError) {
+                console.error(`  ❌ Error setting WordPress ${key}:`, wpError)
+                results.push({
+                    success: false,
+                    message: `WordPress ${key}: error - ${wpError}`
+                })
+            }
         }
 
         const allSuccessful = results.every(r => r.success)

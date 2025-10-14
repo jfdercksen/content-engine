@@ -26,6 +26,8 @@ export interface BlogPostFormData {
   scheduled_publish_date: string
   author_id: string
   featured_image_prompt: string
+  featured_image_url?: string
+  featured_image_alt?: string
   alt_texts: string
   internal_links: string
   external_sources: string
@@ -80,6 +82,8 @@ export default function BlogPostForm({
       scheduled_publish_date: initialData.scheduled_publish_date || '',
       author_id: initialData.author_id || '',
       featured_image_prompt: initialData.featured_image_prompt || '',
+      featured_image_url: initialData.featured_image_url || '',
+      featured_image_alt: initialData.featured_image_alt || '',
       alt_texts: initialData.alt_texts || '',
       internal_links: initialData.internal_links || '',
       external_sources: initialData.external_sources || '',
@@ -101,6 +105,8 @@ export default function BlogPostForm({
       scheduled_publish_date: '',
       author_id: '',
       featured_image_prompt: '',
+      featured_image_url: '',
+      featured_image_alt: '',
       alt_texts: '',
       internal_links: '',
       external_sources: '',
@@ -382,6 +388,41 @@ export default function BlogPostForm({
               onChange={(e) => handleInputChange('featured_image_prompt', e.target.value)}
               placeholder="AI prompt for featured image generation"
               rows={2}
+              readOnly={isReadOnly}
+            />
+          </div>
+
+          {/* Featured Image */}
+          <div className="space-y-2">
+            <Label htmlFor="featured_image_url">Featured Image URL</Label>
+            <Input
+              id="featured_image_url"
+              value={formData.featured_image_url || ''}
+              onChange={(e) => handleInputChange('featured_image_url', e.target.value)}
+              placeholder="https://example.com/image.jpg or upload/generate image"
+              readOnly={isReadOnly}
+            />
+            {formData.featured_image_url && (
+              <div className="mt-2 border rounded-lg p-2">
+                <img 
+                  src={formData.featured_image_url} 
+                  alt={formData.featured_image_alt || 'Featured image'} 
+                  className="w-full max-w-md rounded"
+                  onError={(e) => {
+                    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext x="50%" y="50%" text-anchor="middle" fill="%23999"%3EImage not found%3C/text%3E%3C/svg%3E'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="featured_image_alt">Featured Image Alt Text</Label>
+            <Input
+              id="featured_image_alt"
+              value={formData.featured_image_alt || ''}
+              onChange={(e) => handleInputChange('featured_image_alt', e.target.value)}
+              placeholder="Describe the image for SEO and accessibility"
               readOnly={isReadOnly}
             />
           </div>

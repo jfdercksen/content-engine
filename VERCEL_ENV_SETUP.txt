@@ -41,7 +41,10 @@ REQUIRED VARIABLES (11 total)
 10. WEBHOOK_UVP_CREATION
     Value: https://n8n.aiautomata.co.za/webhook/uvp_creation
 
-11. WEBHOOK_ONBOARDING
+11. WEBHOOK_WORDPRESS_PUBLISHER
+    Value: https://n8n.aiautomata.co.za/webhook/blog_post
+
+12. WEBHOOK_ONBOARDING
     Value: https://n8n.aiautomata.co.za/webhook/onboarding
 
 ================================================================================

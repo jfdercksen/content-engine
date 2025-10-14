@@ -68,6 +68,29 @@ export async function PATCH(
     )
 
     console.log('Blog post updated successfully:', updatedBlogPost)
+
+    // Auto-publish to WordPress if status is "Approved" or "Published" and has scheduled date
+    if ((body.status === 'Approved' || body.status === 'Published') && body.scheduled_publish_date) {
+      console.log('🚀 Auto-publishing to WordPress: status=' + body.status + ', scheduledDate=', body.scheduled_publish_date)
+      
+      // Trigger WordPress publishing in background (non-blocking)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/blog/publish-to-wordpress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId,
+          blogPostId: postId,
+        }),
+      }).catch(error => {
+        console.error('❌ Error triggering WordPress publish:', error)
+        // Don't fail the update if publishing fails
+      })
+      
+      console.log('✅ WordPress publishing triggered in background')
+    }
+
     return NextResponse.json(updatedBlogPost)
   } catch (error) {
     console.error('Error updating blog post:', error)

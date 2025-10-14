@@ -7,7 +7,8 @@ import BlogPostForm, { BlogPostFormData } from '@/components/forms/BlogPostForm'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Edit, Eye, Save, X } from 'lucide-react'
+import { ArrowLeft, Edit, Eye, Save, X, Send } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function BlogPostDetailPage() {
   const params = useParams()
@@ -18,6 +19,7 @@ export default function BlogPostDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const postId = params.postId as string
@@ -83,6 +85,42 @@ export default function BlogPostDetailPage() {
   const handleCancel = () => {
     setIsEditing(false)
     setError(null)
+  }
+
+  const handlePublishToWordPress = async () => {
+    if (!clientConfig || !postId) return
+
+    try {
+      setIsPublishing(true)
+      
+      toast.info('Publishing to WordPress...', { duration: 3000 })
+
+      const response = await fetch('/api/blog/publish-to-wordpress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId: clientConfig.id,
+          blogPostId: postId,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.details || 'Failed to publish to WordPress')
+      }
+
+      const result = await response.json()
+      console.log('WordPress publish result:', result)
+      
+      toast.success('Blog post published to WordPress successfully!', { duration: 5000 })
+    } catch (err) {
+      console.error('Error publishing to WordPress:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to publish to WordPress')
+    } finally {
+      setIsPublishing(false)
+    }
   }
 
   if (configLoading || isLoading) {
@@ -182,6 +220,20 @@ export default function BlogPostDetailPage() {
               <Badge variant="outline" className="mr-2">
                 {blogPost.status}
               </Badge>
+              
+              {/* Publish to WordPress button - show if approved/published and has scheduled date */}
+              {(blogPost.status === 'Approved' || blogPost.status === 'Published') && blogPost.scheduled_publish_date && (
+                <Button 
+                  onClick={handlePublishToWordPress}
+                  disabled={isPublishing}
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isPublishing ? 'Publishing...' : 'Publish to WordPress'}
+                </Button>
+              )}
+              
               <Button onClick={() => setIsEditing(true)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit

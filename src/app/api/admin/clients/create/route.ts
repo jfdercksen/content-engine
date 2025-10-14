@@ -133,7 +133,8 @@ export async function POST(request: NextRequest) {
               image_generator: process.env.WEBHOOK_IMAGE_GENERATOR || 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
               blog_processor: process.env.WEBHOOK_BLOG_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
               email_processor: process.env.WEBHOOK_EMAIL_PROCESSOR || 'https://n8n.aiautomata.co.za/webhook/email-processor',
-              uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+              uvp_creation: process.env.WEBHOOK_UVP_CREATION || 'https://n8n.aiautomata.co.za/webhook/uvp_creation',
+              wordpress_publisher: process.env.WEBHOOK_WORDPRESS_PUBLISHER || 'https://n8n.aiautomata.co.za/webhook/blog_post'
             }
           })
         })
@@ -745,8 +746,9 @@ async function createRealFields(tables: any, clientName: string): Promise<any> {
       { name: 'status', type: 'single_select', select_options: [
         { value: 'Draft', color: 'gray' },
         { value: 'Review', color: 'yellow' },
+        { value: 'Approved', color: 'blue' },
         { value: 'Published', color: 'green' },
-        { value: 'Scheduled', color: 'blue' }
+        { value: 'Scheduled', color: 'purple' }
       ]},
       { name: 'seo_score', type: 'number' },
       { name: 'word_count', type: 'number' },

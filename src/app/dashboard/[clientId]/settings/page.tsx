@@ -63,7 +63,8 @@ export default function SettingsPage() {
         image_generator: '',
         blog_processor: '',
         email_processor: '',
-        uvp_creation: ''
+        uvp_creation: '',
+        wordpress_publisher: ''
     })
 
     const [integrations, setIntegrations] = useState({
@@ -74,10 +75,8 @@ export default function SettingsPage() {
 
     const [wordpress, setWordpress] = useState({
         site_url: '',
-        jwt_token: '',
+        app_password: '',
         username: '',
-        token_expiration: '',
-        mcp_endpoint: '',
         publishing_enabled: false
     })
 
@@ -127,7 +126,8 @@ export default function SettingsPage() {
             image_generator: 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
             blog_processor: 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
             email_processor: 'https://n8n.aiautomata.co.za/webhook/email-processor',
-            uvp_creation: 'https://n8n.aiautomata.co.za/webhook/uvp_creation'
+            uvp_creation: 'https://n8n.aiautomata.co.za/webhook/uvp_creation',
+            wordpress_publisher: 'https://n8n.aiautomata.co.za/webhook/blog_post'
         })
 
         setAiSettings({
@@ -633,6 +633,31 @@ export default function SettingsPage() {
                                 )}
                             </div>
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="wordpress_publisher">WordPress Publisher</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="wordpress_publisher"
+                                    value={webhooks.wordpress_publisher}
+                                    onChange={(e) => setWebhooks(prev => ({ ...prev, wordpress_publisher: e.target.value }))}
+                                    placeholder="https://n8n.aiautomata.co.za/webhook/blog_post"
+                                />
+                                {webhooks.wordpress_publisher && (
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => copyToClipboard(webhooks.wordpress_publisher, 'wordpress_publisher')}
+                                    >
+                                        {copied === 'wordpress_publisher' ? (
+                                            <Check className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                            <Copy className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500">Webhook for publishing approved blogs to WordPress</p>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -689,10 +714,10 @@ export default function SettingsPage() {
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <Globe className="h-5 w-5 text-blue-600" />
-                            <CardTitle>WordPress Publishing (MCP)</CardTitle>
+                            <CardTitle>WordPress Publishing</CardTitle>
                         </div>
                         <CardDescription>
-                            Configure WordPress MCP integration for automated blog publishing
+                            Configure WordPress connection for automated blog publishing via REST API
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -701,28 +726,25 @@ export default function SettingsPage() {
                             <div className="flex items-start gap-3">
                                 <FileDown className="h-5 w-5 text-blue-600 mt-0.5" />
                                 <div className="flex-1 space-y-2">
-                                    <h4 className="font-medium text-blue-900">WordPress MCP Plugin Required</h4>
-                                    <p className="text-sm text-blue-700">
-                                        Install the WordPress MCP plugin on your WordPress site to enable automated publishing.
-                                    </p>
-                                    <div className="flex gap-2">
+                                    <h4 className="font-medium text-blue-900">How to Generate Application Password</h4>
+                                    <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                                        <li>Log into your WordPress site as an admin</li>
+                                        <li>Go to: <strong>Users → Your Profile</strong></li>
+                                        <li>Scroll to <strong>"Application Passwords"</strong> section</li>
+                                        <li>Enter a name: <strong>"Content Engine"</strong></li>
+                                        <li>Click <strong>"Add New Application Password"</strong></li>
+                                        <li>Copy the password (shown only once!)</li>
+                                        <li>Paste it in the field below</li>
+                                    </ol>
+                                    <div className="flex gap-2 mt-3">
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => window.open('https://github.com/Automattic/wordpress-mcp/releases/latest', '_blank')}
-                                            className="text-blue-600 border-blue-300 hover:bg-blue-100"
-                                        >
-                                            <ExternalLink className="mr-2 h-4 w-4" />
-                                            Download Plugin
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => window.open('/docs/wordpress-mcp-setup.md', '_blank')}
+                                            onClick={() => window.open('/WORDPRESS_APP_PASSWORD_SETUP.md', '_blank')}
                                             className="text-blue-600 border-blue-300 hover:bg-blue-100"
                                         >
                                             <FileDown className="mr-2 h-4 w-4" />
-                                            Setup Guide
+                                            Complete Setup Guide
                                         </Button>
                                     </div>
                                 </div>
@@ -733,7 +755,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                             <div className="space-y-0.5">
                                 <Label htmlFor="wordpress_enabled" className="text-base font-medium">Enable WordPress Publishing</Label>
-                                <p className="text-sm text-gray-500">Allow publishing content directly to WordPress via MCP</p>
+                                <p className="text-sm text-gray-500">Allow publishing content directly to WordPress via REST API</p>
                             </div>
                             <Switch
                                 id="wordpress_enabled"
@@ -763,27 +785,27 @@ export default function SettingsPage() {
                                 onChange={(e) => setWordpress(prev => ({ ...prev, username: e.target.value }))}
                                 placeholder="admin"
                             />
-                            <p className="text-xs text-gray-500">Admin user who generated the JWT token</p>
+                            <p className="text-xs text-gray-500">WordPress admin username</p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="jwt_token">JWT Authentication Token</Label>
+                            <Label htmlFor="app_password">Application Password</Label>
                             <div className="flex gap-2">
                                 <Input
-                                    id="jwt_token"
+                                    id="app_password"
                                     type="password"
-                                    value={wordpress.jwt_token}
-                                    onChange={(e) => setWordpress(prev => ({ ...prev, jwt_token: e.target.value }))}
-                                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                    value={wordpress.app_password}
+                                    onChange={(e) => setWordpress(prev => ({ ...prev, app_password: e.target.value }))}
+                                    placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                                     className="flex-1"
                                 />
-                                {wordpress.jwt_token && (
+                                {wordpress.app_password && (
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => copyToClipboard(wordpress.jwt_token, 'jwt_token')}
+                                        onClick={() => copyToClipboard(wordpress.app_password, 'app_password')}
                                     >
-                                        {copied === 'jwt_token' ? (
+                                        {copied === 'app_password' ? (
                                             <Check className="h-4 w-4 text-green-600" />
                                         ) : (
                                             <Copy className="h-4 w-4" />
@@ -792,37 +814,12 @@ export default function SettingsPage() {
                                 )}
                             </div>
                             <p className="text-xs text-gray-500">
-                                Generated from WordPress → Settings → WordPress MCP
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="token_expiration">Token Expiration Date</Label>
-                            <Input
-                                id="token_expiration"
-                                type="datetime-local"
-                                value={wordpress.token_expiration}
-                                onChange={(e) => setWordpress(prev => ({ ...prev, token_expiration: e.target.value }))}
-                            />
-                            <p className="text-xs text-gray-500">When this token will expire (set when generating token)</p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="mcp_endpoint">MCP Endpoint URL (Optional)</Label>
-                            <Input
-                                id="mcp_endpoint"
-                                type="url"
-                                value={wordpress.mcp_endpoint}
-                                onChange={(e) => setWordpress(prev => ({ ...prev, mcp_endpoint: e.target.value }))}
-                                placeholder="https://yourblog.com/wp-json/mcp/v1"
-                            />
-                            <p className="text-xs text-gray-500">
-                                Leave empty to auto-generate from site URL
+                                Generate in WordPress: Users → Your Profile → Application Passwords
                             </p>
                         </div>
 
                         {/* Connection Status */}
-                        {wordpress.site_url && wordpress.jwt_token && (
+                        {wordpress.site_url && wordpress.app_password && wordpress.username && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
                                 <Check className="h-4 w-4 text-green-600" />
                                 <span className="text-sm text-green-700 font-medium">WordPress connection configured</span>

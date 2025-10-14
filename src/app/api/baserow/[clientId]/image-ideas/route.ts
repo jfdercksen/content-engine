@@ -191,6 +191,59 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
     
     // Create image record in Images table (729) instead of separate Image Ideas table
     const createdImage = await baserowAPI.createImage(imagesTableId, dataWithFiles)
+    console.log('✅ Image record created:', createdImage.id)
+
+    // Trigger n8n webhook for image generation
+    try {
+      const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
+      const webhookUrl = await getWebhookUrl(clientId, 'image_generator')
+      
+      if (!webhookUrl) {
+        console.warn('⚠️ Image generator webhook not configured, skipping webhook call')
+      } else {
+        console.log('📡 Triggering image generation webhook:', webhookUrl)
+        
+        // Prepare payload for n8n
+        const webhookPayload = {
+          clientId,
+          imageIdeaId: createdImage.id,
+          imagePrompt: data.imagePrompt || '',
+          imageScene: data.imageScene || '',
+          imageType: data.imageType || '',
+          imageStyle: data.imageStyle || '',
+          imageModel: data.imageModel || '',
+          imageSize: data.imageSize || '',
+          referenceUrl: data.referenceUrl || '',
+          operationType: operationType || 'generate',
+          imageStatus: data.imageStatus || 'Generating',
+          selectedImages: selectedImages || [],
+          baserow: {
+            tableId: imagesTableId,
+            recordId: createdImage.id
+          }
+        }
+        
+        // Call webhook asynchronously (fire-and-forget)
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookPayload)
+        }).then(response => {
+          if (response.ok) {
+            console.log('✅ Webhook triggered successfully')
+          } else {
+            console.error('❌ Webhook failed:', response.status, response.statusText)
+          }
+        }).catch(error => {
+          console.error('❌ Error calling webhook:', error)
+        })
+      }
+    } catch (webhookError) {
+      console.error('❌ Error triggering webhook:', webhookError)
+      // Don't fail the request if webhook fails
+    }
 
     return NextResponse.json({
       success: true,
