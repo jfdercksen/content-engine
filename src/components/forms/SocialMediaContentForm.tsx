@@ -496,16 +496,38 @@ export default function SocialMediaContentForm({
   }
 
   const handleSelectBrowsedImage = (image: Partial<Image>) => {
+    console.log('=== IMAGE SELECTION DEBUG ===')
+    console.log('Raw image data received:', image)
+    
+    // Extract the image URL properly
+    let imageUrl = null
+    if ((image as any).imageLinkUrl) {
+      imageUrl = (image as any).imageLinkUrl
+    } else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
+      imageUrl = image.image[0].url
+    }
+    
+    console.log('Extracted imageUrl:', imageUrl)
+    
+    // Create the image object with the correct URL
+    const imageWithUrl = {
+      ...image,
+      image: imageUrl, // Store the URL string directly
+      imageUrl: imageUrl // Also store as imageUrl for compatibility
+    } as any
+    
+    console.log('Image with URL:', imageWithUrl)
+    
     // Add the image to the selected images array (avoid duplicates)
     setSelectedBrowsedImages(prev => {
       const exists = prev.some(img => img.id === image.id)
       if (exists) return prev
-      return [...prev, image]
+      return [...prev, imageWithUrl]
     })
     
     // Update the form with the selected image data
     setValue('imagePrompt', image.imagePrompt || '')
-    console.log('Selected image from browser:', image)
+    console.log('Selected image from browser:', imageWithUrl)
     setShowImageBrowser(false)
   }
 
@@ -544,731 +566,465 @@ export default function SocialMediaContentForm({
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold">
-            {isEditing ? 'Edit Social Media Content' : 'Create Social Media Content'}
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {isEditing ? 'Edit post' : 'Create post'}
           </h2>
           {contentIdeaTitle && (
-            <p className="text-sm text-gray-500 mt-1">
-              For content idea: "{contentIdeaTitle}"
-            </p>
+            <Badge variant="outline" className="text-xs">
+              {contentIdeaTitle}
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant={previewMode ? 'default' : 'outline'}
-            onClick={() => setPreviewMode(!previewMode)}
-          >
-            {previewMode ? 'Edit' : 'Preview'}
+          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+            Copy link
           </Button>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Form Section */}
-        <div className="space-y-6">
-          <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-            {/* Platform and Content Type */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="platform">Platform *</Label>
-                <Select 
-                  value={watch('platform')} 
-                  onValueChange={(value) => setValue('platform', value as any)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(SOCIAL_MEDIA_PLATFORMS).map((platform) => (
-                      <SelectItem key={platform} value={platform}>
-                        {platform}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.platform && (
-                  <p className="text-sm text-red-600">{errors.platform.message?.toString()}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="contentType">Content Type *</Label>
-                <Select 
-                  value={watch('contentType')} 
-                  onValueChange={(value) => setValue('contentType', value as any)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select content type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(SOCIAL_MEDIA_CONTENT_TYPES).map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.contentType && (
-                  <p className="text-sm text-red-600">{errors.contentType.message?.toString()}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Hook */}
-            <div className="space-y-2">
-              <Label htmlFor="hook">Hook *</Label>
-              <Textarea
-                id="hook"
-                placeholder="Write an attention-grabbing hook..."
-                className="min-h-[80px]"
-                {...register('hook')}
-              />
-              {errors.hook && (
-                <p className="text-sm text-red-600">{errors.hook.message?.toString()}</p>
-              )}
-            </div>
-
-            {/* Post Content */}
-            <div className="space-y-2">
-              <Label htmlFor="post">Post Content *</Label>
-              <Textarea
-                id="post"
-                placeholder="Write your main post content..."
-                className="min-h-[120px]"
-                {...register('post')}
-              />
-              {errors.post && (
-                <p className="text-sm text-red-600">{errors.post.message?.toString()}</p>
-              )}
-            </div>
-
-            {/* Call to Action */}
-            <div className="space-y-2">
-              <Label htmlFor="cta">Call to Action *</Label>
-              <Input
-                id="cta"
-                placeholder="e.g., 'Learn more', 'Sign up today', 'Comment below'"
-                {...register('cta')}
-              />
-              {errors.cta && (
-                <p className="text-sm text-red-600">{errors.cta.message?.toString()}</p>
-              )}
-            </div>
-
-            {/* Hashtags */}
-            <div className="space-y-2">
-              <Label htmlFor="hashtags">Hashtags</Label>
-              <Input
-                id="hashtags"
-                placeholder="#marketing #socialmedia #business"
-                {...register('hashtags')}
-              />
-              <p className="text-xs text-gray-500">
-                Separate hashtags with spaces
-              </p>
-            </div>
-
-            {/* Character Count */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Character Count</span>
-              </div>
-              <Badge variant={isOverLimit ? 'destructive' : 'secondary'}>
-                {characterCount} / {characterLimit}
-              </Badge>
-            </div>
-
-            {/* Advanced Fields */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Content Strategy</CardTitle>
-                <CardDescription>
-                  Define the strategic elements of your content
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="angle">Angle</Label>
-                    <Input
-                      id="angle"
-                      placeholder="e.g., Educational, Inspirational, Behind-the-scenes"
-                      {...register('angle')}
-                    />
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Column - Editing Interface */}
+        <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col">
+          <form onSubmit={handleSubmit(onFormSubmit)} className="flex-1 flex flex-col">
+            {/* Platform Selection */}
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">f</span>
                   </div>
+                  <Select 
+                    value={watch('platform')} 
+                    onValueChange={(value) => setValue('platform', value as any)}
+                  >
+                    <SelectTrigger className="w-32 border-0 shadow-none font-medium">
+                      <SelectValue placeholder="POST" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(SOCIAL_MEDIA_PLATFORMS).map((platform) => (
+                        <SelectItem key={platform} value={platform}>
+                          {platform}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs">📷</span>
+                </div>
+                <Button variant="ghost" size="sm" className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50">
+                  <span className="text-gray-400">+</span>
+                </Button>
+              </div>
+            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="intent">Intent</Label>
-                    <Input
-                      id="intent"
-                      placeholder="e.g., Drive traffic, Increase engagement, Build awareness"
-                      {...register('intent')}
-                    />
-                  </div>
+            {/* Content Editing Area */}
+            <div className="flex-1 p-4">
+              <div className="space-y-4">
+                {/* Post Content */}
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder="What's on your mind?"
+                    className="min-h-[200px] border-0 resize-none text-lg placeholder:text-gray-400 focus:ring-0 focus:border-0 p-0"
+                    {...register('post')}
+                  />
+                  {errors.post && (
+                    <p className="text-sm text-red-600">{errors.post.message?.toString()}</p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="contentTheme">Content Theme</Label>
-                    <Input
-                      id="contentTheme"
-                      placeholder="e.g., Productivity, Innovation, Success"
-                      {...register('contentTheme')}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="psychologicalTrigger">Psychological Trigger</Label>
-                    <Input
-                      id="psychologicalTrigger"
-                      placeholder="e.g., FOMO, Social proof, Curiosity"
-                      {...register('psychologicalTrigger')}
-                    />
-                  </div>
-                </div>
-
+                {/* Hook */}
                 <div className="space-y-2">
-                  <Label htmlFor="engagementObjective">Engagement Objective</Label>
+                  <Textarea
+                    placeholder="Add a compelling hook..."
+                    className="min-h-[60px] border border-gray-200 rounded-lg resize-none placeholder:text-gray-400"
+                    {...register('hook')}
+                  />
+                  {errors.hook && (
+                    <p className="text-sm text-red-600">{errors.hook.message?.toString()}</p>
+                  )}
+                </div>
+
+                {/* Call to Action */}
+                <div className="space-y-2">
                   <Input
-                    id="engagementObjective"
-                    placeholder="e.g., Comments, Shares, Clicks, Saves"
-                    {...register('engagementObjective')}
+                    placeholder="Call to action (e.g., Learn more, Sign up today)"
+                    className="border border-gray-200 rounded-lg"
+                    {...register('cta')}
+                  />
+                  {errors.cta && (
+                    <p className="text-sm text-red-600">{errors.cta.message?.toString()}</p>
+                  )}
+                </div>
+
+                {/* Hashtags */}
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Add hashtags..."
+                    className="border border-gray-200 rounded-lg"
+                    {...register('hashtags')}
                   />
                 </div>
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="imagePrompt">Image Prompt</Label>
-                  <div className="flex gap-2">
-                    <Textarea
-                      id="imagePrompt"
-                      placeholder="Describe the ideal image for this post..."
-                      className="min-h-[60px] flex-1"
-                      {...register('imagePrompt')}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowImageGeneration(true)}
-                        disabled={isGeneratingImage}
-                        className="whitespace-nowrap"
-                      >
-                        <Sparkles className="h-4 w-4 mr-1" />
-                        {isGeneratingImage ? 'Generating...' : 'Generate Image'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleBrowseImages}
-                        className="whitespace-nowrap"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Browse Images
-                      </Button>
-                    </div>
-                  </div>
+            {/* Attached Media Preview */}
+            {(selectedBrowsedImages.length > 0 || generatedImages.length > 0) && (
+              <div className="p-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-medium text-gray-700">Attached Media</span>
                 </div>
-
-                {/* Selected Images Display */}
-                {selectedBrowsedImages.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Selected Images</Label>
-                    <div className="border rounded-lg p-4 bg-blue-50">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {selectedBrowsedImages.map((image, index) => (
-                          <div key={image.id || index} className="relative group">
-                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                              {(image.image || (image as any).imageLinkUrl) ? (
-                                <img
-                                  src={(image.image && image.image.length > 0 ? image.image[0].url : '') || (image as any).imageLinkUrl}
-                                  alt={`Selected image ${index + 1}`}
-                                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => handleImageClick(image.image || (image as any).imageLinkUrl || '', `Selected image ${index + 1}`)}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  <ImageIcon className="h-8 w-8" />
-                                </div>
-                              )}
-                              {/* Remove button */}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSelectedImage(image.id || '')}
-                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                            <div className="mt-1 text-xs text-center">
-                              <p className="font-medium truncate">Image #{(image as any).imageId || 'Unknown'}</p>
-                              {image.imageType && (
-                                <p className="text-gray-500 truncate">{typeof image.imageType === 'object' ? (image.imageType as any).value : image.imageType}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-3 text-sm text-gray-600">
-                        <p>💡 <strong>Tip:</strong> These images are linked to your post. Click to view full size, or click the × to remove.</p>
-                      </div>
+                <div className="flex gap-2 overflow-x-auto">
+                  {selectedBrowsedImages.map((image) => (
+                    <div key={image.id} className="relative flex-shrink-0">
+                      <img
+                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
+                        alt={image.imagePrompt || 'Selected image'}
+                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        onError={(e) => {
+                          console.log('Attached media image failed to load')
+                          const target = e.target as HTMLImageElement
+                          target.src = '/placeholder-image.jpg'
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
+                        onClick={() => handleRemoveSelectedImage(image.id || '')}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
-                  </div>
-                )}
-
-                {/* Linked Image Display */}
-                {initialData?.images ? (
-                  <div className="space-y-2">
-                    <Label>Generated Images</Label>
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      {Array.isArray(initialData.images) && initialData.images.length > 0 ? (
-                        // Handle array of linked images
-                        <div className="space-y-3">
-                          {(initialData.images && Array.isArray(initialData.images)) 
-                            ? initialData.images.map((imageItem: any, index: number) => (
-                            <div key={index} className="flex items-start gap-3">
-                                                             {(imageItem as any).image && Array.isArray((imageItem as any).image) && (imageItem as any).image.length > 0 && (
-                                 <div className="flex-shrink-0">
-                                   <img 
-                                     src={(imageItem as any).image && (imageItem as any).image.length > 0 ? (imageItem as any).image[0].url : ''} 
-                                     alt={`Generated image ${index + 1}`}
-                                     className="w-32 h-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                                     onClick={() => handleImageClick(
-                                       (imageItem as any).image[0].url || (imageItem as any).image[0], 
-                                       `Generated image ${index + 1}`
-                                     )}
-                                   />
-                                 </div>
-                               )}
-                              <div className="flex-1 min-w-0">
-                                                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant={
-                                  getDisplayValue((imageItem as any).imageStatus) === 'Completed' || 
-                                  getDisplayValue((imageItem as any).imagestatus) === 'Completed' ||
-                                  getDisplayValue((imageItem as any).status) === 'Completed' 
-                                    ? 'default' 
-                                    : 'secondary'
-                                }>
-                                  {getDisplayValue((imageItem as any).imageStatus) || 
-                                   getDisplayValue((imageItem as any).imagestatus) || 
-                                   getDisplayValue((imageItem as any).status) || 
-                                   'Unknown'}
-                                </Badge>
-                                  {getDisplayValue((imageItem as any).imagePrompt) && (
-                                    <span className="text-sm text-gray-600">
-                                      "{getDisplayValue((imageItem as any).imagePrompt)}"
-                                    </span>
-                                  )}
-                                </div>
-                                {getDisplayValue((imageItem as any).captionText) && (
-                                  <p className="text-sm text-gray-700">{getDisplayValue((imageItem as any).captionText)}</p>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                            : []
-                        }
-                        </div>
-                                             ) : typeof initialData.images === 'object' && initialData.images ? (
-                         // Handle single linked image object
-                         <div className="flex items-start gap-3">
-                                                       {(initialData.images as any).image && Array.isArray((initialData.images as any).image) && (initialData.images as any).image.length > 0 && (
-                              <div className="flex-shrink-0">
-                                <img 
-                                  src={(initialData.images as any).image && (initialData.images as any).image.length > 0 ? (initialData.images as any).image[0].url : ''} 
-                                  alt="Generated image"
-                                  className="w-32 h-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => handleImageClick(
-                                    (initialData.images as any).image[0].url || (initialData.images as any).image[0], 
-                                    "Generated image"
-                                  )}
-                                />
-                              </div>
-                            )}
-                           <div className="flex-1 min-w-0">
-                                                       <div className="flex items-center gap-2 mb-2">
-                             <Badge variant={
-                               getDisplayValue((initialData.images as any).imageStatus) === 'Completed' || 
-                               getDisplayValue((initialData.images as any).imagestatus) === 'Completed' ||
-                               getDisplayValue((initialData.images as any).status) === 'Completed' 
-                                 ? 'default' 
-                                 : 'secondary'
-                             }>
-                               {getDisplayValue((initialData.images as any).imageStatus) || 
-                                getDisplayValue((initialData.images as any).imagestatus) || 
-                                getDisplayValue((initialData.images as any).status) || 
-                                'Unknown'}
-                             </Badge>
-                               {getDisplayValue((initialData.images as any).imagePrompt) && (
-                                 <span className="text-sm text-gray-600">
-                                   "{getDisplayValue((initialData.images as any).imagePrompt)}"
-                                 </span>
-                               )}
-                             </div>
-                             {getDisplayValue((initialData.images as any).captionText) && (
-                               <p className="text-sm text-gray-700">{getDisplayValue((initialData.images as any).captionText)}</p>
-                             )}
-                           </div>
-                         </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No image data available</p>
-                      )}
+                  ))}
+                  {generatedImages.map((image, index) => (
+                    <div key={index} className="flex-shrink-0">
+                      <img
+                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
+                        alt={image.imagePrompt || 'Generated image'}
+                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        onError={(e) => {
+                          console.log('Generated image failed to load')
+                          const target = e.target as HTMLImageElement
+                          target.src = '/placeholder-image.jpg'
+                        }}
+                      />
                     </div>
-                  </div>
-                ) : (
-                  // No linked image - show option to generate
-                  <div className="space-y-2">
-                    <Label>Generated Image</Label>
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <div className="text-center py-8">
-                        <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500 mb-4">No image has been generated for this post yet.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowImageGeneration(true)}
-                          disabled={isGeneratingImage}
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          {isGeneratingImage ? 'Generating...' : 'Generate Image'}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {/* Status and Scheduling */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Publishing</CardTitle>
-                <CardDescription>
-                  Set the status and schedule for this content
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select 
-                      value={watch('status')} 
-                      onValueChange={(value) => setValue('status', value as any)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(SOCIAL_MEDIA_STATUS).map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {/* Action Icons */}
+            <div className="p-4 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowImageGeneration(true)}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span className="text-sm">Image</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBrowseImages}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm">Browse</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  <Hash className="w-4 h-4" />
+                  <span className="text-sm">Hashtags</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  <Target className="w-4 h-4" />
+                  <span className="text-sm">Location</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="text-sm">Link</span>
+                </Button>
+              </div>
+            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="scheduledTime">Scheduled Time</Label>
+            {/* Global Presets */}
+            <div className="p-4 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Global presets</span>
+                <Button variant="ghost" size="sm">
+                  <span className="text-gray-400">▼</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Bottom Controls */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                    🗑️
+                  </Button>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
                     <Input
-                      id="scheduledTime"
                       type="datetime-local"
+                      className="w-48 border border-gray-300 rounded-lg text-sm"
                       {...register('scheduledTime')}
                     />
                   </div>
+                  <Button type="button" variant="ghost" size="sm">
+                    Duplicate ▼
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    {isSubmitting || isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        {isEditing ? 'Updating...' : 'Creating...'}
+                      </>
+                    ) : (
+                      isEditing ? 'Update' : 'Create'
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Form Actions */}
-            <div className="flex items-center justify-end gap-4 pt-6 border-t">
-              {/* Debug info */}
-              <div className="text-xs text-gray-500 mr-auto">
-                {isOverLimit && <span className="text-red-500">Over character limit ({characterCount}/{characterLimit})</span>}
-                {isSubmitting && <span className="text-blue-500">Submitting...</span>}
-                {isLoading && <span className="text-blue-500">Loading...</span>}
-                {Object.keys(errors).length > 0 && <span className="text-red-500">Form has errors</span>}
               </div>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || isLoading}
-                // Temporarily disabled character limit check for debugging
-                // disabled={isSubmitting || isLoading || isOverLimit}
-                onClick={() => {
-                  console.log('Submit button clicked!')
-                  console.log('Form state - isSubmitting:', isSubmitting)
-                  console.log('Form state - isLoading:', isLoading)
-                  console.log('Form state - isOverLimit:', isOverLimit)
-                  console.log('Character count:', characterCount, 'Limit:', characterLimit)
-                  console.log('Form errors:', errors)
-                  console.log('Form is valid:', Object.keys(errors).length === 0)
-                }}
-              >
-                {isSubmitting || isLoading ? 'Saving...' : (isEditing ? 'Update Content' : 'Create Content')}
-              </Button>
             </div>
           </form>
         </div>
 
-        {/* Preview Section */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-                             <CardTitle className="flex items-center gap-2">
-                 <MessageSquare className="h-5 w-5" />
-                 Preview - {String(watchedPlatform || 'Unknown Platform')}
-               </CardTitle>
-               <CardDescription>
-                 How your content will appear on {String(watchedPlatform || 'Unknown Platform')}
-               </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Hook Preview */}
-              {watchedHook && (
-                <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                  <p className="font-semibold text-blue-900 text-sm mb-1">Hook:</p>
-                  <p className="text-blue-800">{formatPreviewText(watchedHook)}</p>
+        {/* Right Column - Preview */}
+        <div className="w-1/2 bg-gray-50 flex flex-col">
+          {/* Preview Header */}
+          <div className="p-4 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">f</span>
                 </div>
-              )}
+                <span className="font-medium text-gray-900">Facebook</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-gray-500">
+                  Notes
+                </Button>
+                <Button variant="ghost" size="sm" className="text-gray-500">
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" className="text-gray-500">
+                  📱
+                </Button>
+                <Button variant="ghost" size="sm" className="text-gray-500">
+                  🖥️
+                </Button>
+              </div>
+            </div>
+          </div>
 
-              {/* Post Preview */}
-              {watchedPost && (
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="font-semibold text-gray-900 text-sm mb-1">Post:</p>
-                  <p className="text-gray-800 whitespace-pre-wrap">{formatPreviewText(watchedPost)}</p>
-                </div>
-              )}
-
-              {/* CTA Preview */}
-              {watchedCta && (
-                <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
-                  <p className="font-semibold text-green-900 text-sm mb-1">Call to Action:</p>
-                  <p className="text-green-800 font-medium">{watchedCta}</p>
-                </div>
-              )}
-
-              {/* Hashtags Preview */}
-              {watchedHashtags && (
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <p className="font-semibold text-purple-900 text-sm mb-1">Hashtags:</p>
-                  <p className="text-purple-700">{watchedHashtags}</p>
-                </div>
-              )}
-
-              {/* Platform-specific preview styling */}
-              <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+          {/* Preview Content */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-md mx-auto bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              {/* Profile Header */}
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">{clientName.charAt(0)}</span>
+                  </div>
                   <div>
-                    <p className="font-semibold text-sm">{clientName}</p>
-                    <p className="text-xs text-gray-500">Just now</p>
+                    <h3 className="font-semibold text-gray-900">{clientName}</h3>
+                    <p className="text-sm text-gray-500">Just now</p>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
+              </div>
+
+              {/* Post Content */}
+              <div className="p-4">
+                <div className="space-y-3">
+                  {/* Hook */}
                   {watchedHook && (
-                    <p className="font-medium">{watchedHook}</p>
+                    <p className="text-gray-900 font-medium">
+                      {formatPreviewText(watchedHook)}
+                    </p>
                   )}
+                  
+                  {/* Main Post */}
                   {watchedPost && (
-                    <p className="whitespace-pre-wrap">{watchedPost}</p>
+                    <p className="text-gray-900 leading-relaxed">
+                      {formatPreviewText(watchedPost)}
+                    </p>
                   )}
+
+                  {/* Call to Action */}
                   {watchedCta && (
-                    <p className="font-medium text-blue-600">{watchedCta}</p>
-                  )}
-                  {watchedHashtags && (
-                    <p className="text-blue-600 text-sm">{watchedHashtags}</p>
-                  )}
-                </div>
-
-                {watch('imagePrompt') && (
-                  <div className="mt-3 p-3 bg-gray-100 rounded-lg flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Image will be generated</span>
-                  </div>
-                )}
-
-                {/* Selected Browsed Images Preview */}
-                {selectedBrowsedImages.length > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-900">
-                        {selectedBrowsedImages.length} {selectedBrowsedImages.length === 1 ? 'Image' : 'Images'} Attached
-                      </span>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-blue-800 font-medium text-sm">
+                        {watchedCta}
+                      </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {selectedBrowsedImages.map((image, index) => (
-                        <div key={image.id || index} className="relative">
-                          {(image.image || (image as any).imageLinkUrl) ? (
-                            <img
-                              src={(image.image && image.image.length > 0 ? image.image[0].url : '') || (image as any).imageLinkUrl}
-                              alt={`Attached image ${index + 1}`}
-                              className="w-full h-32 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-full h-32 bg-gray-100 rounded flex items-center justify-center">
-                              <ImageIcon className="h-8 w-8 text-gray-400" />
-                            </div>
-                          )}
-                          {image.imagePrompt && (
-                            <p className="text-xs text-blue-700 mt-1 truncate">{image.imagePrompt}</p>
-                          )}
-                        </div>
+                  )}
+
+                  {/* Hashtags */}
+                  {watchedHashtags && (
+                    <div className="flex flex-wrap gap-1">
+                      {watchedHashtags.split(' ').map((tag: string, index: number) => (
+                        tag.trim() && (
+                          <span key={index} className="text-blue-600 text-sm hover:underline cursor-pointer">
+                            #{tag.trim()}
+                          </span>
+                        )
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Selected Image Preview */}
-                {selectedImage && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-900">Selected Image</span>
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedImage(null)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                  {/* Location/Event Info */}
+                  {(watchedCta || watchedHashtags) && (
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Target className="w-4 h-4" />
+                        <span>St Stithians College</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>This weekend!</span>
                       </div>
                     </div>
-                    {selectedImage.image && (
-                      <img
-                        src={selectedImage.image && selectedImage.image.length > 0 ? selectedImage.image[0].url : ''}
-                        alt="Selected image"
-                        className="w-full h-32 object-cover rounded"
-                      />
-                    )}
-                    <p className="text-xs text-blue-700 mt-1">{selectedImage.imagePrompt}</p>
-                  </div>
-                )}
-
-                {/* Generated Images List */}
-                {generatedImages.length > 0 && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-green-900">Generated Images</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setGeneratedImages([])}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {generatedImages.slice(0, 4).map((image, index) => (
-                        <div
-                          key={index}
-                          className="relative cursor-pointer group"
-                          onClick={() => handleSelectImage(image)}
-                        >
-                          {image.image && (
-                            <img
-                              src={image.image && image.image.length > 0 ? image.image[0].url : ''}
-                              alt={`Generated image ${index + 1}`}
-                              className="w-full h-20 object-cover rounded border-2 border-transparent group-hover:border-blue-400"
-                            />
-                          )}
-                          <div className="absolute top-1 right-1">
-                            <Badge variant="secondary" className="text-xs">
-                              {image.imageStatus}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Content Metrics */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Content Metrics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Character Count</span>
+              {/* Main Image */}
+              {(selectedBrowsedImages.length > 0 || generatedImages.length > 0) && (
+                <div className="relative">
+                  <img
+                    src={selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || '/placeholder-image.jpg'}
+                    alt={selectedBrowsedImages[0]?.imagePrompt || generatedImages[0]?.imagePrompt || 'Post image'}
+                    className="w-full h-64 object-cover"
+                    onError={(e) => {
+                      console.log('Preview image failed to load')
+                      const target = e.target as HTMLImageElement
+                      target.src = '/placeholder-image.jpg'
+                    }}
+                  />
+                  {/* Only show red banner if there's a CTA and a valid image */}
+                  {watchedCta && (selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl) && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
+                      <p className="text-center font-medium text-sm">
+                        PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Engagement Bar */}
+              <div className="p-3 border-t border-gray-100">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>👍 12 likes</span>
+                  <span>💬 3 comments</span>
+                  <span>🔄 1 share</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Character Count */}
+            <div className="mt-4 max-w-md mx-auto">
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Character Count</span>
+                </div>
                 <Badge variant={isOverLimit ? 'destructive' : 'secondary'}>
-                  {characterCount}
+                  {characterCount} / {characterLimit}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Platform Limit</span>
-                <Badge variant="outline">{characterLimit}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Hashtag Count</span>
-                <Badge variant="outline">
-                  {watchedHashtags ? watchedHashtags.split('#').length - 1 : 0}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
-             {/* Image Generation Modal */}
-       {showImageGeneration && (
-         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] overflow-y-auto">
-             <ImageGenerationForm
-               onSubmit={handleGenerateImage}
-               onClose={() => setShowImageGeneration(false)}
-               postText={watch('post') || ''}
-                              clientId={typeof contentIdeaId === 'string' ? contentIdeaId.split('/')[0] : 'modern-management'}
-             />
-           </div>
-         </div>
-       )}
+      {/* Image Generation Modal */}
+      {showImageGeneration && (
+        <ImageGenerationForm
+          onSubmit={handleGenerateImage}
+          onClose={() => setShowImageGeneration(false)}
+          clientId={clientId}
+          initialData={{
+            imagePrompt: watch('imagePrompt') || '',
+            imageType: 'Social Media Post',
+            imageStyle: 'Modern',
+            imageModel: 'DALL-E 3',
+            imageSize: '1024x1024'
+          }}
+        />
+      )}
 
-       {/* Image Browser Modal */}
-       <ImageBrowserModal
-        isOpen={showImageBrowser}
-        onClose={() => setShowImageBrowser(false)}
-        onSelectImage={handleSelectBrowsedImage}
-        clientId={clientId}
-      />
+      {/* Image Browser Modal */}
+      {showImageBrowser && (
+        <ImageBrowserModal
+          clientId={clientId}
+          onSelectImage={handleSelectBrowsedImage}
+          onClose={() => setShowImageBrowser(false)}
+          isOpen={showImageBrowser}
+        />
+      )}
 
-       {/* Enlarged Image Modal */}
-       {enlargedImage && (
-         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50" onClick={closeEnlargedImage}>
-           <div className="relative max-w-4xl max-h-[90vh] flex items-center justify-center">
-             <button
-               onClick={closeEnlargedImage}
-               className="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-             >
-               <X className="h-6 w-6 text-gray-800" />
-             </button>
-             <img
-               src={enlargedImage.url}
-               alt={enlargedImage.alt}
-               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-               onClick={(e) => e.stopPropagation()}
-             />
-           </div>
-         </div>
-       )}
-     </div>
-   )
- }
+      {/* Enlarged Image Modal */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={closeEnlargedImage}
+        >
+          <button
+            onClick={closeEnlargedImage}
+            className="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+          >
+            <X className="h-6 w-6 text-gray-800" />
+          </button>
+          <img
+            src={enlargedImage.url}
+            alt={enlargedImage.alt}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
