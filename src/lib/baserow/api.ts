@@ -370,6 +370,11 @@ export class BaserowAPI {
     return this.request(`/api/database/rows/table/${tableId}/${rowId}/`)
   }
 
+  // Alias for consistency
+  async getContentIdeaById(tableId: string, rowId: string) {
+    return this.getContentIdea(tableId, rowId)
+  }
+
   // Update content idea
   async updateContentIdea(tableId: string, rowId: string, data: any) {
     console.log('BaserowAPI: Updating content idea:', rowId, 'with data:', data)
@@ -384,6 +389,18 @@ export class BaserowAPI {
     })
     
     console.log('BaserowAPI: Content idea updated:', result)
+    return result
+  }
+
+  // Delete content idea
+  async deleteContentIdea(tableId: string, rowId: string) {
+    console.log('BaserowAPI: Deleting content idea:', rowId)
+    
+    const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/`, {
+      method: 'DELETE',
+    })
+    
+    console.log('BaserowAPI: Content idea deleted:', result)
     return result
   }
 
