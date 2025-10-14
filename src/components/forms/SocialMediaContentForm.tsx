@@ -134,9 +134,42 @@ export default function SocialMediaContentForm({
       
       console.log('Converted images for selectedBrowsedImages:', convertedImages)
       setSelectedBrowsedImages(convertedImages)
+      
+      // Also check if any of the existing images are uploaded images
+      // (they would have isUploaded: true or imageModel: 'Local Upload')
+      const uploadedImagesFromData = initialData.images.filter((img: any) => 
+        img.imagemodel === 'Local Upload' || 
+        img.imageModel === 'Local Upload' || 
+        img.imageType === 'Uploaded Image' ||
+        img.imagetype === 'Uploaded Image'
+      )
+      
+      if (uploadedImagesFromData.length > 0) {
+        console.log('Found uploaded images in initialData:', uploadedImagesFromData)
+        const convertedUploadedImages = uploadedImagesFromData.map((img: any) => ({
+          id: img.id,
+          image: img.image || img.imageLinkUrl,
+          imageUrl: img.image || img.imageLinkUrl,
+          imagePrompt: img.imagePrompt || img.imageprompt || `Uploaded image: ${img.id}`,
+          imageStatus: img.imageStatus || img.imagestatus || 'Completed',
+          imageType: img.imageType || img.imagetype || 'Uploaded Image',
+          imageScene: img.imageScene || img.imagescene || 'Social Media Post',
+          imageStyle: img.imageStyle || img.imagestyle || 'Photorealistic',
+          imageModel: img.imageModel || img.imagemodel || 'Local Upload',
+          imageSize: img.imageSize || img.imagesize || 'Original',
+          imageLinkUrl: img.imageLinkUrl || img.image,
+          client_id: img.client_id,
+          created_at: img.created_at || img.createdAt,
+          isUploaded: true
+        }))
+        
+        setUploadedImages(convertedUploadedImages)
+        console.log('Set uploadedImages to:', convertedUploadedImages)
+      }
     } else {
       // Reset if no images in initial data
       setSelectedBrowsedImages([])
+      setUploadedImages([])
     }
   }, [initialData])
   
@@ -374,7 +407,12 @@ export default function SocialMediaContentForm({
     
     console.log('Cleaned data:', cleanedData)
     console.log('Selected browsed images:', selectedBrowsedImages)
+    console.log('Uploaded images:', uploadedImages)
     console.log('Selected image IDs being sent:', selectedBrowsedImages.map(img => img.id).filter(Boolean))
+    console.log('Uploaded image IDs being sent:', uploadedImages.map(img => img.id).filter(Boolean))
+    
+    // Combine all selected images (browsed + uploaded)
+    const allSelectedImages = [...selectedBrowsedImages, ...uploadedImages]
     
     const processedData = {
       ...cleanedData,
@@ -393,8 +431,8 @@ export default function SocialMediaContentForm({
                     : cleanedData.contentIdea
               )
       ),
-      // Add selected images to the form data
-      selectedImages: selectedBrowsedImages.map(img => img.id).filter(Boolean)
+      // Add all selected images to the form data (both browsed and uploaded)
+      selectedImages: allSelectedImages.map(img => img.id).filter(Boolean)
     } as SocialMediaContentFormData
     
     console.log('Processed data being sent to onSubmit:', processedData)
@@ -768,10 +806,11 @@ export default function SocialMediaContentForm({
               <div className="p-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium text-gray-700">Attached Media</span>
-                  </div>
+                </div>
                 <div className="flex gap-2 overflow-x-auto">
-                  {selectedBrowsedImages.map((image) => (
-                    <div key={image.id} className="relative flex-shrink-0">
+                  {/* Combined display of all images */}
+                  {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => (
+                    <div key={image.id || index} className="relative flex-shrink-0">
                       <img
                         src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
                         alt={image.imagePrompt || 'Selected image'}
@@ -782,54 +821,27 @@ export default function SocialMediaContentForm({
                           target.src = '/placeholder-image.jpg'
                         }}
                       />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
-                        onClick={() => handleRemoveSelectedImage(image.id || '')}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                  </div>
-                  ))}
-                  {generatedImages.map((image, index) => (
-                    <div key={index} className="flex-shrink-0">
-                      <img
-                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
-                        alt={image.imagePrompt || 'Generated image'}
-                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                        onError={(e) => {
-                          console.log('Generated image failed to load')
-                          const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-image.jpg'
-                        }}
-                    />
-                  </div>
-                  ))}
-                  {uploadedImages.map((image) => (
-                    <div key={image.id} className="relative flex-shrink-0">
-                      <img
-                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
-                        alt={image.imagePrompt || 'Uploaded image'}
-                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                        onError={(e) => {
-                          console.log('Uploaded image failed to load')
-                          const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-image.jpg'
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
-                        onClick={() => handleRemoveUploadedImage(image.id || '')}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                  </div>
+                      {/* Show remove button for browsed and uploaded images */}
+                      {(selectedBrowsedImages.includes(image) || uploadedImages.includes(image)) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
+                          onClick={() => {
+                            if (selectedBrowsedImages.includes(image)) {
+                              handleRemoveSelectedImage(image.id || '')
+                            } else if (uploadedImages.includes(image)) {
+                              handleRemoveUploadedImage(image.id || '')
+                            }
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
                   ))}
                 </div>
-                </div>
+              </div>
             )}
 
             {/* Action Icons */}
@@ -1056,26 +1068,36 @@ export default function SocialMediaContentForm({
               {/* Main Image */}
               {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
                 <div className="relative">
-                  <img
-                    src={selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || uploadedImages[0]?.image || (uploadedImages[0] as any)?.imageUrl || '/placeholder-image.jpg'}
-                    alt={selectedBrowsedImages[0]?.imagePrompt || generatedImages[0]?.imagePrompt || uploadedImages[0]?.imagePrompt || 'Post image'}
-                    className="w-full h-64 object-cover"
-                    onError={(e) => {
-                      console.log('Preview image failed to load')
-                      const target = e.target as HTMLImageElement
-                      target.src = '/placeholder-image.jpg'
-                    }}
-                  />
-                  {/* Only show red banner if there's a CTA and a valid image */}
-                  {watchedCta && (selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || uploadedImages[0]?.image || (uploadedImages[0] as any)?.imageUrl) && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
-                      <p className="text-center font-medium text-sm">
-                        PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
-                      </p>
-                    </div>
-                  )}
-                  </div>
-                )}
+                  {(() => {
+                    // Get the first image from all combined images
+                    const allImages = [...selectedBrowsedImages, ...generatedImages, ...uploadedImages]
+                    const firstImage = allImages[0]
+                    
+                    return (
+                      <>
+                        <img
+                          src={firstImage?.image || (firstImage as any)?.imageUrl || '/placeholder-image.jpg'}
+                          alt={firstImage?.imagePrompt || 'Post image'}
+                          className="w-full h-64 object-cover"
+                          onError={(e) => {
+                            console.log('Preview image failed to load')
+                            const target = e.target as HTMLImageElement
+                            target.src = '/placeholder-image.jpg'
+                          }}
+                        />
+                        {/* Only show red banner if there's a CTA and a valid image */}
+                        {watchedCta && (firstImage?.image || (firstImage as any)?.imageUrl) && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
+                            <p className="text-center font-medium text-sm">
+                              PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
 
               {/* Engagement Bar */}
               <div className="p-3 border-t border-gray-100">
