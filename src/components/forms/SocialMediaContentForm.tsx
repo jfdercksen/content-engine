@@ -544,15 +544,30 @@ export default function SocialMediaContentForm({
     // Extract the image URL properly - check multiple possible sources
     let imageUrl = null
     
+    console.log('Checking imageLinkUrl:', (image as any).imageLinkUrl)
+    console.log('Checking image field:', image.image)
+    console.log('Image.image type:', typeof image.image)
+    console.log('Image.image is array:', Array.isArray(image.image))
+    
     // Check imageLinkUrl first
     if ((image as any).imageLinkUrl) {
       imageUrl = (image as any).imageLinkUrl
       console.log('Found imageUrl from imageLinkUrl:', imageUrl)
     }
-    // Check image array
+    // Check image array - handle both direct array and nested structure
     else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
-      imageUrl = image.image[0].url
-      console.log('Found imageUrl from image array:', imageUrl)
+      const firstImageItem = image.image[0]
+      console.log('First image item:', firstImageItem)
+      console.log('First image item type:', typeof firstImageItem)
+      console.log('First image item keys:', firstImageItem ? Object.keys(firstImageItem) : 'N/A')
+      
+      if (typeof firstImageItem === 'object' && firstImageItem.url) {
+        imageUrl = firstImageItem.url
+        console.log('Found imageUrl from image array item.url:', imageUrl)
+      } else if (typeof firstImageItem === 'string') {
+        imageUrl = firstImageItem
+        console.log('Found imageUrl from image array string:', imageUrl)
+      }
     }
     // Check if image is already a string
     else if (typeof image.image === 'string') {
@@ -563,6 +578,11 @@ export default function SocialMediaContentForm({
     else if ((image as any).url) {
       imageUrl = (image as any).url
       console.log('Found imageUrl from url field:', imageUrl)
+    }
+    // Check for nested image structure
+    else if ((image as any).image && typeof (image as any).image === 'object' && (image as any).image.url) {
+      imageUrl = (image as any).image.url
+      console.log('Found imageUrl from nested image.url:', imageUrl)
     }
     
     console.log('Final extracted imageUrl:', imageUrl)
@@ -848,17 +868,38 @@ export default function SocialMediaContentForm({
                     console.log('Image.image:', image.image)
                     console.log('Image.imageUrl:', (image as any).imageUrl)
                     
+                    // Extract image URL using the same logic as handleSelectBrowsedImage
+                    let displayImageUrl = null
+                    if ((image as any).imageLinkUrl) {
+                      displayImageUrl = (image as any).imageLinkUrl
+                    } else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
+                      const firstImageItem = image.image[0]
+                      if (typeof firstImageItem === 'object' && firstImageItem.url) {
+                        displayImageUrl = firstImageItem.url
+                      } else if (typeof firstImageItem === 'string') {
+                        displayImageUrl = firstImageItem
+                      }
+                    } else if (typeof image.image === 'string') {
+                      displayImageUrl = image.image
+                    } else if ((image as any).url) {
+                      displayImageUrl = (image as any).url
+                    } else if ((image as any).imageUrl) {
+                      displayImageUrl = (image as any).imageUrl
+                    }
+                    
+                    console.log('Extracted displayImageUrl:', displayImageUrl)
+                    
                     return (
                       <div key={image.id || index} className="relative flex-shrink-0">
                         <img
-                          src={image.image || (image as any).imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
+                          src={displayImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
                           alt={image.imagePrompt || 'Selected image'}
                           className="w-16 h-16 rounded-lg object-cover border border-gray-200"
                           onLoad={() => {
-                            console.log(`Attached media image ${index} loaded successfully:`, image.image || (image as any).imageUrl)
+                            console.log(`Attached media image ${index} loaded successfully:`, displayImageUrl)
                           }}
                           onError={(e) => {
-                            console.log(`Attached media image ${index} failed to load:`, image.image || (image as any).imageUrl)
+                            console.log(`Attached media image ${index} failed to load:`, displayImageUrl)
                             const target = e.target as HTMLImageElement
                             // Use a data URI placeholder instead of a file that might not exist
                             target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
@@ -1130,24 +1171,47 @@ export default function SocialMediaContentForm({
                       console.log('firstImage.imageUrl:', (firstImage as any).imageUrl)
                     }
                     
+                    // Extract image URL using the same logic as handleSelectBrowsedImage
+                    let previewImageUrl = null
+                    if (firstImage) {
+                      if ((firstImage as any).imageLinkUrl) {
+                        previewImageUrl = (firstImage as any).imageLinkUrl
+                      } else if (firstImage.image && Array.isArray(firstImage.image) && firstImage.image.length > 0) {
+                        const firstImageItem = firstImage.image[0]
+                        if (typeof firstImageItem === 'object' && firstImageItem.url) {
+                          previewImageUrl = firstImageItem.url
+                        } else if (typeof firstImageItem === 'string') {
+                          previewImageUrl = firstImageItem
+                        }
+                      } else if (typeof firstImage.image === 'string') {
+                        previewImageUrl = firstImage.image
+                      } else if ((firstImage as any).url) {
+                        previewImageUrl = (firstImage as any).url
+                      } else if ((firstImage as any).imageUrl) {
+                        previewImageUrl = (firstImage as any).imageUrl
+                      }
+                    }
+                    
+                    console.log('Extracted previewImageUrl:', previewImageUrl)
+                    
                     return (
                       <>
                         <img
-                          src={firstImage?.image || (firstImage as any)?.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='}
+                          src={previewImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='}
                           alt={firstImage?.imagePrompt || 'Post image'}
                           className="w-full h-64 object-cover"
                           onLoad={() => {
-                            console.log('Preview image loaded successfully:', firstImage?.image || (firstImage as any)?.imageUrl)
+                            console.log('Preview image loaded successfully:', previewImageUrl)
                           }}
                           onError={(e) => {
-                            console.log('Preview image failed to load:', firstImage?.image || (firstImage as any)?.imageUrl)
+                            console.log('Preview image failed to load:', previewImageUrl)
                             const target = e.target as HTMLImageElement
                             // Use a data URI placeholder instead of a file that might not exist
                             target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
                           }}
                         />
                         {/* Only show red banner if there's a CTA and a valid image */}
-                        {watchedCta && (firstImage?.image || (firstImage as any)?.imageUrl) && (
+                        {watchedCta && previewImageUrl && (
                           <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
                             <p className="text-center font-medium text-sm">
                               PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
