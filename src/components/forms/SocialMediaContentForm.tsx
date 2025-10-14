@@ -653,7 +653,7 @@ export default function SocialMediaContentForm({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 max-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -677,10 +677,10 @@ export default function SocialMediaContentForm({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Column - Editing Interface */}
-        <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col">
-          <form onSubmit={handleSubmit(onFormSubmit)} className="flex-1 flex flex-col">
+        <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col min-h-0">
+          <form onSubmit={handleSubmit(onFormSubmit)} className="flex-1 flex flex-col min-h-0">
             {/* Platform Selection */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -688,21 +688,21 @@ export default function SocialMediaContentForm({
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                     <span className="text-white text-xs font-bold">f</span>
                   </div>
-                  <Select 
-                    value={watch('platform')} 
-                    onValueChange={(value) => setValue('platform', value as any)}
-                  >
+                <Select 
+                  value={watch('platform')} 
+                  onValueChange={(value) => setValue('platform', value as any)}
+                >
                     <SelectTrigger className="w-32 border-0 shadow-none font-medium">
                       <SelectValue placeholder="POST" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(SOCIAL_MEDIA_PLATFORMS).map((platform) => (
-                        <SelectItem key={platform} value={platform}>
-                          {platform}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(SOCIAL_MEDIA_PLATFORMS).map((platform) => (
+                      <SelectItem key={platform} value={platform}>
+                        {platform}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 </div>
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <span className="text-white text-xs">📷</span>
@@ -711,10 +711,10 @@ export default function SocialMediaContentForm({
                   <span className="text-gray-400">+</span>
                 </Button>
               </div>
-            </div>
+              </div>
 
             {/* Content Editing Area */}
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4 overflow-y-auto">
               <div className="space-y-4">
                 {/* Post Content */}
                 <div className="space-y-3">
@@ -726,40 +726,40 @@ export default function SocialMediaContentForm({
                   {errors.post && (
                     <p className="text-sm text-red-600">{errors.post.message?.toString()}</p>
                   )}
-                </div>
+            </div>
 
-                {/* Hook */}
-                <div className="space-y-2">
-                  <Textarea
+            {/* Hook */}
+            <div className="space-y-2">
+              <Textarea
                     placeholder="Add a compelling hook..."
                     className="min-h-[60px] border border-gray-200 rounded-lg resize-none placeholder:text-gray-400"
-                    {...register('hook')}
-                  />
-                  {errors.hook && (
-                    <p className="text-sm text-red-600">{errors.hook.message?.toString()}</p>
-                  )}
-                </div>
+                {...register('hook')}
+              />
+              {errors.hook && (
+                <p className="text-sm text-red-600">{errors.hook.message?.toString()}</p>
+              )}
+            </div>
 
-                {/* Call to Action */}
-                <div className="space-y-2">
-                  <Input
+            {/* Call to Action */}
+            <div className="space-y-2">
+              <Input
                     placeholder="Call to action (e.g., Learn more, Sign up today)"
                     className="border border-gray-200 rounded-lg"
-                    {...register('cta')}
-                  />
-                  {errors.cta && (
-                    <p className="text-sm text-red-600">{errors.cta.message?.toString()}</p>
-                  )}
-                </div>
+                {...register('cta')}
+              />
+              {errors.cta && (
+                <p className="text-sm text-red-600">{errors.cta.message?.toString()}</p>
+              )}
+            </div>
 
-                {/* Hashtags */}
-                <div className="space-y-2">
-                  <Input
+            {/* Hashtags */}
+            <div className="space-y-2">
+              <Input
                     placeholder="Add hashtags..."
                     className="border border-gray-200 rounded-lg"
-                    {...register('hashtags')}
-                  />
-                </div>
+                {...register('hashtags')}
+              />
+            </div>
               </div>
             </div>
 
@@ -768,7 +768,7 @@ export default function SocialMediaContentForm({
               <div className="p-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium text-gray-700">Attached Media</span>
-                </div>
+                  </div>
                 <div className="flex gap-2 overflow-x-auto">
                   {selectedBrowsedImages.map((image) => (
                     <div key={image.id} className="relative flex-shrink-0">
@@ -790,7 +790,7 @@ export default function SocialMediaContentForm({
                       >
                         <X className="w-3 h-3" />
                       </Button>
-                    </div>
+                  </div>
                   ))}
                   {generatedImages.map((image, index) => (
                     <div key={index} className="flex-shrink-0">
@@ -803,8 +803,8 @@ export default function SocialMediaContentForm({
                           const target = e.target as HTMLImageElement
                           target.src = '/placeholder-image.jpg'
                         }}
-                      />
-                    </div>
+                    />
+                  </div>
                   ))}
                   {uploadedImages.map((image) => (
                     <div key={image.id} className="relative flex-shrink-0">
@@ -826,35 +826,35 @@ export default function SocialMediaContentForm({
                       >
                         <X className="w-3 h-3" />
                       </Button>
-                    </div>
+                  </div>
                   ))}
                 </div>
-              </div>
+                </div>
             )}
 
             {/* Action Icons */}
             <div className="p-4 border-t border-gray-100">
               <div className="flex items-center gap-4">
-                <Button
-                  type="button"
+                      <Button
+                        type="button"
                   variant="ghost"
-                  size="sm"
-                  onClick={() => setShowImageGeneration(true)}
+                        size="sm"
+                        onClick={() => setShowImageGeneration(true)}
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
+                      >
                   <ImageIcon className="w-4 h-4" />
                   <span className="text-sm">Generate</span>
-                </Button>
-                <Button
-                  type="button"
+                      </Button>
+                      <Button
+                        type="button"
                   variant="ghost"
-                  size="sm"
-                  onClick={handleBrowseImages}
+                        size="sm"
+                        onClick={handleBrowseImages}
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
+                      >
                   <Sparkles className="w-4 h-4" />
                   <span className="text-sm">Browse</span>
-                </Button>
+                      </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -870,8 +870,8 @@ export default function SocialMediaContentForm({
                   )}
                   <span className="text-sm">{isUploadingImage ? 'Uploading...' : 'Upload'}</span>
                 </Button>
-                <Button
-                  type="button"
+                        <Button
+                          type="button"
                   variant="ghost"
                   size="sm"
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
@@ -896,9 +896,9 @@ export default function SocialMediaContentForm({
                 >
                   <Zap className="w-4 h-4" />
                   <span className="text-sm">Link</span>
-                </Button>
-              </div>
-            </div>
+                        </Button>
+                      </div>
+                    </div>
 
             {/* Global Presets */}
             <div className="p-4 border-t border-gray-100">
@@ -907,11 +907,11 @@ export default function SocialMediaContentForm({
                 <Button variant="ghost" size="sm">
                   <span className="text-gray-400">▼</span>
                 </Button>
-              </div>
+                  </div>
             </div>
 
             {/* Bottom Controls */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50">
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="ghost" size="sm" onClick={onClose}>
@@ -920,8 +920,8 @@ export default function SocialMediaContentForm({
                   <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
                     🗑️
                   </Button>
-                </div>
-                
+                  </div>
+
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-500" />
@@ -933,10 +933,10 @@ export default function SocialMediaContentForm({
                   </div>
                   <Button type="button" variant="ghost" size="sm">
                     Duplicate ▼
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting || isLoading}
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || isLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                   >
                     {isSubmitting || isLoading ? (
@@ -947,7 +947,7 @@ export default function SocialMediaContentForm({
                     ) : (
                       isEditing ? 'Update' : 'Create'
                     )}
-                  </Button>
+              </Button>
                 </div>
               </div>
             </div>
@@ -955,7 +955,7 @@ export default function SocialMediaContentForm({
         </div>
 
         {/* Right Column - Preview */}
-        <div className="w-1/2 bg-gray-50 flex flex-col">
+        <div className="w-1/2 bg-gray-50 flex flex-col min-h-0">
           {/* Preview Header */}
           <div className="p-4 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -964,7 +964,7 @@ export default function SocialMediaContentForm({
                   <span className="text-white text-xs font-bold">f</span>
                 </div>
                 <span className="font-medium text-gray-900">Facebook</span>
-              </div>
+                </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="text-gray-500">
                   Notes
@@ -978,8 +978,8 @@ export default function SocialMediaContentForm({
                 <Button variant="ghost" size="sm" className="text-gray-500">
                   🖥️
                 </Button>
-              </div>
-            </div>
+                </div>
+                </div>
           </div>
 
           {/* Preview Content */}
@@ -995,9 +995,9 @@ export default function SocialMediaContentForm({
                     <h3 className="font-semibold text-gray-900">{clientName}</h3>
                     <p className="text-sm text-gray-500">Just now</p>
                   </div>
+                  </div>
                 </div>
-              </div>
-
+                
               {/* Post Content */}
               <div className="p-4">
                 <div className="space-y-3">
@@ -1034,7 +1034,7 @@ export default function SocialMediaContentForm({
                           </span>
                         )
                       ))}
-                    </div>
+                </div>
                   )}
 
                   {/* Location/Event Info */}
@@ -1048,10 +1048,10 @@ export default function SocialMediaContentForm({
                         <Calendar className="w-4 h-4" />
                         <span>This weekend!</span>
                       </div>
+                  </div>
+                )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
               {/* Main Image */}
               {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
@@ -1074,8 +1074,8 @@ export default function SocialMediaContentForm({
                       </p>
                     </div>
                   )}
-                </div>
-              )}
+                  </div>
+                )}
 
               {/* Engagement Bar */}
               <div className="p-3 border-t border-gray-100">
@@ -1083,23 +1083,23 @@ export default function SocialMediaContentForm({
                   <span>👍 12 likes</span>
                   <span>💬 3 comments</span>
                   <span>🔄 1 share</span>
-                </div>
-              </div>
-            </div>
+                    </div>
+                          </div>
+                        </div>
 
             {/* Character Count */}
             <div className="mt-4 max-w-md mx-auto">
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Character Count</span>
+                <span className="text-sm text-gray-600">Character Count</span>
                 </div>
                 <Badge variant={isOverLimit ? 'destructive' : 'secondary'}>
                   {characterCount} / {characterLimit}
                 </Badge>
               </div>
-            </div>
-          </div>
+              </div>
+              </div>
         </div>
       </div>
 
@@ -1112,11 +1112,11 @@ export default function SocialMediaContentForm({
         style={{ display: 'none' }}
       />
 
-      {/* Image Generation Modal */}
-      {showImageGeneration && (
-        <ImageGenerationForm
-          onSubmit={handleGenerateImage}
-          onClose={() => setShowImageGeneration(false)}
+             {/* Image Generation Modal */}
+       {showImageGeneration && (
+             <ImageGenerationForm
+               onSubmit={handleGenerateImage}
+               onClose={() => setShowImageGeneration(false)}
           clientId={clientId}
           initialData={{
             imagePrompt: watch('imagePrompt') || '',
@@ -1136,28 +1136,28 @@ export default function SocialMediaContentForm({
           onClose={() => setShowImageBrowser(false)}
           isOpen={showImageBrowser}
         />
-      )}
+       )}
 
-      {/* Enlarged Image Modal */}
-      {enlargedImage && (
+       {/* Enlarged Image Modal */}
+       {enlargedImage && (
         <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
           onClick={closeEnlargedImage}
         >
-          <button
-            onClick={closeEnlargedImage}
-            className="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
-          >
-            <X className="h-6 w-6 text-gray-800" />
-          </button>
-          <img
-            src={enlargedImage.url}
-            alt={enlargedImage.alt}
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
+             <button
+               onClick={closeEnlargedImage}
+               className="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
+             >
+               <X className="h-6 w-6 text-gray-800" />
+             </button>
+             <img
+               src={enlargedImage.url}
+               alt={enlargedImage.alt}
+               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+               onClick={(e) => e.stopPropagation()}
+             />
+         </div>
+       )}
+     </div>
+   )
+ }
