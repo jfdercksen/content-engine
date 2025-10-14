@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { X, Calendar, Hash, MessageSquare, Target, Zap, TrendingUp, Image as ImageIcon, Sparkles, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { X, Calendar, Hash, MessageSquare, Target, Zap, TrendingUp, Image as ImageIcon, Sparkles, Eye, CheckCircle, XCircle, Upload } from 'lucide-react'
 import { 
   SocialMediaContentFormData, 
   socialMediaContentFormSchema,
@@ -54,8 +54,11 @@ export default function SocialMediaContentForm({
   const [generatedImages, setGeneratedImages] = useState<Image[]>([])
   const [selectedImage, setSelectedImage] = useState<Image | null>(null)
   const [selectedBrowsedImages, setSelectedBrowsedImages] = useState<Partial<Image>[]>([])
+  const [uploadedImages, setUploadedImages] = useState<Partial<Image>[]>([])
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [enlargedImage, setEnlargedImage] = useState<{url: string, alt: string} | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Debug: Log initialData to see if there are any issues
   useEffect(() => {
@@ -535,6 +538,90 @@ export default function SocialMediaContentForm({
     setSelectedBrowsedImages(prev => prev.filter(img => img.id !== imageId))
   }
 
+  const handleUploadImage = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB')
+      return
+    }
+
+    try {
+      setIsUploadingImage(true)
+      
+      // Create FormData for upload
+      const formData = new FormData()
+      formData.append('imageFile', file)
+      formData.append('position', 'Social Media Post')
+      formData.append('clientId', clientId)
+
+      console.log('Uploading image:', file.name, file.size, 'bytes')
+
+      // Upload to the images API
+      const response = await fetch(`/api/baserow/${clientId}/images`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload image')
+      }
+
+      const result = await response.json()
+      console.log('Image upload result:', result)
+
+      // Add the uploaded image to our list
+      const uploadedImage = {
+        id: result.id,
+        image: result.url,
+        imageUrl: result.url,
+        imagePrompt: `Uploaded image: ${file.name}`,
+        imageStatus: 'Completed',
+        imageType: 'Uploaded Image',
+        imageScene: 'Social Media Post',
+        imageStyle: 'Photorealistic',
+        imageModel: 'Local Upload',
+        imageSize: 'Original',
+        imageLinkUrl: result.url,
+        client_id: clientId,
+        created_at: new Date().toISOString(),
+        isUploaded: true
+      }
+
+      setUploadedImages(prev => [...prev, uploadedImage])
+      
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
+      console.log('Image uploaded successfully:', uploadedImage)
+
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleRemoveUploadedImage = (imageId: string) => {
+    setUploadedImages(prev => prev.filter(img => img.id !== imageId))
+  }
+
   const handleImageClick = (imageUrl: string, altText: string) => {
     setEnlargedImage({ url: imageUrl, alt: altText })
   }
@@ -677,7 +764,7 @@ export default function SocialMediaContentForm({
             </div>
 
             {/* Attached Media Preview */}
-            {(selectedBrowsedImages.length > 0 || generatedImages.length > 0) && (
+            {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
               <div className="p-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium text-gray-700">Attached Media</span>
@@ -719,6 +806,28 @@ export default function SocialMediaContentForm({
                       />
                     </div>
                   ))}
+                  {uploadedImages.map((image) => (
+                    <div key={image.id} className="relative flex-shrink-0">
+                      <img
+                        src={image.image || (image as any).imageUrl || '/placeholder-image.jpg'}
+                        alt={image.imagePrompt || 'Uploaded image'}
+                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        onError={(e) => {
+                          console.log('Uploaded image failed to load')
+                          const target = e.target as HTMLImageElement
+                          target.src = '/placeholder-image.jpg'
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
+                        onClick={() => handleRemoveUploadedImage(image.id || '')}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -734,7 +843,7 @@ export default function SocialMediaContentForm({
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
                 >
                   <ImageIcon className="w-4 h-4" />
-                  <span className="text-sm">Image</span>
+                  <span className="text-sm">Generate</span>
                 </Button>
                 <Button
                   type="button"
@@ -745,6 +854,21 @@ export default function SocialMediaContentForm({
                 >
                   <Sparkles className="w-4 h-4" />
                   <span className="text-sm">Browse</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUploadImage}
+                  disabled={isUploadingImage}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                >
+                  {isUploadingImage ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span className="text-sm">{isUploadingImage ? 'Uploading...' : 'Upload'}</span>
                 </Button>
                 <Button
                   type="button"
@@ -930,11 +1054,11 @@ export default function SocialMediaContentForm({
               </div>
 
               {/* Main Image */}
-              {(selectedBrowsedImages.length > 0 || generatedImages.length > 0) && (
+              {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
                 <div className="relative">
                   <img
-                    src={selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || '/placeholder-image.jpg'}
-                    alt={selectedBrowsedImages[0]?.imagePrompt || generatedImages[0]?.imagePrompt || 'Post image'}
+                    src={selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || uploadedImages[0]?.image || (uploadedImages[0] as any)?.imageUrl || '/placeholder-image.jpg'}
+                    alt={selectedBrowsedImages[0]?.imagePrompt || generatedImages[0]?.imagePrompt || uploadedImages[0]?.imagePrompt || 'Post image'}
                     className="w-full h-64 object-cover"
                     onError={(e) => {
                       console.log('Preview image failed to load')
@@ -943,7 +1067,7 @@ export default function SocialMediaContentForm({
                     }}
                   />
                   {/* Only show red banner if there's a CTA and a valid image */}
-                  {watchedCta && (selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl) && (
+                  {watchedCta && (selectedBrowsedImages[0]?.image || (selectedBrowsedImages[0] as any)?.imageUrl || generatedImages[0]?.image || (generatedImages[0] as any)?.imageUrl || uploadedImages[0]?.image || (uploadedImages[0] as any)?.imageUrl) && (
                     <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
                       <p className="text-center font-medium text-sm">
                         PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
@@ -978,6 +1102,15 @@ export default function SocialMediaContentForm({
           </div>
         </div>
       </div>
+
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
 
       {/* Image Generation Modal */}
       {showImageGeneration && (
