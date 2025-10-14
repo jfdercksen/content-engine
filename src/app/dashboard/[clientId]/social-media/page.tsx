@@ -48,6 +48,7 @@ export default function SocialMediaPage() {
     const { clientConfig, isLoading: configLoading, error: configError } = useClientConfig(clientId);
     const [contentIdeas, setContentIdeas] = useState<ContentIdeaState[]>([]);
     const [showForm, setShowForm] = useState(false);
+    const [editingIdea, setEditingIdea] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
     const [relatedSocialContent, setRelatedSocialContent] = useState<any[]>([]);
@@ -194,11 +195,78 @@ export default function SocialMediaPage() {
 
             await fetchContentIdeas()
             setShowForm(false)
+            setEditingIdea(null)
             alert('Social media idea created successfully!')
         } catch (error) {
             console.error('Error creating social media idea:', error)
             alert('Error creating social media idea. Please try again.')
         }
+    }
+
+    const handleUpdateIdea = async (formData: any) => {
+        try {
+            if (!editingIdea) return
+            
+            console.log('Updating social media idea:', editingIdea.id, formData)
+            
+            // Prepare FormData for possible file uploads (similar to create)
+            const apiFormData = new FormData()
+            Object.keys(formData).forEach((key) => {
+                const value = (formData as any)[key]
+                if (value !== undefined && value !== null && !['voiceFile', 'imageFile', 'videoFile'].includes(key)) {
+                    if (Array.isArray(value)) {
+                        apiFormData.append(key, JSON.stringify(value))
+                    } else {
+                        apiFormData.append(key, value)
+                    }
+                }
+            })
+
+            // Add content type
+            apiFormData.append('contentType', 'social_media_post')
+
+            // Add files if they exist
+            if (formData.voiceFile) apiFormData.append('voiceFile', formData.voiceFile)
+            if (formData.imageFile) apiFormData.append('imageFile', formData.imageFile)
+            if (formData.videoFile) apiFormData.append('videoFile', formData.videoFile)
+
+            // Decide request payload based on whether files exist
+            const hasFiles = !!(formData.voiceFile || formData.imageFile || formData.videoFile)
+            let updateResponse: Response
+
+            if (hasFiles) {
+                updateResponse = await fetch(`/api/baserow/${clientId}/content-ideas/${editingIdea.id}`, {
+                    method: 'PUT',
+                    body: apiFormData,
+                })
+            } else {
+                const dataToSend = { ...formData, contentType: 'social_media_post' }
+                updateResponse = await fetch(`/api/baserow/${clientId}/content-ideas/${editingIdea.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToSend),
+                })
+            }
+
+            if (!updateResponse.ok) throw new Error('Failed to update social media idea')
+
+            const updatedIdea = await updateResponse.json()
+            console.log('Updated idea:', updatedIdea)
+
+            await fetchContentIdeas()
+            setShowForm(false)
+            setEditingIdea(null)
+            alert('Social media idea updated successfully!')
+        } catch (error) {
+            console.error('Error updating social media idea:', error)
+            alert('Error updating social media idea. Please try again.')
+        }
+    }
+
+    const handleEditIdea = (idea: any) => {
+        console.log('DEBUG: handleEditIdea called with idea:', idea)
+        setEditingIdea(idea)
+        setShowForm(true)
     }
 
     const handleViewIdea = async (idea: any) => {
@@ -595,6 +663,7 @@ export default function SocialMediaPage() {
                                 isLoading={isLoading}
                                 onCreateFirst={() => setShowForm(true)}
                                 onViewIdea={handleViewIdea}
+                                onEditIdea={handleEditIdea}
                                 onViewSocialContent={handleViewSocialContent}
                                 onViewBrandAssets={handleViewBrandAssets}
                                 onRegenerateContent={handleRegenerateContent}
@@ -610,10 +679,15 @@ export default function SocialMediaPage() {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                             <ContentIdeaForm
-                                onSubmit={handleCreateIdea}
-                                onClose={() => setShowForm(false)}
+                                onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
+                                onClose={() => {
+                                    setShowForm(false)
+                                    setEditingIdea(null)
+                                }}
                                 clientId={clientId}
                                 contentType="social_media_post"
+                                initialData={editingIdea}
+                                isEditing={!!editingIdea}
                             />
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -49,14 +49,18 @@ interface ContentIdeaFormProps {
     onClose: () => void
     clientId: string
     contentType: string
+    initialData?: any
+    isEditing?: boolean
 }
 
-export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentType }: ContentIdeaFormProps) {
+export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentType, initialData, isEditing = false }: ContentIdeaFormProps) {
     console.log('DEBUG: ContentIdeaForm rendered with props:', {
         onSubmitType: typeof onSubmit,
         onCloseType: typeof onClose,
         clientId,
-        contentType
+        contentType,
+        initialData,
+        isEditing
     })
     console.log('DEBUG: ContentIdeaForm - onSubmit prop value:', onSubmit)
     console.log('DEBUG: ContentIdeaForm - onSubmit prop stringified:', JSON.stringify(onSubmit, null, 2))
@@ -87,6 +91,36 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
             primaryObjective: ''
         }
     })
+
+    // Populate form with initial data when editing
+    useEffect(() => {
+        if (isEditing && initialData) {
+            console.log('DEBUG: Populating form with initial data:', initialData)
+            
+            // Map Baserow field names to form field names
+            const formData = {
+                contentIdea: initialData.title || initialData.content_idea || '',
+                platforms: initialData.platforms || [],
+                informationSource: initialData.information_source || initialData.informationSource || '',
+                sourceUrl: initialData.source_url || initialData.sourceUrl || '',
+                sourceContent: initialData.source_content || initialData.sourceContent || '',
+                numberOfPosts: initialData.number_of_posts || initialData.numberOfPosts || 1,
+                targetAudience: initialData.target_audience || initialData.targetAudience || '',
+                hookFocus: initialData.hook_focus || initialData.hookFocus || '',
+                cta: initialData.cta || '',
+                priority: initialData.priority || 'Medium',
+                additionalNotes: initialData.additional_notes || initialData.additionalNotes || '',
+                contentStrategy: initialData.content_strategy || initialData.contentStrategy || '',
+                contentTypeStrategy: initialData.content_type_strategy || initialData.contentTypeStrategy || [],
+                primaryObjective: initialData.primary_objective || initialData.primaryObjective || ''
+            }
+            
+            console.log('DEBUG: Mapped form data:', formData)
+            
+            // Reset form with the initial data
+            form.reset(formData)
+        }
+    }, [isEditing, initialData, form])
 
     const selectedInformationSource = form.watch('informationSource')
 
@@ -301,7 +335,9 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
     return (
         <Card className="w-full max-w-2xl mx-auto">
             <CardHeader>
-                <CardTitle>Create Social Media Content Idea</CardTitle>
+                <CardTitle>
+                    {isEditing ? 'Edit Social Media Content Idea' : 'Create Social Media Content Idea'}
+                </CardTitle>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
@@ -961,7 +997,7 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
                         {/* Form Actions */}
                         <div className="flex gap-4">
                             <Button type="submit" disabled={isSubmitting} className="flex-1">
-                                {isSubmitting ? 'Creating Content Idea...' : 'Create Content Idea'}
+                                {isSubmitting ? (isEditing ? 'Updating Content Idea...' : 'Creating Content Idea...') : (isEditing ? 'Update Content Idea' : 'Create Content Idea')}
                             </Button>
                             <Button type="button" variant="outline" onClick={onClose}>
                                 Cancel

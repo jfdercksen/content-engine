@@ -20,7 +20,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Edit
 } from 'lucide-react'
 import ClientOnly from '@/components/ClientOnly'
 
@@ -46,6 +47,7 @@ interface ContentIdeasTableProps {
   isLoading: boolean
   onCreateFirst: () => void
   onViewIdea?: (idea: ContentIdea) => void
+  onEditIdea?: (idea: ContentIdea) => void
   onViewSocialContent?: (ideaId: string) => void
   onViewBrandAssets?: (ideaId: string) => void
   onRegenerateContent?: (ideaId: string) => void
@@ -58,6 +60,7 @@ export default function ContentIdeasTable({
   isLoading, 
   onCreateFirst, 
   onViewIdea,
+  onEditIdea,
   onViewSocialContent,
   onViewBrandAssets,
   onRegenerateContent,
@@ -323,6 +326,21 @@ export default function ContentIdeasTable({
                     >
                       <Eye className="h-3 w-3 mr-1" />
                       View
+                    </Button>
+                  )}
+                  
+                  {onEditIdea && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEditIdea(idea)
+                      }}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
                     </Button>
                   )}
                   
