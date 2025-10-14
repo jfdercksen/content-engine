@@ -539,16 +539,42 @@ export default function SocialMediaContentForm({
   const handleSelectBrowsedImage = (image: Partial<Image>) => {
     console.log('=== IMAGE SELECTION DEBUG ===')
     console.log('Raw image data received:', image)
+    console.log('Image keys:', Object.keys(image))
     
-    // Extract the image URL properly
+    // Extract the image URL properly - check multiple possible sources
     let imageUrl = null
+    
+    // Check imageLinkUrl first
     if ((image as any).imageLinkUrl) {
       imageUrl = (image as any).imageLinkUrl
-    } else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
+      console.log('Found imageUrl from imageLinkUrl:', imageUrl)
+    }
+    // Check image array
+    else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
       imageUrl = image.image[0].url
+      console.log('Found imageUrl from image array:', imageUrl)
+    }
+    // Check if image is already a string
+    else if (typeof image.image === 'string') {
+      imageUrl = image.image
+      console.log('Found imageUrl from string image:', imageUrl)
+    }
+    // Check for any other possible URL fields
+    else if ((image as any).url) {
+      imageUrl = (image as any).url
+      console.log('Found imageUrl from url field:', imageUrl)
     }
     
-    console.log('Extracted imageUrl:', imageUrl)
+    console.log('Final extracted imageUrl:', imageUrl)
+    console.log('imageUrl type:', typeof imageUrl)
+    console.log('imageUrl length:', imageUrl?.length)
+    
+    // Validate the URL
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+      console.error('No valid image URL found!')
+      alert('Error: No valid image URL found. Please try selecting a different image.')
+      return
+    }
     
     // Create the image object with the correct URL
     const imageWithUrl = {
@@ -557,18 +583,24 @@ export default function SocialMediaContentForm({
       imageUrl: imageUrl // Also store as imageUrl for compatibility
     } as any
     
-    console.log('Image with URL:', imageWithUrl)
+    console.log('Image with URL created:', imageWithUrl)
+    console.log('Image with URL keys:', Object.keys(imageWithUrl))
     
     // Add the image to the selected images array (avoid duplicates)
     setSelectedBrowsedImages(prev => {
       const exists = prev.some(img => img.id === image.id)
-      if (exists) return prev
+      if (exists) {
+        console.log('Image already exists, not adding duplicate')
+        return prev
+      }
+      console.log('Adding new image to selectedBrowsedImages')
       return [...prev, imageWithUrl]
     })
     
     // Update the form with the selected image data
     setValue('imagePrompt', image.imagePrompt || '')
     console.log('Selected image from browser:', imageWithUrl)
+    console.log('Current selectedBrowsedImages after update:', [...selectedBrowsedImages, imageWithUrl])
     setShowImageBrowser(false)
   }
 
@@ -809,40 +841,51 @@ export default function SocialMediaContentForm({
                   </div>
                 <div className="flex gap-2 overflow-x-auto">
                   {/* Combined display of all images */}
-                  {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => (
-                    <div key={image.id || index} className="relative flex-shrink-0">
-                      <img
-                        src={image.image || (image as any).imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
-                        alt={image.imagePrompt || 'Selected image'}
-                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                        onError={(e) => {
-                          console.log('Attached media image failed to load')
-                          const target = e.target as HTMLImageElement
-                          // Use a data URI placeholder instead of a file that might not exist
-                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
-                        }}
-                      />
-                      {/* Show remove button for browsed and uploaded images */}
-                      {(selectedBrowsedImages.includes(image) || uploadedImages.includes(image)) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
-                          onClick={() => {
-                            if (selectedBrowsedImages.includes(image)) {
-                              handleRemoveSelectedImage(image.id || '')
-                            } else if (uploadedImages.includes(image)) {
-                              handleRemoveUploadedImage(image.id || '')
-                            }
+                  {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => {
+                    console.log(`=== ATTACHED MEDIA IMAGE ${index} DEBUG ===`)
+                    console.log('Image:', image)
+                    console.log('Image keys:', Object.keys(image))
+                    console.log('Image.image:', image.image)
+                    console.log('Image.imageUrl:', (image as any).imageUrl)
+                    
+                    return (
+                      <div key={image.id || index} className="relative flex-shrink-0">
+                        <img
+                          src={image.image || (image as any).imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
+                          alt={image.imagePrompt || 'Selected image'}
+                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                          onLoad={() => {
+                            console.log(`Attached media image ${index} loaded successfully:`, image.image || (image as any).imageUrl)
                           }}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      )}
-                  </div>
-                  ))}
+                          onError={(e) => {
+                            console.log(`Attached media image ${index} failed to load:`, image.image || (image as any).imageUrl)
+                            const target = e.target as HTMLImageElement
+                            // Use a data URI placeholder instead of a file that might not exist
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
+                          }}
+                        />
+                        {/* Show remove button for browsed and uploaded images */}
+                        {(selectedBrowsedImages.includes(image) || uploadedImages.includes(image)) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
+                            onClick={() => {
+                              if (selectedBrowsedImages.includes(image)) {
+                                handleRemoveSelectedImage(image.id || '')
+                              } else if (uploadedImages.includes(image)) {
+                                handleRemoveUploadedImage(image.id || '')
+                              }
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-                  </div>
+              </div>
             )}
 
             {/* Action Icons */}
@@ -1074,18 +1117,34 @@ export default function SocialMediaContentForm({
                     const allImages = [...selectedBrowsedImages, ...generatedImages, ...uploadedImages]
                     const firstImage = allImages[0]
                     
+                    console.log('=== PREVIEW IMAGE DEBUG ===')
+                    console.log('selectedBrowsedImages:', selectedBrowsedImages)
+                    console.log('generatedImages:', generatedImages)
+                    console.log('uploadedImages:', uploadedImages)
+                    console.log('allImages:', allImages)
+                    console.log('firstImage:', firstImage)
+                    
+                    if (firstImage) {
+                      console.log('firstImage keys:', Object.keys(firstImage))
+                      console.log('firstImage.image:', firstImage.image)
+                      console.log('firstImage.imageUrl:', (firstImage as any).imageUrl)
+                    }
+                    
                     return (
                       <>
                         <img
                           src={firstImage?.image || (firstImage as any)?.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='}
                           alt={firstImage?.imagePrompt || 'Post image'}
                           className="w-full h-64 object-cover"
-                        onError={(e) => {
-                          console.log('Preview image failed to load')
-                          const target = e.target as HTMLImageElement
-                          // Use a data URI placeholder instead of a file that might not exist
-                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
-                        }}
+                          onLoad={() => {
+                            console.log('Preview image loaded successfully:', firstImage?.image || (firstImage as any)?.imageUrl)
+                          }}
+                          onError={(e) => {
+                            console.log('Preview image failed to load:', firstImage?.image || (firstImage as any)?.imageUrl)
+                            const target = e.target as HTMLImageElement
+                            // Use a data URI placeholder instead of a file that might not exist
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
+                          }}
                         />
                         {/* Only show red banner if there's a CTA and a valid image */}
                         {watchedCta && (firstImage?.image || (firstImage as any)?.imageUrl) && (
