@@ -60,10 +60,15 @@ export async function PUT(
   { params }: { params: Promise<{ clientId: string; id: string }> }
 ) {
   try {
+    console.log('=== PUT CONTENT IDEA API START ===')
     const { clientId, id } = await params
+    console.log('Client ID:', clientId, 'ID:', id)
+    
     const clientConfig = await getClientConfigForAPI(clientId)
+    console.log('Client config found:', !!clientConfig)
 
     if (!clientConfig) {
+      console.log('ERROR: Client not found')
       return NextResponse.json(
         { error: 'Client not found' },
         { status: 404 }
@@ -71,8 +76,10 @@ export async function PUT(
     }
 
     const contentIdeasTableId = clientConfig.baserow.tables.contentIdeas
+    console.log('Content ideas table ID:', contentIdeasTableId)
 
     if (!contentIdeasTableId) {
+      console.log('ERROR: Content Ideas table not configured')
       return NextResponse.json(
         { error: 'Content Ideas table not configured' },
         { status: 500 }
@@ -123,46 +130,141 @@ export async function PUT(
 
     console.log('=== UPDATE CONTENT IDEA DEBUG ===')
     console.log('Updating content idea:', id, 'with data:', formData)
+    console.log('Client config baserow:', {
+      token: clientConfig.baserow.token ? 'present' : 'missing',
+      databaseId: clientConfig.baserow.databaseId,
+      fieldMappings: clientConfig.fieldMappings ? 'present' : 'missing'
+    })
+
+    // Helper functions to map form values to Baserow select option values (same as CREATE endpoint)
+    const mapSourceType = (type: string) => {
+      const mapping: { [key: string]: string } = {
+        'voice_note': 'Voice Note',
+        'url': 'URL',
+        'image': 'Image',
+        'text_idea': 'Manual',
+        'video': 'Video Upload'
+      }
+      return mapping[type] || ''
+    }
+
+    const mapTargetAudience = (audience: string) => {
+      const mapping: { [key: string]: string } = {
+        'young_adults': 'Young Adults (18-25)',
+        'millennials': 'Millennials (26-40)',
+        'gen_x': 'Gen X (41-55)',
+        'professionals': 'Working Professionals',
+        'entrepreneurs': 'Entrepreneurs & Business Owners',
+        'students': 'Students',
+        'parents': 'Parents & Families',
+        'general_audience': 'General Audience'
+      }
+      return mapping[audience] || ''
+    }
+
+    const mapContentTypeStrategy = (strategies: string[] | string) => {
+      // Form sends exact values that match Baserow select options
+      return strategies
+    }
+
+    const mapPrimaryObjective = (objective: string) => {
+      // Form sends exact values that match Baserow select options
+      return objective
+    }
 
     const baserowAPI = new BaserowAPI(
       clientConfig.baserow.token,
       clientConfig.baserow.databaseId,
       clientConfig.fieldMappings
     )
+    console.log('BaserowAPI initialized successfully')
 
-    // Prepare content idea data for Baserow
+    // Prepare content idea data for Baserow using exact UI field names with proper mapping
     const contentIdeaData: any = {
-      title: formData.contentIdea || formData.title,
-      idea_type: 'social_media_post',
-      description: formData.contentIdea || formData.description,
-      priority: formData.priority || 'Medium',
-      status: formData.status || 'Draft',
-      target_audience: formData.targetAudience || formData.target_audience,
-      source_type: formData.informationSource || formData.source_type,
-      platforms: formData.platforms ? JSON.stringify(formData.platforms) : '',
-      source_url: formData.sourceUrl || formData.source_url,
-      source_content: formData.sourceContent || formData.source_content,
-      number_of_posts: formData.numberOfPosts || formData.number_of_posts || 1,
-      hook_focus: formData.hookFocus || formData.hook_focus,
-      cta: formData.cta,
-      content_strategy: formData.contentStrategy || formData.content_strategy,
-      content_type_strategy: formData.contentTypeStrategy ? JSON.stringify(formData.contentTypeStrategy) : '',
-      primary_objective: formData.primaryObjective || formData.primary_objective,
-      additional_notes: formData.additionalNotes || formData.additional_notes
+      'Content Idea': formData.contentIdea || formData.title,
+      'Idea Type': 'Social Media Post',
+      'Priority': formData.priority || 'Medium',
     }
 
-    // Remove undefined values
+    // Add optional fields with proper mapping
+    if (formData.targetAudience || formData.target_audience) {
+      const audienceValue = formData.targetAudience || formData.target_audience
+      contentIdeaData['Target Audience'] = mapTargetAudience(audienceValue)
+    }
+
+    if (formData.informationSource || formData.source_type) {
+      const sourceValue = formData.informationSource || formData.source_type
+      contentIdeaData['Information Source'] = mapSourceType(sourceValue)
+    }
+
+    if (formData.platforms) {
+      contentIdeaData['Platforms'] = Array.isArray(formData.platforms) ? formData.platforms[0] : formData.platforms
+    }
+
+    if (formData.sourceUrl || formData.source_url) {
+      contentIdeaData['Source URL'] = formData.sourceUrl || formData.source_url
+    }
+
+    if (formData.sourceContent || formData.source_content) {
+      contentIdeaData['Source Content'] = formData.sourceContent || formData.source_content
+    }
+
+    if (formData.numberOfPosts || formData.number_of_posts) {
+      contentIdeaData['Number of Posts'] = formData.numberOfPosts || formData.number_of_posts || 1
+    }
+
+    if (formData.hookFocus || formData.hook_focus) {
+      contentIdeaData['Hook Focus'] = formData.hookFocus || formData.hook_focus
+    }
+
+    if (formData.cta) {
+      contentIdeaData['CTA'] = formData.cta
+    }
+
+    if (formData.contentStrategy || formData.content_strategy) {
+      contentIdeaData['Content Strategy'] = formData.contentStrategy || formData.content_strategy
+    }
+
+    if (formData.contentTypeStrategy || formData.content_type_strategy) {
+      const strategyValue = formData.contentTypeStrategy || formData.content_type_strategy
+      const mappedStrategy = mapContentTypeStrategy(strategyValue)
+      contentIdeaData['Content Type Strategy'] = Array.isArray(mappedStrategy) ? mappedStrategy[0] : mappedStrategy
+    }
+
+    if (formData.primaryObjective || formData.primary_objective) {
+      const objectiveValue = formData.primaryObjective || formData.primary_objective
+      contentIdeaData['Primary Objective'] = mapPrimaryObjective(objectiveValue)
+    }
+
+    if (formData.additionalNotes || formData.additional_notes) {
+      contentIdeaData['Additional Notes'] = formData.additionalNotes || formData.additional_notes
+    }
+
+    if (formData.productUvp || formData.product_uvp) {
+      const uvpValue = formData.productUvp || formData.product_uvp
+      // Product UVP is a link_row field, so send as an array of IDs
+      contentIdeaData['Product UVP'] = uvpValue ? [parseInt(uvpValue)] : []
+    }
+
+    // Remove undefined values and empty strings
     Object.keys(contentIdeaData).forEach(key => {
-      if (contentIdeaData[key] === undefined) {
+      if (contentIdeaData[key] === undefined || contentIdeaData[key] === '') {
         delete contentIdeaData[key]
       }
     })
-
-    console.log('Content idea data prepared:', contentIdeaData)
+    
+    console.log('Content idea data after cleanup:', contentIdeaData)
 
     // Step 1: Update the record
-    const result = await baserowAPI.updateContentIdea(contentIdeasTableId, id, contentIdeaData)
-    console.log('Baserow record updated:', result.id)
+    console.log('About to call updateContentIdea with:', { contentIdeasTableId, id, contentIdeaData })
+    let result: any
+    try {
+      result = await baserowAPI.updateContentIdea(contentIdeasTableId, id, contentIdeaData)
+      console.log('Baserow record updated successfully:', result.id)
+    } catch (updateError) {
+      console.error('Error updating Baserow record:', updateError)
+      throw updateError
+    }
 
     // Step 2: Upload files to Baserow and link them to the record
     const fileUpdates: any = {}
@@ -216,7 +318,12 @@ export async function PUT(
     })
 
   } catch (error) {
-    console.error('Error updating content idea:', error)
+    console.error('=== PUT CONTENT IDEA API ERROR ===')
+    console.error('Error type:', typeof error)
+    console.error('Error:', error)
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
     return NextResponse.json(
       { error: 'Failed to update content idea', details: errorMessage },

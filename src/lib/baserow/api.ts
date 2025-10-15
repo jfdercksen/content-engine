@@ -340,13 +340,10 @@ export class BaserowAPI {
     console.log('BaserowAPI: Creating content idea with data:', data)
     console.log('BaserowAPI: Using table ID:', tableId)
     
-    // Map human-readable field names to Baserow field IDs
-    const mappedData = this.mapFieldsToBaserow(data, 'contentIdeas')
-    console.log('BaserowAPI: Mapped data for Baserow:', mappedData)
-    
-    const result = await this.request(`/api/database/rows/table/${tableId}/`, {
+    // Use user_field_names=true to send human-readable field names directly
+    const result = await this.request(`/api/database/rows/table/${tableId}/?user_field_names=true`, {
       method: 'POST',
-      body: JSON.stringify(mappedData),
+      body: JSON.stringify(data),
     })
     
     console.log('BaserowAPI: Response received:', result)
@@ -379,13 +376,10 @@ export class BaserowAPI {
   async updateContentIdea(tableId: string, rowId: string, data: any) {
     console.log('BaserowAPI: Updating content idea:', rowId, 'with data:', data)
     
-    // Map human-readable field names to Baserow field IDs
-    const mappedData = this.mapFieldsToBaserow(data, 'contentIdeas')
-    console.log('BaserowAPI: Mapped data for update:', mappedData)
-    
-    const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/`, {
+    // Use user_field_names=true to send human-readable field names directly
+    const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`, {
       method: 'PATCH',
-      body: JSON.stringify(mappedData),
+      body: JSON.stringify(data),
     })
     
     console.log('BaserowAPI: Content idea updated:', result)

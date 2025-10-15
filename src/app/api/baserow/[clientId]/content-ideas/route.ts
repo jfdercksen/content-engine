@@ -148,65 +148,73 @@ export async function POST(
     console.log('DEBUG: Field mappings passed to BaserowAPI:', clientConfig.fieldMappings?.contentIdeas)
     console.log('DEBUG: All field mappings:', clientConfig.fieldMappings)
 
-    // Prepare data using human-readable field names - BaserowAPI will handle field mapping
+    // Prepare data using exact Baserow UI field names (matching the update endpoint)
     const contentIdeaData: any = {
-      contentIdea: formData.contentIdea || 'Test Social Media Idea',
-      ideaType: 'Social Media Post',
-      priority: 'Medium',
-      status: 'Idea'
+      'Content Idea': formData.contentIdea || 'Test Social Media Idea',
+      'Idea Type': 'Social Media Post',
+      'Priority': 'Medium',
+      'Status': 'Idea'
     }
 
     // Add fields if provided
     if (formData.platforms && formData.platforms.length > 0) {
-      contentIdeaData.platforms = formData.platforms
+      // Platforms is a single-select field, so extract the first value
+      contentIdeaData['Platforms'] = Array.isArray(formData.platforms) ? formData.platforms[0] : formData.platforms
     }
     
     if (formData.numberOfPosts) {
-      contentIdeaData.numberOfPosts = formData.numberOfPosts
+      contentIdeaData['Number of Posts'] = formData.numberOfPosts
     }
     
     if (formData.hookFocus) {
-      contentIdeaData.hookFocus = formData.hookFocus
+      contentIdeaData['Hook Focus'] = formData.hookFocus
     }
     
     if (formData.cta) {
-      contentIdeaData.cta = formData.cta
+      contentIdeaData['CTA'] = formData.cta
     }
     
     if (formData.targetAudience) {
-      contentIdeaData.targetAudience = mapTargetAudience(formData.targetAudience)
+      contentIdeaData['Target Audience'] = mapTargetAudience(formData.targetAudience)
     }
     
     if (formData.informationSource) {
-      contentIdeaData.informationSource = mapSourceType(formData.informationSource)
+      contentIdeaData['Information Source'] = mapSourceType(formData.informationSource)
     }
     
     if (formData.sourceUrl) {
-      contentIdeaData.sourceUrl = formData.sourceUrl
+      contentIdeaData['Source URL'] = formData.sourceUrl
     }
     
     if (formData.sourceContent) {
-      contentIdeaData.sourceContent = formData.sourceContent
+      contentIdeaData['Source Content'] = formData.sourceContent
     }
     
     if (formData.contentStrategy) {
-      contentIdeaData.contentStrategy = formData.contentStrategy
+      contentIdeaData['Content Strategy'] = formData.contentStrategy
     }
     
     if (formData.contentTypeStrategy && formData.contentTypeStrategy.length > 0) {
-      contentIdeaData.contentTypeStrategy = mapContentTypeStrategy(formData.contentTypeStrategy)
+      // Content Type Strategy is a single-select field, so extract the first value
+      const mappedStrategies = mapContentTypeStrategy(formData.contentTypeStrategy)
+      contentIdeaData['Content Type Strategy'] = Array.isArray(mappedStrategies) ? mappedStrategies[0] : mappedStrategies
     }
     
     if (formData.primaryObjective) {
-      contentIdeaData.primaryObjective = mapPrimaryObjective(formData.primaryObjective)
+      contentIdeaData['Primary Objective'] = mapPrimaryObjective(formData.primaryObjective)
     }
     
     if (formData.uploadedImageUrl) {
-      contentIdeaData.uploadedImageUrl = formData.uploadedImageUrl
+      contentIdeaData['Uploaded Image URL'] = formData.uploadedImageUrl
     }
     
     if (formData.uploadedVideoUrl) {
-      contentIdeaData.uploadedVideoUrl = formData.uploadedVideoUrl
+      contentIdeaData['Uploaded Video URL'] = formData.uploadedVideoUrl
+    }
+
+    if (formData.productUvp) {
+      // Product UVP is a link_row field, so send as an array of IDs
+      contentIdeaData['Product UVP'] = [parseInt(formData.productUvp)]
     }
 
     console.log('Content idea data for Baserow:', contentIdeaData)

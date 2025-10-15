@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
+import { BaserowAPI } from '@/lib/baserow/api'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,37 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('✅ Client config found for:', payload.clientId)
+
+    // Fetch Product UVP details if productUvpId is provided
+    let productUvpData = null
+    if (payload.productUvp) {
+      try {
+        console.log('📦 Fetching Product UVP details for ID:', payload.productUvp)
+        const baserowAPI = new BaserowAPI(
+          clientConfig.baserow.token,
+          clientConfig.baserow.databaseId,
+          clientConfig.fieldMappings
+        )
+        const productUvpsTableId = clientConfig.baserow.tables.productUvps
+        if (productUvpsTableId) {
+          const uvpResponse = await baserowAPI.request(`/api/database/rows/table/${productUvpsTableId}/${payload.productUvp}/`)
+          productUvpData = {
+            id: uvpResponse.id,
+            productName: uvpResponse['Product/Service Name'] || uvpResponse.productServiceName || '',
+            productUrl: uvpResponse['Product/Service URL'] || uvpResponse.productUrl || '',
+            customerType: uvpResponse['Customer Type'] || uvpResponse.customerType || '',
+            industryCategory: uvpResponse['Industry Category'] || uvpResponse.industryCategory || '',
+            problemSolved: uvpResponse['Problem Solved'] || uvpResponse.problemSolved || '',
+            keyDifferentiator: uvpResponse['Key Differentiator'] || uvpResponse.keyDifferentiator || '',
+            uvp: uvpResponse['UVP'] || uvpResponse.uvp || ''
+          }
+          console.log('✅ Product UVP data fetched:', productUvpData)
+        }
+      } catch (uvpError) {
+        console.error('⚠️ Error fetching Product UVP details:', uvpError)
+        // Continue without UVP data if fetch fails
+      }
+    }
 
     // Prepare enhanced data for n8n workflow
     const n8nPayload = {
@@ -125,12 +157,31 @@ export async function POST(request: NextRequest) {
         additionalNotes: payload.additionalNotes
       },
       
+      // Product UVP information (if selected)
+      productUVP: productUvpData ? {
+        id: productUvpData.id,
+        productName: productUvpData.productName,
+        productUrl: productUvpData.productUrl,
+        customerType: productUvpData.customerType,
+        industryCategory: productUvpData.industryCategory,
+        problemSolved: productUvpData.problemSolved,
+        keyDifferentiator: productUvpData.keyDifferentiator,
+        uvp: productUvpData.uvp,
+        // Baserow metadata for the Product UVP
+        baserow: {
+          tableId: clientConfig.baserow.tables.productUvps,
+          recordId: productUvpData.id,
+          databaseId: clientConfig.baserow.databaseId
+        }
+      } : null,
+      
       // Additional metadata for n8n processing
       metadata: {
         createdAt: new Date().toISOString(),
         source: 'content-engine-app',
         version: '1.0',
-        contentType: 'social_media_post'
+        contentType: 'social_media_post',
+        hasProductUVP: !!productUvpData
       }
     }
     

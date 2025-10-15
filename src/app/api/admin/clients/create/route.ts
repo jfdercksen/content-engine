@@ -611,7 +611,8 @@ async function createRealFields(tables: any, clientName: string): Promise<any> {
         { value: 'Support & Nurture Existing Customers', color: 'light-blue' },
         { value: 'Attract Strategic Partnerships & Collaborations', color: 'dark-red' },
         { value: 'Create Viral Content & Expand Reach', color: 'light-pink' }
-      ]}
+      ]},
+      { name: 'Product UVP', type: 'link_row', link_row_table: 'productuvps' }
     ],
     socialMediaContent: [
       { name: 'Image Prompt', type: 'text' },

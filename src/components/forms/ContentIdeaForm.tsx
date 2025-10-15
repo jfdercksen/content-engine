@@ -36,6 +36,7 @@ const contentIdeaSchema = z.object({
     contentStrategy: z.string().optional(),
     contentTypeStrategy: z.array(z.string()).optional(),
     primaryObjective: z.string().optional(),
+    productUvp: z.string().optional(),
 
     // Optional fields
     priority: z.enum(['High', 'Medium', 'Low']),
@@ -71,6 +72,8 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [videoFile, setVideoFile] = useState<File | null>(null)
     const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+    const [productUvps, setProductUvps] = useState<Array<{ id: string; name: string }>>([])
+    const [loadingUvps, setLoadingUvps] = useState(false)
 
     const form = useForm<ContentIdeaFormData>({
         resolver: zodResolver(contentIdeaSchema),
@@ -88,9 +91,34 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
             additionalNotes: '',
             contentStrategy: '',
             contentTypeStrategy: [],
-            primaryObjective: ''
+            primaryObjective: '',
+            productUvp: ''
         }
     })
+
+    // Fetch Product UVPs
+    useEffect(() => {
+        const fetchProductUvps = async () => {
+            setLoadingUvps(true)
+            try {
+                const response = await fetch(`/api/baserow/${clientId}/product-uvps`)
+                if (response.ok) {
+                    const data = await response.json()
+                    const uvps = data.productUVPs || data.results || []
+                    setProductUvps(uvps.map((uvp: any) => ({
+                        id: uvp.id?.toString() || '',
+                        name: uvp['Product/Service Name'] || uvp.productServiceName || 'Unnamed Product'
+                    })))
+                }
+            } catch (error) {
+                console.error('Error fetching Product UVPs:', error)
+            } finally {
+                setLoadingUvps(false)
+            }
+        }
+        
+        fetchProductUvps()
+    }, [clientId])
 
     // Populate form with initial data when editing
     useEffect(() => {
@@ -112,7 +140,8 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
                 additionalNotes: initialData.additional_notes || initialData.additionalNotes || '',
                 contentStrategy: initialData.content_strategy || initialData.contentStrategy || '',
                 contentTypeStrategy: initialData.content_type_strategy || initialData.contentTypeStrategy || [],
-                primaryObjective: initialData.primary_objective || initialData.primaryObjective || ''
+                primaryObjective: initialData.primary_objective || initialData.primaryObjective || '',
+                productUvp: initialData.product_uvp || initialData.productUvp || initialData['Product UVP']?.[0]?.id || ''
             }
             
             console.log('DEBUG: Mapped form data:', formData)
@@ -936,6 +965,40 @@ export default function ContentIdeaForm({ onSubmit, onClose, clientId, contentTy
                                                         {primaryObjectiveOptions.map((option) => (
                                                             <SelectItem key={option.value} value={option.value}>
                                                                 {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {/* Product UVP */}
+                                    <FormField<ContentIdeaFormData>
+                                        control={form.control}
+                                        name="productUvp"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Product/Service UVP (Optional)</FormLabel>
+                                                <Select 
+                                                    onValueChange={(value) => {
+                                                        // Convert "none" back to empty string
+                                                        field.onChange(value === 'none' ? '' : value)
+                                                    }} 
+                                                    value={field.value || 'none'} 
+                                                    disabled={loadingUvps}
+                                                >
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder={loadingUvps ? "Loading products..." : "Select product/service"} />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">None</SelectItem>
+                                                        {productUvps.map((uvp) => (
+                                                            <SelectItem key={uvp.id} value={uvp.id}>
+                                                                {uvp.name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
