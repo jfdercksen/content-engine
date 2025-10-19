@@ -60,6 +60,51 @@ export default function SocialMediaContentForm({
   const [enlargedImage, setEnlargedImage] = useState<{url: string, alt: string} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // Function to fetch image data by IDs
+  const fetchImageData = async (imageIds: (string | number)[]) => {
+    try {
+      console.log('Fetching image data for IDs:', imageIds)
+      const response = await fetch(`/api/baserow/${clientId}/images`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Fetched all image data:', result)
+        
+        if (result.results && result.results.length > 0) {
+          // Filter to only include the images we need based on the IDs
+          const filteredImages = result.results.filter((img: any) => 
+            imageIds.includes(String(img.id)) || imageIds.includes(Number(img.id))
+          )
+          
+          console.log('Filtered images for IDs:', imageIds, 'Found:', filteredImages)
+          
+          const fetchedImages = filteredImages.map((img: any) => ({
+            id: String(img.id),
+            image: img.image || img.imageLinkUrl,
+            imageUrl: img.image || img.imageLinkUrl,
+            imagePrompt: img.imagePrompt || img.imageprompt || `Image ${img.id}`,
+            imageStatus: img.imageStatus || img.imagestatus || 'Completed',
+            imageType: img.imageType || img.imagetype || 'Generated',
+            imageScene: img.imageScene || img.imagescene || 'Social Media Post',
+            imageStyle: img.imageStyle || img.imagestyle || 'Photorealistic',
+            imageModel: img.imageModel || img.imagemodel || 'Generated',
+            imageSize: img.imageSize || img.imagesize || 'Original',
+            imageLinkUrl: img.imageLinkUrl || img.image,
+            client_id: img.client_id,
+            created_at: img.created_at || img.createdAt,
+          }))
+          
+          console.log('Updating selectedBrowsedImages with fetched data:', fetchedImages)
+          setSelectedBrowsedImages(fetchedImages)
+        }
+      } else {
+        console.error('Failed to fetch image data:', response.status)
+      }
+    } catch (error) {
+      console.error('Error fetching image data:', error)
+    }
+  }
+  
   // Debug: Log initialData to see if there are any issues
   useEffect(() => {
     if (initialData) {
@@ -99,41 +144,75 @@ export default function SocialMediaContentForm({
     console.log('initialData?.images:', initialData?.images)
     console.log('Is array:', Array.isArray(initialData?.images))
     console.log('Length:', initialData?.images?.length)
+    console.log('Full initialData object:', JSON.stringify(initialData, null, 2))
+    
+    // Debug: Check if images are in different field names
+    console.log('=== CHECKING ALL POSSIBLE IMAGE FIELDS ===')
+    console.log('initialData.images:', initialData?.images)
+    console.log('initialData.image:', initialData?.image)
+    console.log('initialData.selectedImages:', (initialData as any)?.selectedImages)
+    
+    // Check all field names that might contain images
+    Object.keys(initialData || {}).forEach(key => {
+      if (key.toLowerCase().includes('image')) {
+        console.log(`Field "${key}":`, (initialData as any)[key])
+      }
+    })
     
     if (initialData?.images && Array.isArray(initialData.images) && initialData.images.length > 0) {
       console.log('Initializing selectedBrowsedImages from initialData.images:', initialData.images)
       
-      // Convert the images data to the format expected by selectedBrowsedImages
-      const convertedImages = (initialData.images && Array.isArray(initialData.images)) 
-        ? initialData.images.map((img: any) => {
-        // Extract image URL from various possible field structures
-        let imageUrl = null
-        
-        // Check if image URL is already processed (from API mapping)
-        if (img.image) {
-          imageUrl = img.image
-        }
-        
-        console.log('Converting image:', img.id, 'imageUrl:', imageUrl)
-        
-        return {
-          id: img.id,
-          image: imageUrl,
-          imageId: img.imageid,
-          imagePrompt: img.imageprompt,
-          imageType: img.imagetype,
-          imageScene: img.imagescene,
-          imageStyle: img.imagestyle,
-          imageStatus: img.imagestatus,
-          createdAt: img.createdAt,
-          // Handle any additional fields that might be present
-          ...(img.imageLinkUrl && { imageLinkUrl: img.imageLinkUrl })
-        }
-      }).filter(img => img.id) // Only include images with valid IDs
-        : []
+      // Check if images are just IDs (strings/numbers) or full image objects
+      const firstImage = initialData.images[0]
+      const isIdArray = typeof firstImage === 'string' || typeof firstImage === 'number'
       
-      console.log('Converted images for selectedBrowsedImages:', convertedImages)
-      setSelectedBrowsedImages(convertedImages)
+      if (isIdArray) {
+        console.log('Images array contains IDs, fetching image data...')
+        // Images are just IDs, we need to fetch the actual image data
+        // For now, create placeholder objects with the IDs
+        const placeholderImages = (initialData.images as unknown as (string | number)[]).map((id: string | number) => ({
+          id: String(id),
+          image: undefined, // Will be populated when image data is fetched
+          imagePrompt: `Image ${id}`,
+          imageStatus: 'Unknown'
+        } as Partial<Image>))
+        
+        console.log('Created placeholder images:', placeholderImages)
+        setSelectedBrowsedImages(placeholderImages)
+        
+        // Fetch the actual image data for these IDs
+        fetchImageData(initialData.images as unknown as (string | number)[])
+      } else {
+        // Images are full objects, convert them as before
+        const convertedImages = initialData.images.map((img: any) => {
+          // Extract image URL from various possible field structures
+          let imageUrl = null
+          
+          // Check if image URL is already processed (from API mapping)
+          if (img.image) {
+            imageUrl = img.image
+          }
+          
+          console.log('Converting image:', img.id, 'imageUrl:', imageUrl)
+          
+          return {
+            id: img.id,
+            image: imageUrl,
+            imageId: img.imageid,
+            imagePrompt: img.imageprompt,
+            imageType: img.imagetype,
+            imageScene: img.imagescene,
+            imageStyle: img.imagestyle,
+            imageStatus: img.imagestatus,
+            createdAt: img.createdAt,
+            // Handle any additional fields that might be present
+            ...(img.imageLinkUrl && { imageLinkUrl: img.imageLinkUrl })
+          }
+        }).filter(img => img.id) // Only include images with valid IDs
+        
+        console.log('Converted images for selectedBrowsedImages:', convertedImages)
+        setSelectedBrowsedImages(convertedImages)
+      }
       
       // Also check if any of the existing images are uploaded images
       // (they would have isUploaded: true or imageModel: 'Local Upload')
@@ -428,11 +507,12 @@ export default function SocialMediaContentForm({
                   ? String((cleanedData.contentIdea as any).id)
                   : typeof cleanedData.contentIdea === 'number'
                     ? String(cleanedData.contentIdea)
-                    : cleanedData.contentIdea
+                    : String(cleanedData.contentIdea || '')
               )
       ),
       // Add all selected images to the form data (both browsed and uploaded)
-      selectedImages: allSelectedImages.map(img => img.id).filter(Boolean)
+      selectedImages: allSelectedImages.map(img => img.id).filter(Boolean),
+      images: allSelectedImages.map(img => img.id).filter(Boolean)
     } as SocialMediaContentFormData
     
     console.log('Processed data being sent to onSubmit:', processedData)
@@ -868,24 +948,33 @@ export default function SocialMediaContentForm({
                     console.log('Image.image:', image.image)
                     console.log('Image.imageUrl:', (image as any).imageUrl)
                     
-                    // Extract image URL using the same logic as handleSelectBrowsedImage
+                    // Debug the array contents
+                    if (Array.isArray(image.image) && image.image.length > 0) {
+                      console.log('Image.image[0]:', image.image[0])
+                      console.log('Image.image[0] keys:', Object.keys(image.image[0]))
+                    }
+                    if (Array.isArray((image as any).imageUrl) && (image as any).imageUrl.length > 0) {
+                      console.log('Image.imageUrl[0]:', (image as any).imageUrl[0])
+                      console.log('Image.imageUrl[0] keys:', Object.keys((image as any).imageUrl[0]))
+                    }
+                    
+                    // Extract image URL - direct approach
                     let displayImageUrl = null
-                    if ((image as any).imageLinkUrl) {
+                    
+                    // Try direct access first
+                    if (Array.isArray(image.image) && image.image.length > 0 && (image.image[0] as any)?.url) {
+                      displayImageUrl = (image.image[0] as any).url
+                    } else if (Array.isArray((image as any).imageUrl) && (image as any).imageUrl.length > 0 && (image as any).imageUrl[0]?.url) {
+                      displayImageUrl = (image as any).imageUrl[0].url
+                    } else if ((image as any).imageLinkUrl) {
                       displayImageUrl = (image as any).imageLinkUrl
-                    } else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
-                      const firstImageItem = image.image[0]
-                      if (typeof firstImageItem === 'object' && firstImageItem.url) {
-                        displayImageUrl = firstImageItem.url
-                      } else if (typeof firstImageItem === 'string') {
-                        displayImageUrl = firstImageItem
-                      }
                     } else if (typeof image.image === 'string') {
                       displayImageUrl = image.image
                     } else if ((image as any).url) {
                       displayImageUrl = (image as any).url
-                    } else if ((image as any).imageUrl) {
-                      displayImageUrl = (image as any).imageUrl
                     }
+                    
+                    console.log('Final displayImageUrl after extraction:', displayImageUrl)
                     
                     console.log('Extracted displayImageUrl:', displayImageUrl)
                     
@@ -922,11 +1011,11 @@ export default function SocialMediaContentForm({
                             <X className="w-3 h-3" />
                           </Button>
                         )}
-                      </div>
+                  </div>
                     )
                   })}
                 </div>
-              </div>
+                </div>
             )}
 
             {/* Action Icons */}
@@ -1169,28 +1258,47 @@ export default function SocialMediaContentForm({
                       console.log('firstImage keys:', Object.keys(firstImage))
                       console.log('firstImage.image:', firstImage.image)
                       console.log('firstImage.imageUrl:', (firstImage as any).imageUrl)
+                      
+                    // Debug the array contents
+                    if (Array.isArray(firstImage.image) && firstImage.image.length > 0) {
+                      console.log('firstImage.image[0]:', firstImage.image[0])
+                      console.log('firstImage.image[0] keys:', Object.keys(firstImage.image[0]))
+                      console.log('firstImage.image[0].url:', firstImage.image[0].url)
+                      console.log('typeof firstImage.image[0]:', typeof firstImage.image[0])
+                      console.log('firstImage.image[0] has url?:', 'url' in firstImage.image[0])
+                    }
+                    if (Array.isArray((firstImage as any).imageUrl) && (firstImage as any).imageUrl.length > 0) {
+                      console.log('firstImage.imageUrl[0]:', (firstImage as any).imageUrl[0])
+                      console.log('firstImage.imageUrl[0] keys:', Object.keys((firstImage as any).imageUrl[0]))
+                      console.log('firstImage.imageUrl[0].url:', (firstImage as any).imageUrl[0].url)
+                    }
                     }
                     
-                    // Extract image URL using the same logic as handleSelectBrowsedImage
+                    // Extract image URL - direct approach
                     let previewImageUrl = null
                     if (firstImage) {
-                      if ((firstImage as any).imageLinkUrl) {
+                      console.log('=== STARTING URL EXTRACTION ===')
+                      
+                      // Try direct access first
+                      if (Array.isArray(firstImage.image) && firstImage.image.length > 0 && (firstImage.image[0] as any)?.url) {
+                        previewImageUrl = (firstImage.image[0] as any).url
+                        console.log('Extracted from firstImage.image[0].url:', previewImageUrl)
+                      } else if (Array.isArray((firstImage as any).imageUrl) && (firstImage as any).imageUrl.length > 0 && (firstImage as any).imageUrl[0]?.url) {
+                        previewImageUrl = (firstImage as any).imageUrl[0].url
+                        console.log('Extracted from firstImage.imageUrl[0].url:', previewImageUrl)
+                      } else if ((firstImage as any).imageLinkUrl) {
                         previewImageUrl = (firstImage as any).imageLinkUrl
-                      } else if (firstImage.image && Array.isArray(firstImage.image) && firstImage.image.length > 0) {
-                        const firstImageItem = firstImage.image[0]
-                        if (typeof firstImageItem === 'object' && firstImageItem.url) {
-                          previewImageUrl = firstImageItem.url
-                        } else if (typeof firstImageItem === 'string') {
-                          previewImageUrl = firstImageItem
-                        }
+                        console.log('Extracted from imageLinkUrl:', previewImageUrl)
                       } else if (typeof firstImage.image === 'string') {
                         previewImageUrl = firstImage.image
+                        console.log('Extracted from string image:', previewImageUrl)
                       } else if ((firstImage as any).url) {
                         previewImageUrl = (firstImage as any).url
-                      } else if ((firstImage as any).imageUrl) {
-                        previewImageUrl = (firstImage as any).imageUrl
+                        console.log('Extracted from url field:', previewImageUrl)
                       }
                     }
+                    
+                    console.log('Final previewImageUrl after extraction:', previewImageUrl)
                     
                     console.log('Extracted previewImageUrl:', previewImageUrl)
                     

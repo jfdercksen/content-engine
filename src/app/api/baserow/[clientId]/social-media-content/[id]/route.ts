@@ -48,6 +48,13 @@ export async function PATCH(
       
       // Create a copy of body without selectedImages for validation since it's not in the schema
       const { selectedImages, ...bodyForValidation } = body
+      
+      // Convert contentIdea to string if it's a number
+      if (bodyForValidation.contentIdea && typeof bodyForValidation.contentIdea === 'number') {
+        bodyForValidation.contentIdea = String(bodyForValidation.contentIdea)
+        console.log('Converted contentIdea from number to string:', bodyForValidation.contentIdea)
+      }
+      
       console.log('Body for validation (without selectedImages):', bodyForValidation)
       
       // Validate the data using Zod schema (partial update allowed)

@@ -456,8 +456,9 @@ export default function SocialMediaContentPage() {
                           : typeof editingContent.contentIdea === 'object' 
                             ? (editingContent.contentIdea as any)?.id 
                             : editingContent.contentIdea)
-                      : undefined
+                      : filteredForIdea // Pass the filtered idea ID when creating new content
                   }
+                  contentIdeaTitle={filteredForIdea ? 'Current Content Idea' : undefined}
                   isEditing={!!editingContent}
                   clientName={clientConfig.name}
                   clientId={clientId}

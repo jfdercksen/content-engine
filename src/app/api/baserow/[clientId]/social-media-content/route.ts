@@ -80,6 +80,7 @@ export async function GET(
     if (contentIdeaId) {
       // Handle content idea specific filtering
       console.log('GENERAL ROUTE: Fetching content idea:', contentIdeaId, 'and its linked social media content')
+      console.log('GENERAL ROUTE: Field mappings:', clientConfig.fieldMappings)
       
       try {
         // First, fetch the content idea to get its field_7153 (linked social media content)
@@ -178,6 +179,8 @@ export async function POST(
 
     // Validate the data using Zod schema
     try {
+      console.log('Validating data with schema...')
+      console.log('Body data:', JSON.stringify(body, null, 2))
       const validatedData = socialMediaContentFormSchema.parse(body)
       console.log('Data validation successful:', validatedData)
 
@@ -198,7 +201,7 @@ export async function POST(
         status: validatedData.status,
         scheduledtime: validatedData.scheduledTime,
         contentidea: validatedData.contentIdea,
-        images: validatedData.images,
+        images: validatedData.images || validatedData.selectedImages,
         imagestatus: validatedData.imageStatus
       }
       
@@ -218,15 +221,25 @@ export async function POST(
       })
 
     } catch (validationError) {
+      console.error('❌ Validation error type:', validationError)
+      console.error('❌ Is ZodError?', validationError instanceof z.ZodError)
+      
       if (validationError instanceof z.ZodError) {
+        console.error('❌ Validation failed with errors:', validationError.errors)
+        console.error('❌ Formatted errors:', JSON.stringify(validationError.errors, null, 2))
+        const errorMessages = validationError.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
         return NextResponse.json(
           { 
             error: 'Validation failed', 
-            details: validationError.errors 
+            details: validationError.errors,
+            message: errorMessages
           },
           { status: 400 }
         )
       }
+      
+      // If it's not a ZodError, log it and throw
+      console.error('❌ Unexpected validation error:', validationError)
       throw validationError
     }
 

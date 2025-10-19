@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useClientConfig } from '@/hooks/useClientConfig'
 import ContentIdeaForm from '@/components/forms/ContentIdeaForm'
+import SocialMediaContentForm from '@/components/forms/SocialMediaContentForm'
 import ClientHeader from '@/components/layout/ClientHeader'
 import StatsCards from '@/components/dashboard/StatsCards'
 import ContentIdeasTable from '@/components/tables/ContentIdeasTable'
@@ -12,7 +13,7 @@ import BrandAssetsTable from '@/components/tables/BrandAssetsTable'
 import ClientOnly from '@/components/ClientOnly'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileText, Image, Video, Mail, Lightbulb, ArrowLeft, MessageSquare, Palette, TrendingUp } from 'lucide-react'
+import { FileText, Image, Video, Mail, Lightbulb, ArrowLeft, MessageSquare, Palette, TrendingUp, Plus } from 'lucide-react'
 
 export default function ContentIdeasPage() {
     const params = useParams()
@@ -31,6 +32,8 @@ export default function ContentIdeasPage() {
     const [selectedIdeaForSocialMedia, setSelectedIdeaForSocialMedia] = useState<any>(null)
     const [socialMediaContentForIdea, setSocialMediaContentForIdea] = useState<any[]>([])
     const [isLoadingSocialMedia, setIsLoadingSocialMedia] = useState(false)
+    // State for creating new post
+    const [showCreatePostForm, setShowCreatePostForm] = useState(false)
     const { clientConfig, isLoading: configLoading, error: configError } = useClientConfig(clientId)
 
     useEffect(() => {
@@ -270,6 +273,45 @@ export default function ContentIdeasPage() {
     const handleViewBrandAssets = (ideaId: string) => {
         // Navigate to brand assets page
         router.push(`/dashboard/${clientId}/brand-assets`)
+    }
+
+    const handleCreatePost = async (formData: any) => {
+        try {
+            console.log('Creating new post for content idea:', selectedIdeaForSocialMedia?.id)
+            console.log('Form data:', formData)
+
+            // Prepare the post data with content idea link
+            const postData = {
+                ...formData,
+                contentIdea: selectedIdeaForSocialMedia?.id, // Link to the content idea
+                contentIdeaTitle: selectedIdeaForSocialMedia?.title
+            }
+
+            // Send to API
+            const response = await fetch(`/api/baserow/${clientId}/social-media-content`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(postData)
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to create post')
+            }
+
+            // Close the form
+            setShowCreatePostForm(false)
+
+            // Refresh the posts for this idea
+            await fetchSocialMediaContentForIdea(selectedIdeaForSocialMedia.id)
+
+            // Show success message
+            alert('Post created successfully!')
+        } catch (error) {
+            console.error('Error creating post:', error)
+            alert('Error creating post. Please try again.')
+        }
     }
 
     const handleRegenerateContent = async (ideaId: string) => {
@@ -531,6 +573,14 @@ export default function ContentIdeasPage() {
                                             </p>
                                         </div>
                                     </div>
+                                    <Button
+                                        onClick={() => setShowCreatePostForm(true)}
+                                        style={{ backgroundColor: clientConfig.branding.primaryColor }}
+                                        className="hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Create Post
+                                    </Button>
                                 </div>
 
                                 {isLoadingSocialMedia ? (
@@ -583,6 +633,21 @@ export default function ContentIdeasPage() {
                                     />
                                 )}
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Create Post Form Modal */}
+                {showCreatePostForm && selectedIdeaForSocialMedia && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+                        <div className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-hidden">
+                            <SocialMediaContentForm
+                                onSubmit={handleCreatePost}
+                                onClose={() => setShowCreatePostForm(false)}
+                                clientId={clientId}
+                                contentIdeaId={selectedIdeaForSocialMedia.id}
+                                contentIdeaTitle={selectedIdeaForSocialMedia.title}
+                            />
                         </div>
                     </div>
                 )}

@@ -180,7 +180,14 @@ export default function BrandAssetsPage() {
   }
 
   const handleEditAsset = async (formData: BrandAssetFormData) => {
-    if (!editingAsset) return
+    console.log('🔄 handleEditAsset called')
+    console.log('📝 Editing asset ID:', editingAsset?.id)
+    console.log('📋 Form data received:', formData)
+    
+    if (!editingAsset) {
+      console.error('❌ No editing asset found!')
+      return
+    }
 
     try {
       // Send original form data to API route (API route will handle mapping)
@@ -190,6 +197,7 @@ export default function BrandAssetsPage() {
       let headers: any = {}
 
       if (formData.file) {
+        console.log('📎 File detected, using FormData')
         const formDataObj = new FormData()
         Object.entries(formData).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
@@ -202,19 +210,28 @@ export default function BrandAssetsPage() {
         })
         requestBody = formDataObj
       } else {
+        console.log('📝 No file, using JSON')
         headers['Content-Type'] = 'application/json'
         requestBody = JSON.stringify(formData)
       }
 
+      console.log('🌐 Sending PATCH request to:', `/api/baserow/${clientId}/brand-assets/${editingAsset.id}`)
       const response = await fetch(`/api/baserow/${clientId}/brand-assets/${editingAsset.id}`, {
         method: 'PATCH',
         headers,
         body: requestBody
       })
 
+      console.log('📡 Response status:', response.status)
+      
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Update failed:', errorText)
         throw new Error('Failed to update brand asset')
       }
+
+      const result = await response.json()
+      console.log('✅ Update successful:', result)
 
       await fetchBrandAssets()
       setEditingAsset(null)
@@ -223,7 +240,7 @@ export default function BrandAssetsPage() {
       // Show success message
       alert('Brand asset updated successfully!')
     } catch (error) {
-      console.error('Error updating brand asset:', error)
+      console.error('❌ Error updating brand asset:', error)
       alert('Error updating brand asset. Please try again.')
     }
   }

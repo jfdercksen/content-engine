@@ -140,6 +140,10 @@ export class BaserowAPI {
       }
     }
     
+    if (tableName === 'brandAssets' && convertToCamelCase) {
+      console.log('🗺️ Mapped brand asset from Baserow:', mapped)
+    }
+    
     return mapped
   }
 
@@ -166,7 +170,8 @@ export class BaserowAPI {
       
       // If it's an array of select objects with 'value' properties (multiple select fields)
       if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'value' in value[0]) {
-        return value.map(item => item.value).join(', ') // Join multiple values with commas
+        // Return as array for form compatibility (forms expect arrays for multi-select)
+        return value.map(item => item.value)
       }
       
       // For other array types, return as-is
@@ -238,7 +243,21 @@ export class BaserowAPI {
         'contentStrategy': 'contentstrategy',
         'contentTypeStrategy': 'contenttypestrategy',
         'primaryObjective': 'primaryobjectiveoptions',
-        'scheduledTime': 'scheduledtime'
+        'scheduledTime': 'scheduledtime',
+        // Brand Assets fields
+        'assetName': 'assetname',
+        'contentType': 'contenttype',
+        'assetType': 'assettype',
+        'assetInformation': 'assetinformation',
+        'fileUrl': 'fileurl',
+        'brandVoiceGuidelines': 'brandvoiceguidelines',
+        'approvedHashtags': 'approvedhashtags',
+        'toneStylePreferences': 'tone/stylepreferences',
+        'forbiddenWordsTopics': 'forbiddenwords/topics',
+        'platformSpecificRules': 'platform-specificrules',
+        'notes': 'assetnotes',
+        'createdDate': 'createddate',
+        'lastUpdated': 'lastupdated'
       }
       return conversions[camelCaseName] || camelCaseName
     }

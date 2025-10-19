@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -60,6 +60,7 @@ export default function BrandAssetForm({
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting }
   } = useForm<BrandAssetFormData>({
     resolver: zodResolver(brandAssetFormSchema),
@@ -80,6 +81,29 @@ export default function BrandAssetForm({
       notes: initialData?.notes || ''
     }
   })
+
+  // Populate form when editing
+  useEffect(() => {
+    if (isEditing && initialData) {
+      console.log('📝 Populating form with initialData:', initialData)
+      reset({
+        assetName: initialData.assetName || '',
+        platform: initialData.platform || ['Universal'],
+        contentType: initialData.contentType || 'General',
+        assetType: initialData.assetType || 'Brand Voice',
+        assetInformation: initialData.assetInformation || '',
+        brandVoiceGuidelines: initialData.brandVoiceGuidelines || '',
+        approvedHashtags: initialData.approvedHashtags || '',
+        toneStylePreferences: initialData.toneStylePreferences || '',
+        forbiddenWordsTopics: initialData.forbiddenWordsTopics || '',
+        platformSpecificRules: initialData.platformSpecificRules || '',
+        fileUrl: initialData.fileUrl || '',
+        status: initialData.status || 'Active',
+        priority: initialData.priority || 'Medium',
+        notes: initialData.notes || ''
+      })
+    }
+  }, [isEditing, initialData, reset])
 
   const watchedAssetType = watch('assetType')
   const watchedPlatform = watch('platform')
@@ -152,11 +176,18 @@ export default function BrandAssetForm({
   }
 
   const onFormSubmit = (data: BrandAssetFormData) => {
+    console.log('🚀 Form submit triggered')
+    console.log('📋 Form data:', data)
+    console.log('🔧 Is editing:', isEditing)
+    console.log('📎 Uploaded file:', uploadedFile)
+    
     // Include the uploaded file in the form data
     const formDataWithFile = {
       ...data,
       file: uploadedFile || undefined
     }
+    
+    console.log('📤 Submitting data:', formDataWithFile)
     onSubmit(formDataWithFile)
   }
 

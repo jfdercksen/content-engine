@@ -503,41 +503,87 @@ export default function SocialMediaPage() {
         try {
             setIsUpdatingContent(true)
             
-            console.log('📝 Updating content:', editingContent.id)
-            console.log('📝 Form data:', formData)
+            // Check if we're creating new content or updating existing
+            const isCreating = !editingContent?.id
             
-            const response = await fetch(`/api/baserow/${clientId}/social-media-content/${editingContent.id}`, {
-                method: 'PATCH',
+            console.log(isCreating ? '📝 Creating content' : '📝 Updating content:', editingContent?.id)
+            console.log('📝 Form data received:', formData)
+            console.log('📝 Selected idea for social media:', selectedIdeaForSocialMedia)
+            
+            // Prepare the post data with content idea link for new posts
+            const postData = {
+                ...formData,
+                contentIdea: selectedIdeaForSocialMedia?.id, // Link to the content idea
+                contentIdeaTitle: selectedIdeaForSocialMedia?.title
+            }
+            
+            console.log('📝 Post data to send:', postData)
+            
+            const url = isCreating 
+                ? `/api/baserow/${clientId}/social-media-content`
+                : `/api/baserow/${clientId}/social-media-content/${editingContent.id}`
+            
+            const method = isCreating ? 'POST' : 'PATCH'
+            
+            console.log('📡 Request URL:', url)
+            console.log('📡 Request method:', method)
+            
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(postData)
             })
 
             console.log('📡 Response status:', response.status)
+            console.log('📡 Response ok:', response.ok)
 
             if (response.ok) {
                 const result = await response.json()
-                console.log('✅ Update successful:', result)
+                console.log('✅ Success:', result)
                 
-                // Update the content in the local state
+                if (isCreating) {
+                    // For new content, refresh the posts list
+                    await handleViewIdea(selectedIdeaForSocialMedia)
+                    alert('Post created successfully!')
+                } else {
+                    // For existing content, update the local state
                 setSocialMediaContentForIdea(prev => prev.map(content => 
                     content.id === editingContent.id 
                         ? { ...content, ...formData }
                         : content
                 ))
+                    alert('Content updated successfully!')
+                }
                 
                 setShowEditModal(false)
                 setEditingContent(null)
-                alert('Content updated successfully!')
             } else {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                // Try to get error response text first
+                const responseText = await response.text()
+                console.error('❌ Raw error response:', responseText)
+                
+                let errorData
+                try {
+                    errorData = JSON.parse(responseText)
+                } catch (e) {
+                    errorData = { error: responseText || 'Unknown error' }
+                }
+                
                 console.error('❌ API Error:', errorData)
-                throw new Error(errorData.error || `Failed to update content (${response.status})`)
+                console.error('❌ Full error details:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData
+                })
+                
+                throw new Error(errorData.error || errorData.message || `Failed to ${isCreating ? 'create' : 'update'} content (${response.status})`)
             }
         } catch (error: any) {
-            console.error('❌ Error updating content:', error)
-            alert(`Error updating content: ${error.message || 'Please try again.'}`)
+            console.error('❌ Error in handleUpdateContent:', error)
+            console.error('❌ Error stack:', error.stack)
+            alert(`Error ${editingContent?.id ? 'updating' : 'creating'} content: ${error.message || 'Please try again.'}`)
         } finally {
             setIsUpdatingContent(false)
         }
@@ -727,6 +773,17 @@ export default function SocialMediaPage() {
                                              </p>
                                         </div>
                                     </div>
+                                    <Button
+                                        onClick={() => {
+                                            setEditingContent(null)
+                                            setShowEditModal(true)
+                                        }}
+                                        style={{ backgroundColor: clientConfig.branding.primaryColor }}
+                                        className="hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Create Post
+                                    </Button>
                                 </div>
 
                                 {isLoadingSocialMedia ? (
@@ -783,8 +840,8 @@ export default function SocialMediaPage() {
                     </div>
                 )}
 
-                {/* Edit Social Media Content Modal */}
-                {showEditModal && editingContent && (
+                {/* Create/Edit Social Media Content Modal */}
+                {showEditModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto">
                             <SocialMediaContentForm
@@ -796,7 +853,7 @@ export default function SocialMediaPage() {
                                 }}
                                 contentIdeaId={selectedIdeaForSocialMedia?.id}
                                 contentIdeaTitle={selectedIdeaForSocialMedia?.title}
-                                isEditing={true}
+                                isEditing={!!editingContent?.id}
                                 isLoading={isUpdatingContent}
                                 clientId={clientId}
                                 clientName={clientConfig.name}
