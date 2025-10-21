@@ -930,6 +930,31 @@ export default function SocialMediaContentForm({
                 {...register('hashtags')}
               />
             </div>
+
+            {/* Status Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-sm font-medium text-gray-700">
+                Post Status
+              </Label>
+              <Select 
+                value={watch('status')} 
+                onValueChange={(value) => setValue('status', value as any)}
+              >
+                <SelectTrigger className="border border-gray-200 rounded-lg">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(SOCIAL_MEDIA_STATUS).map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.status && (
+                <p className="text-sm text-red-600">{errors.status.message?.toString()}</p>
+              )}
+            </div>
               </div>
             </div>
 
@@ -1086,15 +1111,6 @@ export default function SocialMediaContentForm({
                       </div>
                     </div>
 
-            {/* Global Presets */}
-            <div className="p-4 border-t border-gray-100">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Global presets</span>
-                <Button variant="ghost" size="sm">
-                  <span className="text-gray-400">▼</span>
-                </Button>
-                  </div>
-            </div>
 
             {/* Bottom Controls */}
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
@@ -1110,16 +1126,13 @@ export default function SocialMediaContentForm({
 
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                     <Input
                       type="datetime-local"
-                      className="w-48 border border-gray-300 rounded-lg text-sm"
+                      className="w-48 border border-gray-300 rounded-lg text-sm cursor-pointer"
                       {...register('scheduledTime')}
                     />
                   </div>
-                  <Button type="button" variant="ghost" size="sm">
-                    Duplicate ▼
-              </Button>
               <Button 
                 type="submit" 
                 disabled={isSubmitting || isLoading}
@@ -1177,9 +1190,22 @@ export default function SocialMediaContentForm({
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">{clientName.charAt(0)}</span>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{clientName}</h3>
                     <p className="text-sm text-gray-500">Just now</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={
+                        watch('status') === 'Published' ? 'default' :
+                        watch('status') === 'Scheduled' ? 'secondary' :
+                        watch('status') === 'In Review' ? 'outline' :
+                        'destructive'
+                      }
+                      className="text-xs"
+                    >
+                      {watch('status') || 'Draft'}
+                    </Badge>
                   </div>
                   </div>
                 </div>
@@ -1226,14 +1252,18 @@ export default function SocialMediaContentForm({
                   {/* Location/Event Info */}
                   {(watchedCta || watchedHashtags) && (
                     <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Target className="w-4 h-4" />
-                        <span>St Stithians College</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>This weekend!</span>
-                      </div>
+                      {watchedHashtags && (
+                        <div className="flex items-center gap-1">
+                          <Hash className="w-4 h-4" />
+                          <span>Social Media Post</span>
+                        </div>
+                      )}
+                      {watch('scheduledTime') && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{new Date(watch('scheduledTime')).toLocaleDateString()}</span>
+                        </div>
+                      )}
                   </div>
                 )}
                       </div>
@@ -1318,14 +1348,6 @@ export default function SocialMediaContentForm({
                             target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
                           }}
                         />
-                        {/* Only show red banner if there's a CTA and a valid image */}
-                        {watchedCta && previewImageUrl && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-red-600 text-white p-3">
-                            <p className="text-center font-medium text-sm">
-                              PLEASE JOIN US TODAY, TOMORROW AND SUNDAY FOR
-                            </p>
-                          </div>
-                        )}
                       </>
                     )
                   })()}
