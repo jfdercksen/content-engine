@@ -241,3 +241,52 @@ export async function GET(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ clientId: string; id: string }> }
+) {
+  try {
+    const { clientId, id } = await params
+    const clientConfig = await getClientConfigForAPI(clientId)
+
+    if (!clientConfig) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      )
+    }
+
+    const socialMediaTableId = clientConfig.baserow.tables.socialMediaContent
+
+    if (!socialMediaTableId) {
+      return NextResponse.json(
+        { error: 'Social Media Content table not configured' },
+        { status: 500 }
+      )
+    }
+
+    console.log('Deleting social media content:', id)
+
+    const baserowAPI = new BaserowAPI(
+      clientConfig.baserow.token,
+      clientConfig.baserow.databaseId,
+      clientConfig.fieldMappings
+    )
+    
+    await baserowAPI.deleteSocialMediaContent(socialMediaTableId, id)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Social media content deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Error deleting social media content:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return NextResponse.json(
+      { error: 'Failed to delete social media content', details: errorMessage },
+      { status: 500 }
+    )
+  }
+}

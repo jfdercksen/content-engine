@@ -13,6 +13,7 @@ import StatsCards from '@/components/dashboard/StatsCards'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ViewToggle } from '@/components/ui/view-toggle'
+import { SocialMediaContent } from '@/lib/types/content'
 
 interface BaserowField {
     id: number;
@@ -499,6 +500,32 @@ export default function SocialMediaPage() {
         }
     }
 
+    const handleDeleteContent = async (content: SocialMediaContent) => {
+        try {
+            console.log('🗑️ Deleting content:', content.id)
+            
+            const response = await fetch(`/api/baserow/${clientId}/social-media-content/${content.id}`, {
+                method: 'DELETE'
+            })
+            
+            if (response.ok) {
+                console.log('✅ Content deleted successfully')
+                
+                // Remove from local state
+                setSocialMediaContentForIdea(prev => prev.filter(c => c.id !== content.id))
+                
+                alert('Post deleted successfully!')
+            } else {
+                const errorData = await response.json()
+                console.error('❌ Delete failed:', errorData)
+                alert(`Failed to delete post: ${errorData.error || 'Unknown error'}`)
+            }
+        } catch (error) {
+            console.error('❌ Error deleting content:', error)
+            alert('An error occurred while deleting the post.')
+        }
+    }
+
     const handleUpdateContent = async (formData: any) => {
         try {
             setIsUpdatingContent(true)
@@ -829,6 +856,7 @@ export default function SocialMediaPage() {
                                                 // Handle status update - this will be implemented in step 2
                                                 console.log('Update status:', contentId, status)
                                             }}
+                                            onDelete={handleDeleteContent}
                                             clientPrimaryColor={clientConfig.branding.primaryColor}
                                             showContentIdea={false}
                                             contentIdeaTitle={selectedIdeaForSocialMedia.title}

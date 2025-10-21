@@ -341,11 +341,22 @@ export class BaserowAPI {
       throw new Error(`Baserow API Error: ${response.status} - ${error}`)
     }
 
+    // Handle 204 No Content (common for DELETE operations)
+    if (response.status === 204) {
+      console.log('BaserowAPI: 204 No Content response (successful DELETE)')
+      return { success: true }
+    }
+
     // Check if response is JSON
     const contentType = response.headers.get('content-type')
     if (!contentType || !contentType.includes('application/json')) {
       const textResponse = await response.text()
       console.error('BaserowAPI: Non-JSON response received:', textResponse)
+      // For empty responses on successful operations, return success
+      if (textResponse === '' && response.ok) {
+        console.log('BaserowAPI: Empty response on successful operation')
+        return { success: true }
+      }
       throw new Error(`Baserow API returned non-JSON response: ${textResponse}`)
     }
 
@@ -605,6 +616,17 @@ export class BaserowAPI {
       ...result,
       ...this.mapFieldsFromBaserow(result, 'socialMediaContent')
     }
+  }
+
+  async deleteSocialMediaContent(tableId: string, rowId: string) {
+    console.log('BaserowAPI: Deleting social media content:', rowId)
+    
+    const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/`, {
+      method: 'DELETE',
+    })
+    
+    console.log('BaserowAPI: Social media content deleted:', result)
+    return result
   }
 
   // Brand Assets API methods

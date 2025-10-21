@@ -200,6 +200,32 @@ export default function SocialMediaContentPage() {
     setShowForm(true)
   }
 
+  const handleDeleteContent = async (content: SocialMediaContent) => {
+    try {
+      console.log('🗑️ Deleting content:', content.id)
+      
+      const response = await fetch(`/api/baserow/${clientId}/social-media-content/${content.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        console.log('✅ Content deleted successfully')
+        
+        // Remove from local state
+        setSocialMediaContent(prev => prev.filter(c => c.id !== content.id))
+        
+        alert('Post deleted successfully!')
+      } else {
+        const errorData = await response.json()
+        console.error('❌ Delete failed:', errorData)
+        alert(`Failed to delete post: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('❌ Error deleting content:', error)
+      alert('An error occurred while deleting the post.')
+    }
+  }
+
   if (!clientConfig) {
     return <div>Client not found</div>
   }
@@ -403,6 +429,7 @@ export default function SocialMediaContentPage() {
                 onEdit={handleEditClick}
                 onView={handleViewContent}
                 onStatusUpdate={handleStatusUpdate}
+                onDelete={handleDeleteContent}
                 clientPrimaryColor={clientConfig.branding.primaryColor}
                 showContentIdea={true}
               />

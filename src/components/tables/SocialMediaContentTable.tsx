@@ -24,7 +24,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react'
 import { SocialMediaContent, SocialMediaContentFilters } from '@/lib/types/content'
 import ClientOnly from '@/components/ClientOnly'
@@ -35,6 +36,7 @@ interface SocialMediaContentTableProps {
   onEdit?: (content: SocialMediaContent) => void
   onView?: (content: SocialMediaContent) => void
   onStatusUpdate?: (contentId: string, status: string) => void
+  onDelete?: (content: SocialMediaContent) => void
   clientPrimaryColor: string
   showContentIdea?: boolean
   contentIdeaTitle?: string
@@ -155,6 +157,7 @@ export default function SocialMediaContentTable({
   onEdit,
   onView,
   onStatusUpdate,
+  onDelete,
   clientPrimaryColor,
   showContentIdea = true,
   contentIdeaTitle
@@ -510,6 +513,20 @@ export default function SocialMediaContentTable({
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                              onDelete(content)
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -599,6 +616,20 @@ export default function SocialMediaContentTable({
                         onClick={() => onEdit(content)}
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                            onDelete(content)
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
