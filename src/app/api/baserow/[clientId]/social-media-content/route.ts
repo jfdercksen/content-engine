@@ -181,9 +181,36 @@ export async function POST(
     try {
       console.log('Validating data with schema...')
       console.log('Body data:', JSON.stringify(body, null, 2))
+      
+      // Convert contentIdea to string if it's a number
+      if (body.contentIdea && typeof body.contentIdea === 'number') {
+        body.contentIdea = String(body.contentIdea)
+        console.log('Converted contentIdea from number to string:', body.contentIdea)
+      }
+      
+      // Convert selectedImages array items to strings if they're numbers
+      if (body.selectedImages && Array.isArray(body.selectedImages)) {
+        body.selectedImages = body.selectedImages.map((id: any) => String(id))
+        console.log('Converted selectedImages to strings:', body.selectedImages)
+      }
+      
+      // Convert images array items to strings if they're numbers
+      if (body.images && Array.isArray(body.images)) {
+        body.images = body.images.map((id: any) => String(id))
+        console.log('Converted images to strings:', body.images)
+      }
+      
       const validatedData = socialMediaContentFormSchema.parse(body)
       console.log('Data validation successful:', validatedData)
+      console.log('Validated data keys:', Object.keys(validatedData))
+      console.log('Validated data types:', Object.entries(validatedData).map(([k, v]) => `${k}: ${typeof v}`))
 
+      // Check for selectedImages in the original body (not validated)
+      const selectedImages = body.selectedImages || validatedData.images || []
+      console.log('Selected images for creation:', selectedImages)
+      console.log('Selected images type:', typeof selectedImages)
+      console.log('Selected images is array?:', Array.isArray(selectedImages))
+      
       // Map form field names to API field names
       const apiData = {
         hook: validatedData.hook,
@@ -201,7 +228,7 @@ export async function POST(
         status: validatedData.status,
         scheduledtime: validatedData.scheduledTime,
         contentidea: validatedData.contentIdea,
-        images: validatedData.images || validatedData.selectedImages,
+        images: selectedImages,
         imagestatus: validatedData.imageStatus
       }
       
@@ -227,11 +254,13 @@ export async function POST(
       if (validationError instanceof z.ZodError) {
         console.error('❌ Validation failed with errors:', validationError.errors)
         console.error('❌ Formatted errors:', JSON.stringify(validationError.errors, null, 2))
-        const errorMessages = validationError.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+        const errorMessages = validationError.errors && Array.isArray(validationError.errors)
+          ? validationError.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+          : 'Validation failed'
         return NextResponse.json(
           { 
             error: 'Validation failed', 
-            details: validationError.errors,
+            details: validationError.errors || [],
             message: errorMessages
           },
           { status: 400 }
@@ -244,8 +273,11 @@ export async function POST(
     }
 
   } catch (error) {
-    console.error('Error creating social media content:', error)
+    console.error('❌ Error creating social media content:', error)
+    console.error('❌ Error type:', typeof error)
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.error('❌ Error message:', errorMessage)
     return NextResponse.json(
       { error: 'Failed to create social media content', details: errorMessage },
       { status: 500 }
