@@ -464,6 +464,36 @@ export default function SocialMediaPage() {
         }
     }
 
+    const handleDeleteIdea = async (idea: any) => {
+        if (!confirm(`Are you sure you want to delete "${idea.title || 'this content idea'}"? This action cannot be undone.`)) {
+            return
+        }
+
+        try {
+            console.log('🗑️ Deleting content idea:', idea.id)
+            
+            const response = await fetch(`/api/baserow/${clientId}/content-ideas/${idea.id}`, {
+                method: 'DELETE',
+            })
+
+            if (response.ok) {
+                console.log('✅ Content idea deleted successfully')
+                
+                // Remove the idea from the local state
+                setContentIdeas(prev => prev.filter((i: any) => i.id !== idea.id))
+                
+                alert('Content idea deleted successfully!')
+            } else {
+                const errorData = await response.json()
+                console.error('❌ Delete failed:', errorData)
+                alert(`Failed to delete content idea: ${errorData.error || 'Unknown error'}`)
+            }
+        } catch (error) {
+            console.error('❌ Error deleting content idea:', error)
+            alert('An error occurred while deleting the content idea.')
+        }
+    }
+
     const handleEditContent = async (content: any) => {
         console.log('DEBUG: handleEditContent called with content:', content)
         try {
@@ -737,6 +767,7 @@ export default function SocialMediaPage() {
                                 onCreateFirst={() => setShowForm(true)}
                                 onViewIdea={handleViewIdea}
                                 onEditIdea={handleEditIdea}
+                                onDeleteIdea={handleDeleteIdea}
                                 onViewSocialContent={handleViewSocialContent}
                                 onViewBrandAssets={handleViewBrandAssets}
                                 onRegenerateContent={handleRegenerateContent}

@@ -21,7 +21,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react'
 import ClientOnly from '@/components/ClientOnly'
 
@@ -48,6 +49,7 @@ interface ContentIdeasTableProps {
   onCreateFirst: () => void
   onViewIdea?: (idea: ContentIdea) => void
   onEditIdea?: (idea: ContentIdea) => void
+  onDeleteIdea?: (idea: ContentIdea) => void
   onViewSocialContent?: (ideaId: string) => void
   onViewBrandAssets?: (ideaId: string) => void
   onRegenerateContent?: (ideaId: string) => void
@@ -61,6 +63,7 @@ export default function ContentIdeasTable({
   onCreateFirst, 
   onViewIdea,
   onEditIdea,
+  onDeleteIdea,
   onViewSocialContent,
   onViewBrandAssets,
   onRegenerateContent,
@@ -372,6 +375,21 @@ export default function ContentIdeasTable({
                     >
                       <TrendingUp className="h-3 w-3 mr-1" />
                       {idea.generationStatus === 'processing' ? '...' : 'Gen'}
+                    </Button>
+                  )}
+
+                  {onDeleteIdea && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteIdea(idea)
+                      }}
+                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Delete
                     </Button>
                   )}
                 </div>
