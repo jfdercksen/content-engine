@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { X, Calendar, Hash, MessageSquare, Target, Zap, TrendingUp, Image as ImageIcon, Sparkles, Eye, CheckCircle, XCircle, Upload } from 'lucide-react'
+import { X, Calendar, Hash, MessageSquare, Target, Zap, TrendingUp, Image as ImageIcon, Sparkles, Eye, CheckCircle, XCircle, Upload, Trash2 } from 'lucide-react'
 import { 
   SocialMediaContentFormData, 
   socialMediaContentFormSchema,
@@ -823,47 +823,52 @@ export default function SocialMediaContentForm({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 max-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isEditing ? 'Edit post' : 'Create post'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white rounded-t-lg">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isEditing ? 'Edit Post' : 'Create New Post'}
           </h2>
           {contentIdeaTitle && (
-            <Badge variant="outline" className="text-xs">
-              {contentIdeaTitle}
-            </Badge>
+              <Badge variant="outline" className="text-sm px-3 py-1">
+                {contentIdeaTitle}
+              </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
-            Copy link
+            <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+              Copy link
           </Button>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-gray-100">
+              <X className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* Left Column - Editing Interface */}
-        <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col min-h-0">
-          <form onSubmit={handleSubmit(onFormSubmit)} className="flex-1 flex flex-col min-h-0">
-            {/* Platform Selection */}
-            <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">f</span>
-                  </div>
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Column - Form */}
+          <div className="w-1/2 bg-gray-50 border-r border-gray-200 flex flex-col min-h-0">
+            <form onSubmit={handleSubmit(onFormSubmit)} className="flex-1 flex flex-col min-h-0">
+              {/* Scrollable Content Area */}
+              <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        <div className="space-y-6">
+                  {/* Platform & Status Selection */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Post Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="platform" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Platform
+                        </Label>
                 <Select 
                   value={watch('platform')} 
                   onValueChange={(value) => setValue('platform', value as any)}
                 >
-                    <SelectTrigger className="w-32 border-0 shadow-none font-medium">
-                      <SelectValue placeholder="POST" />
+                          <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.values(SOCIAL_MEDIA_PLATFORMS).map((platform) => (
@@ -873,100 +878,189 @@ export default function SocialMediaContentForm({
                     ))}
                   </SelectContent>
                 </Select>
-                </div>
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs">📷</span>
-                </div>
-                <Button variant="ghost" size="sm" className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50">
-                  <span className="text-gray-400">+</span>
-                </Button>
               </div>
+                      <div>
+                        <Label htmlFor="status" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Status
+                        </Label>
+                <Select 
+                          value={watch('status')} 
+                          onValueChange={(value) => setValue('status', value as any)}
+                >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                            {Object.values(SOCIAL_MEDIA_STATUS).map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-            {/* Content Editing Area */}
-            <div className="flex-1 p-4 overflow-y-auto">
-              <div className="space-y-4">
-                {/* Post Content */}
-                <div className="space-y-3">
-                  <Textarea
-                    placeholder="What's on your mind?"
-                    className="min-h-[200px] border-0 resize-none text-lg placeholder:text-gray-400 focus:ring-0 focus:border-0 p-0"
-                    {...register('post')}
-                  />
-                  {errors.post && (
-                    <p className="text-sm text-red-600">{errors.post.message?.toString()}</p>
-                  )}
             </div>
-
+                  </div>
+                  {/* Main Content Section */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Content</h3>
+                    <div className="space-y-4">
             {/* Hook */}
-            <div className="space-y-2">
+                      <div>
+                        <Label htmlFor="hook" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Hook
+                        </Label>
               <Textarea
-                    placeholder="Add a compelling hook..."
-                    className="min-h-[60px] border border-gray-200 rounded-lg resize-none placeholder:text-gray-400"
+                          placeholder="Add a compelling hook to grab attention..."
+                          className="min-h-[100px] border border-gray-300 rounded-lg resize-y placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 {...register('hook')}
               />
               {errors.hook && (
-                <p className="text-sm text-red-600">{errors.hook.message?.toString()}</p>
+                          <p className="text-sm text-red-600 mt-1">{errors.hook.message?.toString()}</p>
+              )}
+            </div>
+
+                      {/* Main Post */}
+                      <div>
+                        <Label htmlFor="post" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Post Content
+                        </Label>
+              <Textarea
+                          placeholder="Write your main post content here..."
+                          className="min-h-[200px] border border-gray-300 rounded-lg resize-y placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                {...register('post')}
+              />
+              {errors.post && (
+                          <p className="text-sm text-red-600 mt-1">{errors.post.message?.toString()}</p>
               )}
             </div>
 
             {/* Call to Action */}
-            <div className="space-y-2">
+                      <div>
+                        <Label htmlFor="cta" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Call to Action
+                        </Label>
               <Input
-                    placeholder="Call to action (e.g., Learn more, Sign up today)"
-                    className="border border-gray-200 rounded-lg"
+                          placeholder="e.g., Learn more, Sign up today, Book now..."
+                          className="border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 {...register('cta')}
               />
               {errors.cta && (
-                <p className="text-sm text-red-600">{errors.cta.message?.toString()}</p>
+                          <p className="text-sm text-red-600 mt-1">{errors.cta.message?.toString()}</p>
               )}
             </div>
 
             {/* Hashtags */}
-            <div className="space-y-2">
+                      <div>
+                        <Label htmlFor="hashtags" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Hashtags
+                        </Label>
               <Input
-                    placeholder="Add hashtags..."
-                    className="border border-gray-200 rounded-lg"
+                          placeholder="#hashtag1 #hashtag2 #hashtag3"
+                          className="border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 {...register('hashtags')}
               />
-            </div>
-
-            {/* Status Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-medium text-gray-700">
-                Post Status
-              </Label>
-              <Select 
-                value={watch('status')} 
-                onValueChange={(value) => setValue('status', value as any)}
-              >
-                <SelectTrigger className="border border-gray-200 rounded-lg">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(SOCIAL_MEDIA_STATUS).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.status && (
-                <p className="text-sm text-red-600">{errors.status.message?.toString()}</p>
-              )}
             </div>
               </div>
             </div>
 
-            {/* Attached Media Preview */}
-            {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
-              <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm font-medium text-gray-700">Attached Media</span>
+                  {/* Strategy Section */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Strategy</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="angle" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Angle
+                        </Label>
+                        <Textarea
+                          placeholder="e.g., Educational, Promotional, Behind-the-scenes"
+                          className="min-h-[80px] border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      {...register('angle')}
+                    />
                   </div>
-                <div className="flex gap-2 overflow-x-auto">
-                  {/* Combined display of all images */}
-                  {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => {
+                      <div>
+                        <Label htmlFor="intent" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Intent
+                        </Label>
+                        <Textarea
+                          placeholder="e.g., Drive traffic, Build awareness, Generate leads"
+                          className="min-h-[80px] border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      {...register('intent')}
+                    />
+                  </div>
+                      <div>
+                        <Label htmlFor="psychologicalTrigger" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Psychological Trigger
+                        </Label>
+                        <Textarea
+                          placeholder="e.g., Urgency, Social proof, Fear of missing out"
+                          className="min-h-[80px] border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      {...register('psychologicalTrigger')}
+                    />
+                  </div>
+                      <div>
+                        <Label htmlFor="engagementObjective" className="text-sm font-medium text-gray-700 mb-2 block">
+                          Engagement Objective
+                        </Label>
+                        <Textarea
+                          placeholder="e.g., Likes, Comments, Shares, Clicks"
+                          className="min-h-[80px] border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    {...register('engagementObjective')}
+                  />
+                      </div>
+                    </div>
+                </div>
+
+                  {/* Media Section */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Media</h3>
+                
+                {/* Media Action Buttons */}
+                <div className="flex gap-3 mb-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowImageGeneration(true)}
+                    className="flex items-center gap-2"
+                      >
+                    <ImageIcon className="w-4 h-4" />
+                    Generate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBrowseImages}
+                    className="flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Browse
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUploadImage}
+                    disabled={isUploadingImage}
+                    className="flex items-center gap-2"
+                  >
+                    {isUploadingImage ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {isUploadingImage ? 'Uploading...' : 'Upload'}
+                      </Button>
+                </div>
+
+                {/* Attached Media Preview */}
+                {(selectedBrowsedImages.length > 0 || generatedImages.length > 0 || uploadedImages.length > 0) && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Attached Media</h4>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {/* Combined display of all images */}
+                      {[...selectedBrowsedImages, ...generatedImages, ...uploadedImages].map((image, index) => {
                     console.log(`=== ATTACHED MEDIA IMAGE ${index} DEBUG ===`)
                     console.log('Image:', image)
                     console.log('Image keys:', Object.keys(image))
@@ -1021,7 +1115,7 @@ export default function SocialMediaContentForm({
                         />
                         {/* Show remove button for browsed and uploaded images */}
                         {(selectedBrowsedImages.includes(image) || uploadedImages.includes(image)) && (
-                          <Button
+                        <Button
                             variant="ghost"
                             size="sm"
                             className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white hover:bg-red-600 p-0"
@@ -1034,152 +1128,98 @@ export default function SocialMediaContentForm({
                             }}
                           >
                             <X className="w-3 h-3" />
-                          </Button>
+                        </Button>
                         )}
-                  </div>
+                      </div>
                     )
                   })}
-                </div>
-                </div>
-            )}
-
-            {/* Action Icons */}
-            <div className="p-4 border-t border-gray-100">
-              <div className="flex items-center gap-4">
-                      <Button
-                        type="button"
-                  variant="ghost"
-                        size="sm"
-                        onClick={() => setShowImageGeneration(true)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                      >
-                  <ImageIcon className="w-4 h-4" />
-                  <span className="text-sm">Generate</span>
-                      </Button>
-                      <Button
-                        type="button"
-                  variant="ghost"
-                        size="sm"
-                        onClick={handleBrowseImages}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                      >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm">Browse</span>
-                      </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUploadImage}
-                  disabled={isUploadingImage}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
-                  {isUploadingImage ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                  <span className="text-sm">{isUploadingImage ? 'Uploading...' : 'Upload'}</span>
-                </Button>
-                        <Button
-                          type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
-                  <Hash className="w-4 h-4" />
-                  <span className="text-sm">Hashtags</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
-                  <Target className="w-4 h-4" />
-                  <span className="text-sm">Location</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span className="text-sm">Link</span>
-                        </Button>
-                      </div>
                     </div>
-
-
-            {/* Bottom Controls */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-                    Cancel
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                    🗑️
-                  </Button>
                   </div>
+                )}
+                      </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  {/* Scheduling Section */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Scheduling</h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="scheduledTime" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Schedule Date & Time
+                    </Label>
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-500" />
                     <Input
                       type="datetime-local"
-                      className="w-48 border border-gray-300 rounded-lg text-sm cursor-pointer"
+                        className="flex-1 border border-gray-300 rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       {...register('scheduledTime')}
                     />
                   </div>
+                </div>
+              </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Controls */}
+              <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline" size="sm" onClick={onClose}>
+                Cancel
+              </Button>
+                  <Button type="button" variant="outline" size="sm" className="text-red-600 hover:text-red-700 border-red-200">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+
               <Button 
                 type="submit" 
                 disabled={isSubmitting || isLoading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    {isSubmitting || isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        {isEditing ? 'Updating...' : 'Creating...'}
-                      </>
-                    ) : (
-                      isEditing ? 'Update' : 'Create'
-                    )}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                >
+                  {isSubmitting || isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {isEditing ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    isEditing ? 'Update Post' : 'Create Post'
+                  )}
               </Button>
-                </div>
               </div>
             </div>
           </form>
         </div>
 
-        {/* Right Column - Preview */}
-        <div className="w-1/2 bg-gray-50 flex flex-col min-h-0">
-          {/* Preview Header */}
-          <div className="p-4 bg-white border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">f</span>
+          {/* Right Column - Preview */}
+          <div className="w-1/2 bg-gray-50 flex flex-col">
+            {/* Preview Header */}
+            <div className="p-6 bg-white border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">f</span>
                 </div>
-                <span className="font-medium text-gray-900">Facebook</span>
-                </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-gray-500">
-                  Notes
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-500">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-500">
-                  📱
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-500">
-                  🖥️
-                </Button>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{getDisplayValue(watch('platform')) || 'Facebook'}</h3>
+                    <p className="text-sm text-gray-500">Post Preview</p>
                 </div>
                 </div>
-          </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                    <Eye className="w-4 h-4 mr-1" />
+                    Preview
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                    📱
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                    🖥️
+                  </Button>
+                </div>
+              </div>
+            </div>
 
           {/* Preview Content */}
           <div className="flex-1 p-6 overflow-y-auto">
@@ -1256,17 +1296,17 @@ export default function SocialMediaContentForm({
                         <div className="flex items-center gap-1">
                           <Hash className="w-4 h-4" />
                           <span>Social Media Post</span>
-                        </div>
-                      )}
+                  </div>
+                )}
                       {watch('scheduledTime') && (
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           <span>{new Date(watch('scheduledTime')).toLocaleDateString()}</span>
-                        </div>
+                      </div>
                       )}
                   </div>
                 )}
-                      </div>
+                    </div>
                     </div>
 
               {/* Main Image */}
@@ -1360,9 +1400,9 @@ export default function SocialMediaContentForm({
                   <span>👍 12 likes</span>
                   <span>💬 3 comments</span>
                   <span>🔄 1 share</span>
-                    </div>
                           </div>
                         </div>
+                    </div>
 
             {/* Character Count */}
             <div className="mt-4 max-w-md mx-auto">
@@ -1376,51 +1416,50 @@ export default function SocialMediaContentForm({
                 </Badge>
               </div>
               </div>
-              </div>
         </div>
       </div>
 
-      {/* Hidden file input for image upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-      />
+        {/* Hidden file input for image upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
 
              {/* Image Generation Modal */}
        {showImageGeneration && (
              <ImageGenerationForm
                onSubmit={handleGenerateImage}
                onClose={() => setShowImageGeneration(false)}
-          clientId={clientId}
-          initialData={{
-            imagePrompt: watch('imagePrompt') || '',
-            imageType: 'Social Media Post',
-            imageStyle: 'Modern',
-            imageModel: 'DALL-E 3',
-            imageSize: '1024x1024'
-          }}
-        />
-      )}
+            clientId={clientId}
+            initialData={{
+              imagePrompt: watch('imagePrompt') || '',
+              imageType: 'Social Media Post',
+              imageStyle: 'Modern',
+              imageModel: 'DALL-E 3',
+              imageSize: '1024x1024'
+            }}
+          />
+        )}
 
-      {/* Image Browser Modal */}
-      {showImageBrowser && (
-        <ImageBrowserModal
-          clientId={clientId}
-          onSelectImage={handleSelectBrowsedImage}
-          onClose={() => setShowImageBrowser(false)}
-          isOpen={showImageBrowser}
-        />
+        {/* Image Browser Modal */}
+        {showImageBrowser && (
+          <ImageBrowserModal
+            clientId={clientId}
+            onSelectImage={handleSelectBrowsedImage}
+            onClose={() => setShowImageBrowser(false)}
+            isOpen={showImageBrowser}
+          />
        )}
 
        {/* Enlarged Image Modal */}
        {enlargedImage && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={closeEnlargedImage}
-        >
+          <div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={closeEnlargedImage}
+          >
              <button
                onClick={closeEnlargedImage}
                className="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-all"
@@ -1435,6 +1474,8 @@ export default function SocialMediaContentForm({
              />
          </div>
        )}
+      </div>
+    </div>
      </div>
    )
  }

@@ -508,7 +508,17 @@ export class BaserowAPI {
     // Add filters
     Object.keys(filters).forEach(key => {
       if (filters[key] !== undefined && filters[key] !== null) {
-        params.append(key, filters[key])
+        // Handle contentIdea filter - convert to proper field format
+        if (key === 'contentIdea') {
+          const contentIdeaFieldId = this.fieldMappings?.socialMediaContent?.contentidea
+          if (contentIdeaFieldId) {
+            params.append(`filter__field_${contentIdeaFieldId}__link_row_has`, filters[key])
+          } else {
+            console.warn('BaserowAPI: contentIdea field mapping not found, skipping filter')
+          }
+        } else {
+          params.append(key, filters[key])
+        }
       }
     })
     

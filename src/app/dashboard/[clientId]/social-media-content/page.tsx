@@ -23,7 +23,7 @@ export default function SocialMediaContentPage() {
   const [editingContent, setEditingContent] = useState<SocialMediaContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [filteredForIdea, setFilteredForIdea] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table')
   const [stats, setStats] = useState({
     total: 0,
     byPlatform: {} as Record<string, number>,
@@ -48,8 +48,8 @@ export default function SocialMediaContentPage() {
       
       let apiUrl = `/api/baserow/${clientId}/social-media-content`
       if (ideaId) {
-        // If ideaId is provided, fetch content specific to that idea
-        apiUrl = `/api/baserow/${clientId}/content-ideas/${ideaId}/social-media-content`
+        // If ideaId is provided, add it as a query parameter
+        apiUrl = `/api/baserow/${clientId}/social-media-content?contentIdea=${ideaId}`
         setFilteredForIdea(ideaId)
       } else {
         setFilteredForIdea(null)

@@ -430,11 +430,11 @@ export default function SocialMediaContentTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Platform</TableHead>
-                <TableHead>Hook & Post</TableHead>
+                <TableHead>Content</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Strategy</TableHead>
                 <TableHead>Images</TableHead>
-                <TableHead>Engagement</TableHead>
                 <TableHead>Scheduled</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -448,40 +448,73 @@ export default function SocialMediaContentTable({
                       <span className="font-medium">{getDisplayValue(content.platform)}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-xs">
-                    <div className="space-y-1">
-                      <p className="font-medium text-sm">
-                        {truncateText(content.hook, 50)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {truncateText(content.post, 80)}
-                      </p>
+                  <TableCell className="max-w-sm">
+                    <div className="space-y-2">
+                      <div>
+                        <p className="font-medium text-sm text-gray-900">
+                          {truncateText(content.hook, 60)}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {truncateText(content.post, 100)}
+                        </p>
+                      </div>
+                      {content.cta && (
+                        <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                          <p className="text-xs text-blue-800 font-medium">
+                            {truncateText(content.cta, 40)}
+                          </p>
+                        </div>
+                      )}
                       {content.hashtags && (
                         <p className="text-xs text-blue-600">
-                          {truncateText(content.hashtags, 40)}
+                          {truncateText(content.hashtags, 50)}
                         </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{getDisplayValue(content.contentType)}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {getDisplayValue(content.contentType)}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge 
                       variant={getStatusVariant(content.status) as any}
-                      className={getStatusColor(content.status)}
+                      className={`text-xs ${getStatusColor(content.status)}`}
                     >
                       {getDisplayValue(content.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <GeneratedImageDisplay content={content} />
+                  <TableCell className="max-w-xs">
+                    <div className="space-y-1 text-xs">
+                      {content.angle && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-gray-700">Angle:</span>
+                          <span className="text-gray-600">{truncateText(content.angle, 20)}</span>
+                        </div>
+                      )}
+                      {content.intent && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-gray-700">Intent:</span>
+                          <span className="text-gray-600">{truncateText(content.intent, 25)}</span>
+                        </div>
+                      )}
+                      {content.psychologicalTrigger && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-gray-700">Trigger:</span>
+                          <span className="text-gray-600">{truncateText(content.psychologicalTrigger, 15)}</span>
+                        </div>
+                      )}
+                      {content.engagementObjective && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-gray-700">Objective:</span>
+                          <span className="text-gray-600">{truncateText(content.engagementObjective, 20)}</span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
-                      <TrendingUp className="h-3 w-3" />
-                      {content.engagementPrediction || 'N/A'}
-                    </div>
+                    <GeneratedImageDisplay content={content} />
                   </TableCell>
                   <TableCell>
                     <ClientOnly fallback={<div className="text-sm text-gray-500">Loading...</div>}>
@@ -491,40 +524,45 @@ export default function SocialMediaContentTable({
                     </ClientOnly>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {onView && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onView(content)}
+                          className="h-8 w-8 p-0"
+                          title="View post details"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3 w-3" />
                         </Button>
                       )}
                       {onEdit && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             console.log('DEBUG: Edit button clicked for content:', content)
                             onEdit(content)
                           }}
+                          className="h-8 w-8 p-0"
+                          title="Edit post"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3" />
                         </Button>
                       )}
                       {onDelete && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
                               onDelete(content)
                             }
                           }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          title="Delete post"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
