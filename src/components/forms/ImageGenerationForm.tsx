@@ -12,7 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { X, Image as ImageIcon, Upload, Link, Type, Settings } from 'lucide-react'
+import { X, Image as ImageIcon, Upload, Link, Type, Settings, Mic, MicOff, Sparkles, Eye, CheckCircle, Plus, Trash2 } from 'lucide-react'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import ImageBrowserModal from '@/components/modals/ImageBrowserModal'
 
 interface ImageGenerationFormProps {
   onSubmit: (data: ImageFormData) => void
@@ -21,6 +23,13 @@ interface ImageGenerationFormProps {
   postText?: string // Text from the social media post to generate initial prompt
   clientId: string
 }
+
+// Operation types for radio selection
+const OPERATION_TYPES = {
+  GENERATE: 'generate',
+  COMBINE: 'combine',
+  EDIT: 'edit'
+} as const
 
 export default function ImageGenerationForm({
   onSubmit,
@@ -31,8 +40,18 @@ export default function ImageGenerationForm({
 }: ImageGenerationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isRegeneratingPrompt, setIsRegeneratingPrompt] = useState(false)
-  const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null)
-  const [referenceImagePreview, setReferenceImagePreview] = useState<string>('')
+  
+  // Enhanced state variables from ImageIdeaForm
+  const [operationType, setOperationType] = useState<'generate' | 'combine' | 'edit'>('generate')
+  const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const [uploadedImages, setUploadedImages] = useState<File[]>([])
+  const [voiceNoteFile, setVoiceNoteFile] = useState<File | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [showImageBrowser, setShowImageBrowser] = useState(false)
+  const [browsingForOperation, setBrowsingForOperation] = useState<'combine' | 'edit' | null>(null)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([])
+  const [recordingTime, setRecordingTime] = useState(0)
 
   const {
     register,
@@ -71,19 +90,117 @@ export default function ImageGenerationForm({
     }
   }, [postText, initialData, setValue])
 
-  // Handle reference image file change
-  const handleReferenceImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    console.log('Reference image file selected:', file?.name, file?.size)
-    if (file) {
-      setReferenceImageFile(file)
-      console.log('Reference image file set in state:', file.name)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setReferenceImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+
+  // Enhanced handlers from ImageIdeaForm
+  const handleOperationTypeChange = (value: string) => {
+    setOperationType(value as 'generate' | 'combine' | 'edit')
+    // Clear selections when changing operation type
+    if (value === 'generate') {
+      setSelectedImages([])
+      setUploadedImages([])
     }
+  }
+
+  const handleVoiceNoteChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setVoiceNoteFile(file)
+    }
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    setUploadedImages(prev => [...prev, ...files])
+  }
+
+  const removeUploadedImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleBrowseImages = (operation: 'combine' | 'edit') => {
+    setBrowsingForOperation(operation)
+    setShowImageBrowser(true)
+  }
+
+  const handleSelectImageFromBrowser = (imageId: string) => {
+    if (browsingForOperation && !selectedImages.includes(imageId)) {
+      setSelectedImages(prev => [...prev, imageId])
+    }
+    setShowImageBrowser(false)
+    setBrowsingForOperation(null)
+  }
+
+  const removeSelectedImage = (imageId: string) => {
+    setSelectedImages(prev => prev.filter(id => id !== imageId))
+  }
+
+  // Voice recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks: Blob[] = []
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data)
+        }
+      }
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' })
+        setVoiceNoteFile(file)
+        setRecordedChunks([])
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      recorder.start()
+      setMediaRecorder(recorder)
+      setRecordedChunks(chunks)
+      setIsRecording(true)
+      setRecordingTime(0)
+
+      // Start recording timer
+      const timer = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+
+      // Store timer reference for cleanup
+      ;(recorder as any).timer = timer
+
+    } catch (error) {
+      console.error('Error starting recording:', error)
+      alert('Unable to access microphone. Please check your permissions.')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop()
+      setIsRecording(false)
+      
+      // Clear timer
+      if ((mediaRecorder as any).timer) {
+        clearInterval((mediaRecorder as any).timer)
+      }
+    }
+  }
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   // Generate image prompt from post text
@@ -175,40 +292,59 @@ export default function ImageGenerationForm({
         captionFontStyle: data.captionFontStyle || CAPTION_FONT_STYLES.ARIAL,
         captionFontSize: data.captionFontSize || CAPTION_FONT_SIZES.MEDIUM,
         captionPosition: data.captionPosition || CAPTION_POSITIONS.BOTTOM_CENTER,
-        referenceUrl: data.referenceUrl || ''
+        referenceUrl: data.referenceUrl || '',
+        // Enhanced fields
+        operationType: operationType,
+        selectedImages: operationType === 'combine' || operationType === 'edit' ? selectedImages : [],
+        uploadedImages: operationType === 'combine' || operationType === 'edit' ? uploadedImages : [],
+        voiceNote: voiceNoteFile,
+        imageStatus: 'Generating'
       }
 
       console.log('Complete form data:', completeData)
-      console.log('Reference image file state:', referenceImageFile)
-      console.log('Reference image file exists:', !!referenceImageFile)
-      console.log('Reference image file name:', referenceImageFile?.name)
 
-      // If we have a reference image file, send as FormData
-      if (referenceImageFile) {
-        console.log('Creating FormData with reference image file')
+      // Check if we have any files to upload
+      const hasFiles = voiceNoteFile || uploadedImages.length > 0
+      
+      if (hasFiles) {
+        console.log('Creating FormData with files')
         const formData = new FormData()
         
         // Add all form fields
         Object.keys(completeData).forEach(key => {
-          if (completeData[key as keyof ImageFormData] !== undefined && completeData[key as keyof ImageFormData] !== null) {
-            formData.append(key, String(completeData[key as keyof ImageFormData]))
+          const value = completeData[key as keyof ImageFormData]
+          if (value !== undefined && value !== null) {
+            if (key === 'selectedImages' && Array.isArray(value)) {
+              value.forEach((imageId: string) => formData.append('selectedImages', imageId))
+            } else if (key === 'uploadedImages' && Array.isArray(value)) {
+              value.forEach((file: File) => formData.append('uploadedImages', file))
+            } else if (key === 'useCaptions' || key === 'isNewPost' || key === 'useReferenceImage') {
+              // Handle boolean fields
+              formData.append(key, String(value))
+            } else if (typeof value !== 'object' || value instanceof File) {
+              formData.append(key, String(value))
+            }
           }
         })
         
-        // Add the file
-        formData.append('referenceImage', referenceImageFile)
+        // Add files
+        if (voiceNoteFile) {
+          formData.append('voiceNote', voiceNoteFile)
+        }
         
         console.log('FormData entries:')
         for (const [key, value] of formData.entries()) {
           console.log(`${key}:`, value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value)
         }
         
-        console.log('Sending FormData with file:', referenceImageFile.name)
+        console.log('Sending FormData with files')
         await onSubmit(formData as any)
       } else {
-        // No file, send as JSON
-        console.log('No reference image file found, sending JSON data')
+        // No files, send as JSON
+        console.log('No files found, sending JSON data')
         console.log('Sending JSON data:', completeData)
+        console.log('JSON data keys:', Object.keys(completeData))
+        console.log('JSON data values:', Object.values(completeData))
         await onSubmit(completeData)
       }
     } catch (error) {
@@ -219,8 +355,9 @@ export default function ImageGenerationForm({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      {/* Header - Fixed */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold">Generate Image</h2>
           <p className="text-muted-foreground">
@@ -231,6 +368,10 @@ export default function ImageGenerationForm({
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="space-y-6">
 
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         {/* Image Prompt Section */}
@@ -290,8 +431,254 @@ export default function ImageGenerationForm({
                 <p className="text-sm text-red-500 mt-1">{errors.imageScene.message}</p>
               )}
             </div>
+
+            {/* Voice Note Section */}
+            <div className="space-y-2">
+              <Label htmlFor="voiceNote">Voice Note (Optional)</Label>
+              <div className="space-y-3">
+                {/* File Upload */}
+                <Input
+                  id="voiceNote"
+                  type="file"
+                  accept="audio/*,video/*"
+                  onChange={handleVoiceNoteChange}
+                  className="flex-1"
+                />
+                
+                {/* Recording Controls */}
+                <div className="flex items-center space-x-4">
+                  <Button
+                    type="button"
+                    variant={isRecording ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={toggleRecording}
+                    disabled={isSubmitting}
+                  >
+                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    {isRecording ? 'Stop Recording' : 'Record Voice Note'}
+                  </Button>
+                  
+                  {isRecording && (
+                    <div className="flex items-center space-x-2 text-sm text-red-600">
+                      <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                      <span>Recording: {formatTime(recordingTime)}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Show current voice note file */}
+                {voiceNoteFile && (
+                  <div className="flex items-center space-x-2 p-2 bg-green-50 border border-green-200 rounded">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-800">
+                      Voice note ready: {voiceNoteFile.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setVoiceNoteFile(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Operation Type Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Image Creation Method
+            </CardTitle>
+            <CardDescription>
+              Choose how you want to create your image.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup value={operationType} onValueChange={handleOperationTypeChange}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={OPERATION_TYPES.GENERATE} id="generate" />
+                <Label htmlFor="generate" className="flex items-center space-x-2">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Generate New Image (from prompts/voice notes)</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={OPERATION_TYPES.COMBINE} id="combine" />
+                <Label htmlFor="combine" className="flex items-center space-x-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Combine Images (existing + upload new)</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={OPERATION_TYPES.EDIT} id="edit" />
+                <Label htmlFor="edit" className="flex items-center space-x-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <span>Edit Existing Image (existing + upload new)</span>
+                </Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
+        {/* Combine Images Section */}
+        {operationType === 'combine' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Combine Images
+              </CardTitle>
+              <CardDescription>
+                Select existing images and upload new ones to combine them.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Existing Images</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleBrowseImages('combine')}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Browse Existing Images
+                  </Button>
+                  
+                  {selectedImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedImages.map((imageId) => (
+                        <Badge key={imageId} variant="secondary" className="flex items-center space-x-1">
+                          <span>Image #{imageId}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSelectedImage(imageId)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Upload New Images</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                  />
+                  
+                  {uploadedImages.length > 0 && (
+                    <div className="space-y-2">
+                      {uploadedImages.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 border rounded">
+                          <span className="text-sm">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeUploadedImage(index)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Edit Image Section */}
+        {operationType === 'edit' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Edit Existing Image
+              </CardTitle>
+              <CardDescription>
+                Select an existing image and upload new images to edit it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Base Image to Edit</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleBrowseImages('edit')}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Select Base Image
+                  </Button>
+                  
+                  {selectedImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedImages.map((imageId) => (
+                        <Badge key={imageId} variant="secondary" className="flex items-center space-x-1">
+                          <span>Image #{imageId}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSelectedImage(imageId)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Upload Additional Images</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                  />
+                  
+                  {uploadedImages.length > 0 && (
+                    <div className="space-y-2">
+                      {uploadedImages.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 border rounded">
+                          <span className="text-sm">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeUploadedImage(index)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Image Settings Section */}
         <Card>
@@ -397,70 +784,6 @@ export default function ImageGenerationForm({
           </CardContent>
         </Card>
 
-        {/* Reference Image Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Reference Image
-            </CardTitle>
-            <CardDescription>
-              Optionally provide a reference image to guide the generation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="useReferenceImage"
-                checked={watchedValues.useReferenceImage}
-                onCheckedChange={(checked) => setValue('useReferenceImage', checked)}
-              />
-              <Label htmlFor="useReferenceImage">Use reference image</Label>
-            </div>
-
-            {watchedValues.useReferenceImage && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="referenceImage">Upload Reference Image</Label>
-                  <Input
-                    id="referenceImage"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleReferenceImageChange}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="referenceUrl">Or provide image URL</Label>
-                  <Input
-                    id="referenceUrl"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    {...register('referenceUrl')}
-                    className="mt-1"
-                  />
-                  {errors.referenceUrl && (
-                    <p className="text-sm text-red-500 mt-1">{errors.referenceUrl.message}</p>
-                  )}
-                </div>
-
-                {referenceImagePreview && (
-                  <div>
-                    <Label>Reference Image Preview</Label>
-                    <div className="mt-2">
-                      <img
-                        src={referenceImagePreview}
-                        alt="Reference preview"
-                        className="max-w-xs rounded-lg border"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Captions Section */}
         <Card>
@@ -568,21 +891,39 @@ export default function ImageGenerationForm({
             )}
           </CardContent>
         </Card>
+      </form>
+        </div>
+      </div>
 
-        {/* Form Actions */}
+      {/* Fixed Bottom Actions */}
+      <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
         <div className="flex justify-end space-x-4">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-                     <Button 
-             type="submit" 
-             disabled={isSubmitting}
-             className="min-w-[120px]"
-           >
+          <Button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="min-w-[120px]"
+            onClick={handleSubmit(onFormSubmit)}
+          >
             {isSubmitting ? 'Generating...' : 'Generate Image'}
           </Button>
         </div>
-      </form>
+      </div>
+
+      {/* Image Browser Modal */}
+      {showImageBrowser && (
+        <ImageBrowserModal
+          isOpen={showImageBrowser}
+          onClose={() => {
+            setShowImageBrowser(false)
+            setBrowsingForOperation(null)
+          }}
+          onSelectImage={handleSelectImageFromBrowser}
+          clientId={clientId}
+        />
+      )}
     </div>
   )
 }

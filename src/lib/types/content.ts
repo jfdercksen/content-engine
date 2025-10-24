@@ -802,6 +802,13 @@ export interface ImageFormData {
   captionFontSize?: string
   captionPosition?: string
   socialMediaContent?: string
+  // Enhanced fields from ImageIdeaForm
+  operationType?: 'generate' | 'combine' | 'edit'
+  selectedImages?: string[]
+  uploadedImages?: File[]
+  voiceNote?: File
+  imageStatus?: string
+  notes?: string
 }
 
 // Brand Asset Form Data Zod Schema

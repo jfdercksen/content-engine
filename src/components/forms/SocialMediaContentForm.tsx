@@ -540,45 +540,86 @@ export default function SocialMediaContentForm({
       let response: Response
       
       if (imageData instanceof FormData) {
-        // If it's already FormData, add the social media content ID
+        // If it's already FormData, add all the complete payload fields
+        imageData.append('source', 'social_media_post')
+        imageData.append('operationType', 'generate')
+        imageData.append('imageStatus', 'Generating')
+        imageData.append('imageScene', 'Social Media Post')
+        imageData.append('referenceUrl', imageData.get('referenceUrl') || '')
+        imageData.append('selectedImages', JSON.stringify([]))
         imageData.append('socialMediaContent', String(initialData?.id || ''))
-        console.log('Sending FormData with file upload')
-        response = await fetch(`/api/baserow/${clientId}/images`, {
+        imageData.append('isNewPost', String(!initialData?.id)) // Flag to indicate if this is for a new post
+        imageData.append('contentIdea', String(contentIdeaId || ''))
+        imageData.append('postContent', postContent)
+        imageData.append('hookContent', hookContent)
+        imageData.append('combinedContent', combinedContent)
+        imageData.append('platform', watch('platform') || '')
+        imageData.append('contentType', watch('contentType') || '')
+        
+        // Ensure imagePrompt is set if not already present
+        if (!imageData.get('imagePrompt')) {
+          imageData.append('imagePrompt', combinedContent || 'Social media post image')
+        }
+        
+        console.log('Sending FormData with complete payload and file upload')
+        response = await fetch(`/api/baserow/${clientId}/image-ideas`, {
           method: 'POST',
           body: imageData
         })
       } else {
-        // If it's JSON data, prepare it properly
+        // If it's JSON data, prepare it properly with complete payload structure
         const imageFormData: any = {
           ...imageData,
-          socialMediaContent: initialData?.id || undefined
+          // Add source identifier to distinguish from Image Ideas section
+          source: 'social_media_post',
+          // Don't override operationType, imageStatus, etc. - use the values from imageData
+          operationType: imageData.operationType || 'generate',
+          imageStatus: imageData.imageStatus || 'Generating',
+          imageScene: imageData.imageScene || 'Social Media Post',
+          referenceUrl: imageData.referenceUrl || '',
+          selectedImages: imageData.selectedImages || [],
+          uploadedImages: imageData.uploadedImages || [],
+          voiceNote: imageData.voiceNote || null,
+          // Add social media context - use post ID if available, otherwise indicate it's for a new post
+          socialMediaContent: initialData?.id || null,
+          isNewPost: !initialData?.id, // Flag to indicate if this is for a new post
+          contentIdea: contentIdeaId || undefined,
+          // Add post context for better prompt generation
+          postContent: postContent,
+          hookContent: hookContent,
+          combinedContent: combinedContent,
+          platform: watch('platform'),
+          contentType: watch('contentType'),
+          // Ensure all required fields are present
+          imagePrompt: imageData.imagePrompt || combinedContent || 'Social media post image',
+          imageType: imageData.imageType || 'Social Media Post',
+          imageStyle: imageData.imageStyle || 'Modern',
+          imageModel: imageData.imageModel || 'DALL-E 3',
+          imageSize: imageData.imageSize || '1024x1024'
         }
         
-        // Only remove undefined values for optional fields, keep required fields
-        const requiredFields = ['imagePrompt', 'imageType', 'imageStyle', 'imageModel', 'imageSize']
-        Object.keys(imageFormData).forEach(key => {
-          if (imageFormData[key] === undefined && !requiredFields.includes(key)) {
-            delete imageFormData[key]
-          }
-        })
-        
         console.log('contentIdeaId:', contentIdeaId)
-        console.log('Final imageFormData:', imageFormData)
+        console.log('Final imageFormData with complete payload:', imageFormData)
         
-        // Send JSON
-        response = await fetch(`/api/baserow/${clientId}/images`, {
+        // Send JSON to image-ideas endpoint for generation
+        response = await fetch(`/api/baserow/${clientId}/image-ideas`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(imageFormData)
         })
+        
+        console.log('API Response status:', response.status)
+        console.log('API Response headers:', Object.fromEntries(response.headers.entries()))
       }
 
       if (!response.ok) {
         // Get the error details from the response
         const errorData = await response.json()
         console.error('API Error Response:', errorData)
+        console.error('API Error Details:', errorData.details)
+        console.error('API Error Status:', response.status)
         
         // Show specific error message
         const errorMessage = errorData.error || 'Failed to generate image'
@@ -1102,7 +1143,12 @@ export default function SocialMediaContentForm({
                         <img
                           src={displayImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTI4IDI4SDM2VjM2SDI4VjI4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'}
                           alt={image.imagePrompt || 'Selected image'}
-                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                          className="w-16 h-16 rounded-lg object-cover border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => {
+                            if (displayImageUrl) {
+                              handleImageClick(displayImageUrl, image.imagePrompt || 'Selected image')
+                            }
+                          }}
                           onLoad={() => {
                             console.log(`Attached media image ${index} loaded successfully:`, displayImageUrl)
                           }}
@@ -1129,12 +1175,12 @@ export default function SocialMediaContentForm({
                           >
                             <X className="w-3 h-3" />
                         </Button>
-                        )}
-                      </div>
+                                  )}
+                                </div>
                     )
                   })}
-                    </div>
-                  </div>
+                              </div>
+                            </div>
                 )}
                       </div>
 
@@ -1152,13 +1198,13 @@ export default function SocialMediaContentForm({
                       type="datetime-local"
                         className="flex-1 border border-gray-300 rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       {...register('scheduledTime')}
-                    />
+                                />
+                              </div>
+                             </div>
+                           </div>
+                         </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-                  </div>
-                </div>
-              </div>
 
               {/* Bottom Controls */}
               <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
@@ -1173,7 +1219,7 @@ export default function SocialMediaContentForm({
                   </Button>
                 </div>
 
-              <Button 
+                        <Button
                 type="submit" 
                 disabled={isSubmitting || isLoading}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
@@ -1186,11 +1232,11 @@ export default function SocialMediaContentForm({
                   ) : (
                     isEditing ? 'Update Post' : 'Create Post'
                   )}
-              </Button>
-              </div>
-            </div>
+                        </Button>
+                      </div>
+                    </div>
           </form>
-        </div>
+                  </div>
 
           {/* Right Column - Preview */}
           <div className="w-1/2 bg-gray-50 flex flex-col">
@@ -1200,11 +1246,11 @@ export default function SocialMediaContentForm({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                     <span className="text-white text-sm font-bold">f</span>
-                </div>
+                  </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">{getDisplayValue(watch('platform')) || 'Facebook'}</h3>
                     <p className="text-sm text-gray-500">Post Preview</p>
-                </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
@@ -1229,7 +1275,7 @@ export default function SocialMediaContentForm({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">{clientName.charAt(0)}</span>
-                  </div>
+              </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{clientName}</h3>
                     <p className="text-sm text-gray-500">Just now</p>
@@ -1246,38 +1292,38 @@ export default function SocialMediaContentForm({
                     >
                       {watch('status') || 'Draft'}
                     </Badge>
+            </div>
                   </div>
-                  </div>
-                </div>
-                
+        </div>
+
               {/* Post Content */}
               <div className="p-4">
                 <div className="space-y-3">
                   {/* Hook */}
-                  {watchedHook && (
+              {watchedHook && (
                     <p className="text-gray-900 font-medium">
                       {formatPreviewText(watchedHook)}
                     </p>
                   )}
                   
                   {/* Main Post */}
-                  {watchedPost && (
+              {watchedPost && (
                     <p className="text-gray-900 leading-relaxed">
                       {formatPreviewText(watchedPost)}
                     </p>
                   )}
 
                   {/* Call to Action */}
-                  {watchedCta && (
+              {watchedCta && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <p className="text-blue-800 font-medium text-sm">
                         {watchedCta}
                       </p>
-                    </div>
-                  )}
+                </div>
+              )}
 
                   {/* Hashtags */}
-                  {watchedHashtags && (
+              {watchedHashtags && (
                     <div className="flex flex-wrap gap-1">
                       {watchedHashtags.split(' ').map((tag: string, index: number) => (
                         tag.trim() && (
@@ -1287,7 +1333,7 @@ export default function SocialMediaContentForm({
                         )
                       ))}
                 </div>
-                  )}
+              )}
 
                   {/* Location/Event Info */}
                   {(watchedCta || watchedHashtags) && (
@@ -1302,11 +1348,11 @@ export default function SocialMediaContentForm({
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           <span>{new Date(watch('scheduledTime')).toLocaleDateString()}</span>
-                      </div>
+                </div>
                       )}
                   </div>
                 )}
-                    </div>
+                      </div>
                     </div>
 
               {/* Main Image */}
@@ -1377,7 +1423,12 @@ export default function SocialMediaContentForm({
                         <img
                           src={previewImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgdmlld0JveD0iMCAwIDI1NiAyNTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NiA5NkgxNjBWMTYwSDk2Vjk2WiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMTEyIDExMkgxNDRWMTQ0SDExMlYxMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='}
                           alt={firstImage?.imagePrompt || 'Post image'}
-                          className="w-full h-64 object-cover"
+                          className="w-full h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => {
+                            if (previewImageUrl) {
+                              handleImageClick(previewImageUrl, firstImage?.imagePrompt || 'Post image')
+                            }
+                          }}
                           onLoad={() => {
                             console.log('Preview image loaded successfully:', previewImageUrl)
                           }}
@@ -1400,9 +1451,9 @@ export default function SocialMediaContentForm({
                   <span>👍 12 likes</span>
                   <span>💬 3 comments</span>
                   <span>🔄 1 share</span>
+                    </div>
                           </div>
                         </div>
-                    </div>
 
             {/* Character Count */}
             <div className="mt-4 max-w-md mx-auto">
@@ -1433,15 +1484,15 @@ export default function SocialMediaContentForm({
              <ImageGenerationForm
                onSubmit={handleGenerateImage}
                onClose={() => setShowImageGeneration(false)}
-            clientId={clientId}
-            initialData={{
-              imagePrompt: watch('imagePrompt') || '',
-              imageType: 'Social Media Post',
-              imageStyle: 'Modern',
-              imageModel: 'DALL-E 3',
-              imageSize: '1024x1024'
-            }}
-          />
+               clientId={clientId}
+               initialData={{
+                 imagePrompt: watch('imagePrompt') || '',
+                 imageType: 'Social Media Post',
+                 imageStyle: 'Modern',
+                 imageModel: 'DALL-E 3',
+                 imageSize: '1024x1024'
+               }}
+             />
         )}
 
         {/* Image Browser Modal */}

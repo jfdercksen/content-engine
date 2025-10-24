@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   X, 
   Image as ImageIcon, 
@@ -23,14 +24,18 @@ import {
   CheckCircle, 
   XCircle,
   Plus,
-  Trash2
+  Trash2,
+  Type
 } from 'lucide-react'
 import { 
   IMAGE_TYPES, 
   IMAGE_STYLES, 
   IMAGE_MODELS, 
   IMAGE_SIZES,
-  IMAGE_STATUS
+  IMAGE_STATUS,
+  CAPTION_FONT_STYLES,
+  CAPTION_FONT_SIZES,
+  CAPTION_POSITIONS
 } from '@/lib/types/content'
 import ImageBrowserModal from '@/components/modals/ImageBrowserModal'
 
@@ -47,6 +52,12 @@ interface ImageIdeaFormData {
   selectedImages?: string[]
   uploadedImages?: File[]
   imageStatus?: string
+  // Caption fields
+  useCaptions?: boolean
+  captionText?: string
+  captionFontStyle?: string
+  captionFontSize?: string
+  captionPosition?: string
 }
 
 // Operation types for radio selection
@@ -103,6 +114,12 @@ export default function ImageIdeaForm({
       referenceUrl: '',
       operationType: 'generate',
       imageStatus: IMAGE_STATUS.GENERATING,
+      // Caption defaults
+      useCaptions: false,
+      captionText: '',
+      captionFontStyle: CAPTION_FONT_STYLES.ARIAL,
+      captionFontSize: CAPTION_FONT_SIZES.MEDIUM,
+      captionPosition: CAPTION_POSITIONS.BOTTOM_CENTER,
       ...initialData
     }
   })
@@ -277,22 +294,12 @@ export default function ImageIdeaForm({
         voiceNote: voiceNoteFile // Include voice note file
       }
       
-      // Call the parent onSubmit to create the record
+      // Call the parent onSubmit to create the record and trigger webhook
       const result = await onSubmit(formData)
       console.log('ImageIdeaForm: API result:', result)
       
-      // Extract record ID from the result
-      const recordId = result?.data?.id
-      console.log('ImageIdeaForm: Extracted record ID:', recordId)
-      
-      // Trigger the n8n webhook for all operations that create image ideas
-      if (operationType === 'generate' || operationType === 'combine' || operationType === 'edit') {
-        console.log('ImageIdeaForm: Triggering webhook for operation:', operationType)
-        console.log('ImageIdeaForm: Using record ID:', recordId)
-        await triggerImageGeneration(formData, recordId)
-      } else {
-        console.log('ImageIdeaForm: Skipping webhook for operation:', operationType)
-      }
+      // The webhook is now handled by the /api/baserow/[clientId]/image-ideas endpoint
+      // No need to call triggerImageGeneration separately
       
     } catch (error) {
       console.error('Error submitting form:', error)
@@ -301,68 +308,6 @@ export default function ImageIdeaForm({
     }
   }
 
-  // Trigger image generation via n8n webhook
-  const triggerImageGeneration = async (data: ImageIdeaFormData, recordId?: string) => {
-    try {
-      console.log('ImageIdeaForm: Starting webhook trigger with data:', data)
-      const webhookFormData = new FormData()
-      
-      // Add all form fields to webhook payload
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === 'selectedImages' && Array.isArray(value)) {
-          value.forEach((imageId: string) => webhookFormData.append('selectedImages', imageId))
-        } else if (key === 'uploadedImages' && Array.isArray(value)) {
-          value.forEach((file: File) => webhookFormData.append('uploadedImages', file))
-        } else if (value !== undefined && value !== null) {
-          webhookFormData.append(key, String(value))
-        }
-      })
-      
-      // Add client ID and record ID
-      webhookFormData.append('clientId', clientId)
-      if (recordId) {
-        webhookFormData.append('imageIdeaId', recordId)
-        console.log('ImageIdeaForm: Added record ID to webhook payload:', recordId)
-      } else {
-        console.error('ImageIdeaForm: No record ID available for webhook payload')
-      }
-      
-      // Add files if they exist
-      // For combine/edit operations, use the first uploaded image as reference image
-      const referenceImageForWebhook = operationType === 'combine' || operationType === 'edit' ? 
-        (uploadedImages && uploadedImages.length > 0 ? uploadedImages[0] : undefined) : 
-        referenceImageFile
-      
-      if (referenceImageForWebhook) {
-        webhookFormData.append('referenceImage', referenceImageForWebhook)
-      }
-      if (voiceNoteFile) {
-        webhookFormData.append('voiceNote', voiceNoteFile)
-      }
-      
-      console.log('ImageIdeaForm: Sending webhook request to /api/webhooks/n8n/image-idea-generation')
-      console.log('ImageIdeaForm: Webhook FormData keys:', Array.from(webhookFormData.keys()))
-      console.log('ImageIdeaForm: Webhook FormData entries:')
-      for (const [key, value] of webhookFormData.entries()) {
-        console.log(`  ${key}:`, value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value)
-      }
-      
-      const response = await fetch(`/api/webhooks/n8n/image-idea-generation`, {
-        method: 'POST',
-        body: webhookFormData,
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Image generation triggered successfully:', result)
-        // The webhook will handle updating the record with the generated image
-      } else {
-        console.error('Failed to trigger image generation')
-      }
-    } catch (error) {
-      console.error('Error triggering image generation:', error)
-    }
-  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -458,6 +403,110 @@ export default function ImageIdeaForm({
                   </Select>
                 </div>
               </div>
+            </div>
+
+            {/* Image Captions Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Type className="h-5 w-5" />
+                Image Captions
+              </h3>
+              <p className="text-sm text-gray-600">
+                Add text captions to the generated image.
+              </p>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useCaptions"
+                  checked={watch('useCaptions')}
+                  onCheckedChange={(checked) => setValue('useCaptions', checked)}
+                />
+                <Label htmlFor="useCaptions">Add captions to image</Label>
+              </div>
+
+              {watch('useCaptions') && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="captionText">Caption Text</Label>
+                    <Input
+                      id="captionText"
+                      placeholder="Enter caption text..."
+                      {...register('captionText')}
+                    />
+                    {errors.captionText && (
+                      <p className="text-sm text-red-500 mt-1">{errors.captionText.message}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="captionFontStyle">Font Style</Label>
+                      <Select
+                        value={watch('captionFontStyle')}
+                        onValueChange={(value) => setValue('captionFontStyle', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select font style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CAPTION_FONT_STYLES).map(([key, value]) => (
+                            <SelectItem key={key} value={value}>
+                              {value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.captionFontStyle && (
+                        <p className="text-sm text-red-500 mt-1">{errors.captionFontStyle.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="captionFontSize">Font Size</Label>
+                      <Select
+                        value={watch('captionFontSize')}
+                        onValueChange={(value) => setValue('captionFontSize', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select font size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CAPTION_FONT_SIZES).map(([key, value]) => (
+                            <SelectItem key={key} value={value}>
+                              {value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.captionFontSize && (
+                        <p className="text-sm text-red-500 mt-1">{errors.captionFontSize.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="captionPosition">Caption Position</Label>
+                      <Select
+                        value={watch('captionPosition')}
+                        onValueChange={(value) => setValue('captionPosition', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select position" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CAPTION_POSITIONS).map(([key, value]) => (
+                            <SelectItem key={key} value={value}>
+                              {value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.captionPosition && (
+                        <p className="text-sm text-red-500 mt-1">{errors.captionPosition.message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Image Notes - Available for All Operations */}

@@ -140,6 +140,9 @@ export default function ImageIdeasPage() {
       
       const formData = new FormData()
       
+      // Add source identifier to distinguish from Social Media Post generation
+      formData.append('source', 'image_ideas')
+      
       // Add all form fields
       Object.entries(imageIdeaData).forEach(([key, value]) => {
         if (key === 'selectedImages' && Array.isArray(value)) {

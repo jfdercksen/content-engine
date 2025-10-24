@@ -11,18 +11,35 @@ const imageIdeaSchema = z.object({
   imageStyle: z.string().optional(),
   imageModel: z.string().optional(),
   imageSize: z.string().optional(),
-  referenceUrl: z.string().url().optional().or(z.literal('')),
+  referenceUrl: z.string().optional(),
   referenceImage: z.array(z.any()).optional(), // File upload field
-  voiceNote: z.array(z.any()).optional(), // Voice note file upload field
+  voiceNote: z.any().optional(), // Voice note file upload field
+  useReferenceImage: z.boolean().optional(),
   operationType: z.enum(['generate', 'combine', 'edit', 'browse']).default('generate').optional(),
   selectedImages: z.array(z.string()).optional(),
-  imagePrompt: z.string().optional(),
-  imageStatus: z.string().default('Generating')
+  uploadedImages: z.array(z.any()).optional(), // File upload field
+  imageStatus: z.string().default('Generating').optional(),
+  // Caption fields
+  useCaptions: z.boolean().optional(),
+  captionText: z.string().optional(),
+  captionFontStyle: z.string().optional(),
+  captionFontSize: z.string().optional(),
+  captionPosition: z.string().optional(),
+  // Social media context fields (for when called from social media posts)
+  source: z.string().optional(),
+  socialMediaContent: z.union([z.string(), z.number(), z.null()]).optional(),
+  isNewPost: z.boolean().optional(),
+  contentIdea: z.union([z.string(), z.number(), z.null()]).optional(),
+  postContent: z.string().optional(),
+  hookContent: z.string().optional(),
+  combinedContent: z.string().optional(),
+  platform: z.string().optional(),
+  contentType: z.string().optional()
 })
 
-export async function GET(request: NextRequest, { params }: { params: { clientId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ clientId: string }> }) {
   try {
-    const clientId = params.clientId
+    const { clientId } = await params
     
     if (!clientId) {
       return NextResponse.json(
@@ -89,9 +106,9 @@ export async function GET(request: NextRequest, { params }: { params: { clientId
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { clientId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ clientId: string }> }) {
   try {
-    const clientId = params.clientId
+    const { clientId } = await params
     
     if (!clientId) {
       return NextResponse.json(
@@ -116,27 +133,44 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
       )
     }
 
-    // Parse form data
-    const formData = await request.formData()
-    const data: any = {}
-    const files: { [key: string]: File } = {}
+    // Parse request data based on content type
+    const contentType = request.headers.get('content-type') || ''
+    let data: any = {}
+    let files: { [key: string]: File } = {}
     
-    // Extract form fields and separate files
-    for (const [key, value] of formData.entries()) {
-      console.log(`API: Processing form field: ${key}, type: ${typeof value}, isFile: ${value instanceof File}`)
-      if (key === 'selectedImages' || key === 'uploadedImages') {
-        // Handle arrays
-        if (!data[key]) data[key] = []
-        data[key].push(value)
-      } else if (key === 'referenceImage' || key === 'voiceNote') {
-        // Handle file uploads - store files separately
-        if (value instanceof File) {
-          files[key] = value
-          console.log(`API: Stored file for ${key}:`, value.name, value.size)
+    if (contentType.includes('application/json')) {
+      // Handle JSON requests (for image generation)
+      data = await request.json()
+      console.log('API: Received JSON data:', data)
+    } else if (contentType.includes('multipart/form-data')) {
+      // Handle FormData requests (for file uploads)
+      const formData = await request.formData()
+      
+      // Extract form fields and separate files
+      for (const [key, value] of formData.entries()) {
+        console.log(`API: Processing form field: ${key}, type: ${typeof value}, isFile: ${value instanceof File}`)
+        if (key === 'selectedImages' || key === 'uploadedImages') {
+          // Handle arrays
+          if (!data[key]) data[key] = []
+          data[key].push(value)
+        } else if (key === 'referenceImage' || key === 'voiceNote') {
+          // Handle file uploads - store files separately
+          if (value instanceof File) {
+            files[key] = value
+            console.log(`API: Stored file for ${key}:`, value.name, value.size)
+          }
+        } else if (key === 'useCaptions' || key === 'isNewPost' || key === 'useReferenceImage') {
+          // Handle boolean fields
+          data[key] = value === 'true'
+        } else {
+          data[key] = value
         }
-      } else {
-        data[key] = value
       }
+    } else {
+      return NextResponse.json(
+        { error: 'Unsupported content type. Expected application/json or multipart/form-data' },
+        { status: 400 }
+      )
     }
     
     console.log('API: Extracted data:', data)
@@ -145,6 +179,8 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
     // Validate the data
     const validationResult = imageIdeaSchema.safeParse(data)
     if (!validationResult.success) {
+      console.log('❌ Validation failed with errors:', validationResult.error.issues)
+      console.log('❌ Data being validated:', JSON.stringify(data, null, 2))
       return NextResponse.json(
         { 
           error: 'Validation failed', 
@@ -160,8 +196,14 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
       clientConfig.fieldMappings
     )
     
+    // Extract fields from validated data first
+    const { operationType, selectedImages, uploadedImages, ...imagesTableData } = validationResult.data
+    
     // Upload files first and get file references
     const fileReferences: { [key: string]: any } = {}
+    const uploadedImageReferences: any[] = []
+    
+    // Handle single file uploads (referenceImage, voiceNote)
     for (const [key, file] of Object.entries(files)) {
       try {
         const fileUploadResult = await baserowAPI.uploadFile(file)
@@ -176,22 +218,64 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
       }
     }
     
-    // Add file references to the data (file fields need to be arrays in Baserow)
-    // Filter out fields that don't exist in the Images table
-    const { operationType, selectedImages, uploadedImages, ...imagesTableData } = validationResult.data
-    const dataWithFiles = {
-      ...imagesTableData,
-      referenceImage: fileReferences.referenceImage ? [fileReferences.referenceImage] : undefined,
-      voiceNote: fileReferences.voiceNote ? [fileReferences.voiceNote] : undefined
+    // Handle uploaded images array (for combine/edit operations)
+    if (uploadedImages && uploadedImages.length > 0) {
+      console.log(`Uploading ${uploadedImages.length} images for combine/edit operation`)
+      for (const imageFile of uploadedImages) {
+        try {
+          const imageUploadResult = await baserowAPI.uploadFile(imageFile)
+          uploadedImageReferences.push(imageUploadResult)
+          console.log(`Uploaded image:`, imageUploadResult)
+        } catch (error) {
+          console.error(`Failed to upload image:`, error)
+          return NextResponse.json(
+            { error: `Failed to upload image: ${imageFile.name}` },
+            { status: 500 }
+          )
+        }
+      }
+    }
+    console.log('API: File references:', fileReferences)
+    console.log('API: Uploaded image references:', uploadedImageReferences)
+    console.log('API: Images table data:', imagesTableData)
+    
+    let createdImages = []
+    
+    // If there are uploaded images, create separate records for each image
+    if (uploadedImageReferences.length > 0) {
+      console.log(`Creating ${uploadedImageReferences.length} separate records for uploaded images`)
+      
+      for (let i = 0; i < uploadedImageReferences.length; i++) {
+        const imageReference = uploadedImageReferences[i]
+        const dataWithFiles = {
+          ...imagesTableData,
+          referenceImage: fileReferences.referenceImage ? [fileReferences.referenceImage] : undefined,
+          voiceNote: fileReferences.voiceNote ? [fileReferences.voiceNote] : undefined,
+          // Store each uploaded image in its own record
+          image: [imageReference]
+        }
+        
+        console.log(`Creating record ${i + 1} for image:`, imageReference)
+        const createdImage = await baserowAPI.createImage(imagesTableId, dataWithFiles)
+        createdImages.push(createdImage)
+        console.log(`✅ Image record ${i + 1} created:`, createdImage.id)
+      }
+    } else {
+      // No uploaded images, create a single record
+      const dataWithFiles = {
+        ...imagesTableData,
+        referenceImage: fileReferences.referenceImage ? [fileReferences.referenceImage] : undefined,
+        voiceNote: fileReferences.voiceNote ? [fileReferences.voiceNote] : undefined
+      }
+      
+      console.log('API: Data with files:', dataWithFiles)
+      const createdImage = await baserowAPI.createImage(imagesTableId, dataWithFiles)
+      createdImages.push(createdImage)
+      console.log('✅ Image record created:', createdImage.id)
     }
     
-    console.log('API: File references:', fileReferences)
-    console.log('API: Images table data:', imagesTableData)
-    console.log('API: Data with files:', dataWithFiles)
-    
-    // Create image record in Images table (729) instead of separate Image Ideas table
-    const createdImage = await baserowAPI.createImage(imagesTableId, dataWithFiles)
-    console.log('✅ Image record created:', createdImage.id)
+    // Use the first created image for webhook (or the only one if no uploaded images)
+    const createdImage = createdImages[0]
 
     // Trigger n8n webhook for image generation
     try {
@@ -203,25 +287,90 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
       } else {
         console.log('📡 Triggering image generation webhook:', webhookUrl)
         
-        // Prepare payload for n8n
-        const webhookPayload = {
-          clientId,
-          imageIdeaId: createdImage.id,
-          imagePrompt: data.imagePrompt || '',
-          imageScene: data.imageScene || '',
-          imageType: data.imageType || '',
-          imageStyle: data.imageStyle || '',
-          imageModel: data.imageModel || '',
-          imageSize: data.imageSize || '',
-          referenceUrl: data.referenceUrl || '',
-          operationType: operationType || 'generate',
-          imageStatus: data.imageStatus || 'Generating',
-          selectedImages: selectedImages || [],
+        // Prepare base payload for n8n
+        const basePayload = {
+          client_id: clientId,
+          base_id: clientConfig.baserow.databaseId,
+          table_id: imagesTableId,
+          event: 'image_generation',
+          timestamp: new Date().toISOString(),
+          clientId: clientId,
+          client: {
+            name: clientConfig.displayName || clientId,
+            id: clientId
+          },
+          tables: {
+            images: {
+              id: imagesTableId,
+              recordId: createdImage.id,
+              allRecordIds: createdImages.map(img => img.id)
+            }
+          },
           baserow: {
+            databaseId: clientConfig.baserow.databaseId,
+            token: clientConfig.baserow.token,
             tableId: imagesTableId,
-            recordId: createdImage.id
+            recordId: createdImage.id,
+            allRecordIds: createdImages.map(img => img.id)
+          },
+          fieldMappings: clientConfig.fieldMappings,
+          image: {
+            imagePrompt: data.imagePrompt || '',
+            imageScene: data.imageScene || '',
+            imageType: data.imageType || '',
+            imageStyle: data.imageStyle || '',
+            imageModel: data.imageModel || '',
+            imageSize: data.imageSize || '',
+            referenceUrl: data.referenceUrl || '',
+            operationType: operationType || 'generate',
+            notes: data.notes || null,
+            imageStatus: data.imageStatus || 'Generating',
+            selectedImages: selectedImages || [],
+            uploadedImages: uploadedImages || [],
+            referenceImageData: fileReferences.referenceImage || null,
+            voiceNoteData: fileReferences.voiceNote || null,
+            uploadedImageReferences: uploadedImageReferences || []
+          },
+          metadata: {
+            createdAt: new Date().toISOString(),
+            source: 'content-engine-app',
+            version: '1.0',
+            contentType: 'image-idea'
           }
         }
+
+        // Add source identifier to metadata
+        const finalPayload = {
+          ...basePayload,
+          metadata: {
+            ...basePayload.metadata,
+            source: data.source || 'image_ideas'
+          }
+        }
+
+        console.log('🔍 Debug: data.source =', data.source)
+        console.log('🔍 Debug: finalPayload.metadata.source =', finalPayload.metadata.source)
+
+        // Only add social media specific fields if this is for a social media post
+        if (data.source === 'social_media_post') {
+          console.log('🔍 Adding social media context fields to webhook payload')
+          // Add social media context to the image object
+          Object.assign(finalPayload.image, {
+            socialMediaContent: data.socialMediaContent || null,
+            isNewPost: data.isNewPost === 'true' || data.isNewPost === true,
+            contentIdea: data.contentIdea || null,
+            postContent: data.postContent || '',
+            hookContent: data.hookContent || '',
+            combinedContent: data.combinedContent || '',
+            platform: data.platform || '',
+            contentType: data.contentType || ''
+          })
+          
+          // Update metadata to reflect social media content
+          finalPayload.metadata.contentType = 'social-media-image'
+        }
+
+        console.log('🔍 Final webhook payload:', JSON.stringify(finalPayload, null, 2))
         
         // Call webhook asynchronously (fire-and-forget)
         fetch(webhookUrl, {
@@ -229,7 +378,7 @@ export async function POST(request: NextRequest, { params }: { params: { clientI
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(webhookPayload)
+          body: JSON.stringify(finalPayload)
         }).then(response => {
           if (response.ok) {
             console.log('✅ Webhook triggered successfully')
