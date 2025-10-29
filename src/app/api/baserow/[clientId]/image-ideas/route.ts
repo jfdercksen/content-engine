@@ -352,6 +352,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             referenceImageData: fileReferences.referenceImage || null,
             voiceNoteData: fileReferences.voiceNote || null,
             uploadedImageReferences: uploadedImageReferences || [],
+            // Caption fields
+            useCaptions: data.useCaptions || false,
+            captionText: data.captionText || '',
+            captionFontStyle: data.captionFontStyle || '',
+            captionFontSize: data.captionFontSize || '',
+            captionPosition: data.captionPosition || '',
             // Target record information for workflow
             targetRecordId: targetRecord.id,
             uploadedImageRecordIds: createdImages.filter(img => img.id !== targetRecord.id).map(img => img.id),
