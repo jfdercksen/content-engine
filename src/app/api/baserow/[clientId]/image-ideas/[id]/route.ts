@@ -113,3 +113,52 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { clientId: string; id: string } }
+) {
+  try {
+    const { clientId, id } = params
+    const clientConfig = await getClientConfigForAPI(clientId)
+
+    if (!clientConfig) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      )
+    }
+
+    const imagesTableId = clientConfig.baserow.tables.images
+
+    if (!imagesTableId) {
+      return NextResponse.json(
+        { error: 'Images table not configured' },
+        { status: 500 }
+      )
+    }
+
+    const baserowAPI = new BaserowAPI(
+      clientConfig.baserow.token,
+      clientConfig.baserow.databaseId,
+      clientConfig.fieldMappings
+    )
+
+    console.log('Deleting image idea for client:', clientId, 'ID:', id)
+    
+    // Delete the image record
+    await baserowAPI.deleteImage(imagesTableId, id)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Image idea deleted successfully',
+    })
+  } catch (error) {
+    console.error('Error deleting image idea:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return NextResponse.json(
+      { error: 'Failed to delete image idea', details: errorMessage },
+      { status: 500 }
+    )
+  }
+}

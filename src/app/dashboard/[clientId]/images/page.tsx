@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Image as ImageIcon, Filter, Search, Plus, CheckCircle, XCircle, Eye, X } from 'lucide-react'
+import { ArrowLeft, Image as ImageIcon, Filter, Search, Plus, CheckCircle, XCircle, Eye, X, Trash2 } from 'lucide-react'
 import { Image, IMAGE_STATUS, IMAGE_TYPES, IMAGE_STYLES } from '@/lib/types/content'
 
 export default function ImagesPage() {
@@ -109,6 +109,32 @@ export default function ImagesPage() {
     } catch (error) {
       console.error('Error rejecting image:', error)
       alert('Error rejecting image. Please try again.')
+    }
+  }
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/baserow/${clientId}/images/${imageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        // Refresh the images list
+        await fetchImages()
+        alert('Image deleted successfully!')
+      } else {
+        throw new Error('Failed to delete image')
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error)
+      alert('Error deleting image. Please try again.')
     }
   }
 
@@ -377,6 +403,16 @@ export default function ImagesPage() {
                           </Button>
                         </>
                       )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteImage(image.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -468,31 +504,44 @@ export default function ImagesPage() {
                   )}
 
                   {/* Actions */}
-                  {selectedImage.imageStatus === 'Completed' && (
-                    <div className="flex gap-2 pt-4 border-t">
-                      <Button
-                        onClick={() => {
-                          handleAcceptImage(selectedImage.id)
-                          setShowImageModal(false)
-                        }}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Accept Image
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          handleRejectImage(selectedImage.id)
-                          setShowImageModal(false)
-                        }}
-                        className="flex-1"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject Image
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex gap-2 pt-4 border-t">
+                    {selectedImage.imageStatus === 'Completed' && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            handleAcceptImage(selectedImage.id)
+                            setShowImageModal(false)
+                          }}
+                          className="flex-1"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Accept Image
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            handleRejectImage(selectedImage.id)
+                            setShowImageModal(false)
+                          }}
+                          className="flex-1"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject Image
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        handleDeleteImage(selectedImage.id)
+                        setShowImageModal(false)
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Image
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

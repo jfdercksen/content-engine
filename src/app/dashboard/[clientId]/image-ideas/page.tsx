@@ -440,6 +440,7 @@ export default function ImageIdeasPage() {
                 }}
                 onView={() => setViewingImageIdea(idea)}
                 onEdit={() => { setEditingImageIdea(idea); setShowCreateForm(true); }}
+                onDelete={handleDeleteImageIdea}
               />
             ))}
           </div>

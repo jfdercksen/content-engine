@@ -240,6 +240,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.log('API: Images table data:', imagesTableData)
     
     let createdImages = []
+    let targetRecord = null
     
     // If there are uploaded images, create separate records for each image
     if (uploadedImageReferences.length > 0) {
@@ -260,8 +261,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         createdImages.push(createdImage)
         console.log(`✅ Image record ${i + 1} created:`, createdImage.id)
       }
+      
+      // Create a target record for the workflow to store the final generated/combined image
+      console.log('Creating target record for workflow to store final generated image')
+      const targetDataWithFiles = {
+        ...imagesTableData,
+        referenceImage: fileReferences.referenceImage ? [fileReferences.referenceImage] : undefined,
+        voiceNote: fileReferences.voiceNote ? [fileReferences.voiceNote] : undefined,
+        // No image field - this will be populated by the workflow
+        imageStatus: 'Generating' // Ensure it's marked as generating
+      }
+      
+      console.log('Creating target record with data:', targetDataWithFiles)
+      targetRecord = await baserowAPI.createImage(imagesTableId, targetDataWithFiles)
+      createdImages.push(targetRecord)
+      console.log(`✅ Target record created for workflow:`, targetRecord.id)
+      
     } else {
-      // No uploaded images, create a single record
+      // No uploaded images, create a single record (this is the target record)
       const dataWithFiles = {
         ...imagesTableData,
         referenceImage: fileReferences.referenceImage ? [fileReferences.referenceImage] : undefined,
@@ -271,11 +288,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       console.log('API: Data with files:', dataWithFiles)
       const createdImage = await baserowAPI.createImage(imagesTableId, dataWithFiles)
       createdImages.push(createdImage)
+      targetRecord = createdImage // This is also the target record
       console.log('✅ Image record created:', createdImage.id)
     }
     
-    // Use the first created image for webhook (or the only one if no uploaded images)
-    const createdImage = createdImages[0]
+    // Use the target record for webhook (this is where the workflow will store the final result)
+    const createdImage = targetRecord
 
     // Trigger n8n webhook for image generation
     try {
@@ -303,7 +321,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             images: {
               id: imagesTableId,
               recordId: createdImage.id,
-              allRecordIds: createdImages.map(img => img.id)
+              allRecordIds: createdImages.map(img => img.id),
+              targetRecordId: targetRecord.id,
+              uploadedImageRecordIds: createdImages.filter(img => img.id !== targetRecord.id).map(img => img.id)
             }
           },
           baserow: {
@@ -311,7 +331,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             token: clientConfig.baserow.token,
             tableId: imagesTableId,
             recordId: createdImage.id,
-            allRecordIds: createdImages.map(img => img.id)
+            allRecordIds: createdImages.map(img => img.id),
+            targetRecordId: targetRecord.id,
+            uploadedImageRecordIds: createdImages.filter(img => img.id !== targetRecord.id).map(img => img.id)
           },
           fieldMappings: clientConfig.fieldMappings,
           image: {
@@ -329,7 +351,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             uploadedImages: uploadedImages || [],
             referenceImageData: fileReferences.referenceImage || null,
             voiceNoteData: fileReferences.voiceNote || null,
-            uploadedImageReferences: uploadedImageReferences || []
+            uploadedImageReferences: uploadedImageReferences || [],
+            // Target record information for workflow
+            targetRecordId: targetRecord.id,
+            uploadedImageRecordIds: createdImages.filter(img => img.id !== targetRecord.id).map(img => img.id),
+            hasUploadedImages: uploadedImageReferences.length > 0
           },
           metadata: {
             createdAt: new Date().toISOString(),
