@@ -696,109 +696,111 @@ export default function ImageGenerationForm({
           </Card>
         )}
 
-        {/* Image Settings Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Image Settings
-            </CardTitle>
-            <CardDescription>
-              Configure the style, model, and size for image generation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="imageType">Image Type</Label>
-                <Select
-                  value={watchedValues.imageType}
-                  onValueChange={(value) => setValue('imageType', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select image type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(IMAGE_TYPES).map(([key, value]) => (
-                      <SelectItem key={key} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.imageType && (
-                  <p className="text-sm text-red-500 mt-1">{errors.imageType.message}</p>
-                )}
-              </div>
+        {/* Image Settings Section - Hidden when used from Social Media Post */}
+        {watchedValues.imageType !== 'Social Media Post' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Image Settings
+              </CardTitle>
+              <CardDescription>
+                Configure the style, model, and size for image generation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="imageType">Image Type</Label>
+                  <Select
+                    value={watchedValues.imageType}
+                    onValueChange={(value) => setValue('imageType', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select image type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(IMAGE_TYPES).map(([key, value]) => (
+                        <SelectItem key={key} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.imageType && (
+                    <p className="text-sm text-red-500 mt-1">{errors.imageType.message}</p>
+                  )}
+                </div>
 
-              <div>
-                <Label htmlFor="imageStyle">Image Style</Label>
-                <Select
-                  value={watchedValues.imageStyle}
-                  onValueChange={(value) => setValue('imageStyle', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select image style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(IMAGE_STYLES).map(([key, value]) => (
-                      <SelectItem key={key} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.imageStyle && (
-                  <p className="text-sm text-red-500 mt-1">{errors.imageStyle.message}</p>
-                )}
-              </div>
+                <div>
+                  <Label htmlFor="imageStyle">Image Style</Label>
+                  <Select
+                    value={watchedValues.imageStyle}
+                    onValueChange={(value) => setValue('imageStyle', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select image style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(IMAGE_STYLES).map(([key, value]) => (
+                        <SelectItem key={key} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.imageStyle && (
+                    <p className="text-sm text-red-500 mt-1">{errors.imageStyle.message}</p>
+                  )}
+                </div>
 
-              <div>
-                <Label htmlFor="imageModel">Image Model</Label>
-                <Select
-                  value={watchedValues.imageModel}
-                  onValueChange={(value) => setValue('imageModel', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select image model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(IMAGE_MODELS).map(([key, value]) => (
-                      <SelectItem key={key} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.imageModel && (
-                  <p className="text-sm text-red-500 mt-1">{errors.imageModel.message}</p>
-                )}
-              </div>
+                <div>
+                  <Label htmlFor="imageModel">Image Model</Label>
+                  <Select
+                    value={watchedValues.imageModel}
+                    onValueChange={(value) => setValue('imageModel', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select image model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(IMAGE_MODELS).map(([key, value]) => (
+                        <SelectItem key={key} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.imageModel && (
+                    <p className="text-sm text-red-500 mt-1">{errors.imageModel.message}</p>
+                  )}
+                </div>
 
-              <div>
-                <Label htmlFor="imageSize">Image Size</Label>
-                <Select
-                  value={watchedValues.imageSize}
-                  onValueChange={(value) => setValue('imageSize', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select image size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(IMAGE_SIZES).map(([key, value]) => (
-                      <SelectItem key={key} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.imageSize && (
-                  <p className="text-sm text-red-500 mt-1">{errors.imageSize.message}</p>
-                )}
+                <div>
+                  <Label htmlFor="imageSize">Image Size</Label>
+                  <Select
+                    value={watchedValues.imageSize}
+                    onValueChange={(value) => setValue('imageSize', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select image size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(IMAGE_SIZES).map(([key, value]) => (
+                        <SelectItem key={key} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.imageSize && (
+                    <p className="text-sm text-red-500 mt-1">{errors.imageSize.message}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
 
         {/* Captions Section */}
