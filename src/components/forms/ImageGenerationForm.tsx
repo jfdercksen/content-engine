@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { imageFormSchema, ImageFormData, IMAGE_TYPES, IMAGE_STYLES, IMAGE_MODELS, IMAGE_SIZES, CAPTION_FONT_STYLES, CAPTION_FONT_SIZES, CAPTION_POSITIONS } from '@/lib/types/content'
+import { imageFormSchema, ImageFormData, Image, IMAGE_TYPES, IMAGE_STYLES, IMAGE_MODELS, IMAGE_SIZES, CAPTION_FONT_STYLES, CAPTION_FONT_SIZES, CAPTION_POSITIONS } from '@/lib/types/content'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -122,7 +122,23 @@ export default function ImageGenerationForm({
     setShowImageBrowser(true)
   }
 
-  const handleSelectImageFromBrowser = (imageId: string) => {
+  const handleSelectImageFromBrowser = (image: Partial<Image>) => {
+    // Extract the image ID from the image object
+    // Handle both string IDs and object with id property
+    let imageId: string = ''
+    
+    if (typeof image === 'string') {
+      imageId = image
+    } else if (image?.id) {
+      // Convert to string if it's a number
+      imageId = String(image.id)
+    }
+    
+    if (!imageId) {
+      console.error('No image ID found in selected image:', image)
+      return
+    }
+    
     if (browsingForOperation && !selectedImages.includes(imageId)) {
       setSelectedImages(prev => [...prev, imageId])
     }
