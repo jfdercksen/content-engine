@@ -361,10 +361,18 @@ export default function ImageGenerationForm({
         console.log('Sending JSON data:', completeData)
         console.log('JSON data keys:', Object.keys(completeData))
         console.log('JSON data values:', Object.values(completeData))
-        await onSubmit(completeData)
+        
+        try {
+          const result = await onSubmit(completeData)
+          console.log('ImageGenerationForm: onSubmit returned result:', result)
+        } catch (submitError) {
+          console.error('ImageGenerationForm: Error from onSubmit:', submitError)
+          throw submitError // Re-throw to be caught by outer catch block
+        }
       }
     } catch (error) {
       console.error('Error submitting image generation form:', error)
+      alert('Error generating image. Please check the console for details.')
     } finally {
       setIsSubmitting(false)
     }

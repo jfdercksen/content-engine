@@ -295,14 +295,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Use the target record for webhook (this is where the workflow will store the final result)
     const createdImage = targetRecord
 
+    console.log('🔍 About to trigger webhook')
+    console.log('🔍 Created image:', createdImage.id)
+    console.log('🔍 All created images:', createdImages.map(img => img.id))
+    console.log('🔍 Target record:', targetRecord.id)
+
     // Trigger n8n webhook for image generation
     try {
       const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
       const webhookUrl = await getWebhookUrl(clientId, 'image_generator')
       
+      console.log('🔍 Webhook URL:', webhookUrl)
+      
       if (!webhookUrl) {
         console.warn('⚠️ Image generator webhook not configured, skipping webhook call')
       } else {
+        console.log('🔍 Webhook URL is configured, proceeding with webhook call')
         console.log('📡 Triggering image generation webhook:', webhookUrl)
         
         // Prepare base payload for n8n
