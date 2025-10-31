@@ -1063,7 +1063,7 @@ export default function SocialMediaContentForm({
                         variant="outline"
                         size="sm"
                         onClick={() => setShowImageGeneration(true)}
-                    className="flex items-center gap-2"
+                        className="flex items-center gap-2"
                       >
                     <ImageIcon className="w-4 h-4" />
                     Generate
@@ -1480,19 +1480,23 @@ export default function SocialMediaContentForm({
         />
 
              {/* Image Generation Modal */}
-       {showImageGeneration && (
-             <ImageGenerationForm
-               onSubmit={handleGenerateImage}
-               onClose={() => setShowImageGeneration(false)}
-               clientId={clientId}
-               initialData={{
-                 imagePrompt: watch('imagePrompt') || '',
-                 imageType: 'Social Media Post',
-                 imageStyle: 'Modern',
-                 imageModel: 'DALL-E 3',
-                 imageSize: '1024x1024'
-               }}
-             />
+      {showImageGeneration && (
+         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden">
+              <ImageGenerationForm
+                onSubmit={handleGenerateImage}
+                onClose={() => setShowImageGeneration(false)}
+                clientId={clientId}
+                initialData={{
+                  imagePrompt: watch('imagePrompt') || '',
+                  imageType: 'Social Media Post',
+                  imageStyle: 'Modern',
+                  imageModel: 'DALL-E 3',
+                  imageSize: '1024x1024'
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {/* Image Browser Modal */}

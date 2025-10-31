@@ -300,6 +300,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.log('🔍 All created images:', createdImages.map(img => img.id))
     console.log('🔍 Target record:', targetRecord.id)
 
+    // If this request originated from a Social Media Post, link the new image back to the post's images field
+    try {
+      if (validationResult.data.source === 'social_media_post' && validationResult.data.socialMediaContent) {
+        const socialTableId = (clientConfig as any)?.baserow?.tables?.socialMediaContent
+        const postRowId = String(validationResult.data.socialMediaContent)
+        if (socialTableId) {
+          console.log('🔗 Linking image to social media content:', { socialTableId, postRowId, imageId: targetRecord.id })
+          // Fetch existing post to merge existing image links
+          const existingPost: any = await baserowAPI.getSocialMediaContentById(socialTableId, postRowId)
+          const imagesFieldId = (clientConfig as any)?.fieldMappings?.socialMediaContent?.images
+          let existingImageIds: number[] = []
+          if (imagesFieldId && existingPost) {
+            const fieldKey = `field_${imagesFieldId}`
+            const raw = existingPost[fieldKey]
+            if (Array.isArray(raw)) {
+              existingImageIds = raw.map((v: any) => (typeof v === 'object' && v !== null) ? (v.id ?? v.value ?? v) : v).map((n: any) => Number(n)).filter((n: any) => !Number.isNaN(n))
+            }
+          }
+          const mergedIds = Array.from(new Set([...existingImageIds, Number(targetRecord.id)]))
+          await baserowAPI.updateSocialMediaContent(socialTableId, postRowId, { images: mergedIds })
+          console.log('✅ Linked image to post. Post ID:', postRowId, 'Images:', mergedIds)
+        } else {
+          console.warn('⚠️ socialMediaContent table ID not configured; skipping link back to post')
+        }
+      }
+    } catch (linkError) {
+      console.error('❌ Failed to link image to social media content:', linkError)
+      // Non-fatal for generation; continue to webhook
+    }
+
     // Trigger n8n webhook for image generation
     try {
       const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')

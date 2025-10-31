@@ -58,6 +58,7 @@ export default function ImageGenerationForm({
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors, isValid }
   } = useForm<ImageFormData>({
     resolver: zodResolver(imageFormSchema),
@@ -928,10 +929,25 @@ export default function ImageGenerationForm({
             Cancel
           </Button>
           <Button 
-            type="submit" 
+            type="button" 
             disabled={isSubmitting}
             className="min-w-[120px]"
-            onClick={handleSubmit(onFormSubmit)}
+            onClick={async () => {
+              console.log('Modal Generate Image clicked')
+              try {
+                // In Social Media Post context, bypass validation and submit current values
+                if (watch('imageType') === 'Social Media Post') {
+                  const values = getValues()
+                  console.log('Forcing submit with current values:', values)
+                  await onFormSubmit(values)
+                } else {
+                  // Otherwise use normal validated submit (Image Ideas flow)
+                  await handleSubmit(onFormSubmit)()
+                }
+              } catch (e) {
+                console.error('Modal submit error:', e)
+              }
+            }}
           >
             {isSubmitting ? 'Generating...' : 'Generate Image'}
           </Button>
