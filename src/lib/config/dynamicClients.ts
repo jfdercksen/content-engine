@@ -39,12 +39,10 @@ const defaultConfigurations: ClientConfiguration[] = [
       contentIdeas: process.env.BASEROW_MODERN_MANAGEMENT_CONTENT_IDEAS_TABLE || '721',
       socialMediaContent: process.env.BASEROW_MODERN_MANAGEMENT_SOCIAL_MEDIA_CONTENT_TABLE || '712',
       images: process.env.BASEROW_MODERN_MANAGEMENT_IMAGES_TABLE || '729',
+      videos: process.env.BASEROW_MODERN_MANAGEMENT_VIDEOS_TABLE || '3395',
       brandAssets: process.env.BASEROW_MODERN_MANAGEMENT_BRAND_ASSETS_TABLE || '728',
       emailIdeas: process.env.BASEROW_MODERN_MANAGEMENT_EMAIL_IDEAS_TABLE || '730',
-      templates: process.env.BASEROW_MODERN_MANAGEMENT_TEMPLATES_TABLE || '731',
-      blogPosts: process.env.BASEROW_MODERN_MANAGEMENT_BLOG_POSTS_TABLE || '0',
-      blogRequests: process.env.BASEROW_MODERN_MANAGEMENT_BLOG_REQUESTS_TABLE || '0',
-      keywordResearch: process.env.BASEROW_MODERN_MANAGEMENT_KEYWORD_RESEARCH_TABLE || '0'
+      templates: process.env.BASEROW_MODERN_MANAGEMENT_TEMPLATES_TABLE || '731'
     },
     fieldMappings: {
       // Your existing field mappings

@@ -4,6 +4,10 @@ import { DatabaseClientConfig } from '@/lib/config/databaseClientConfig'
 interface ClientConfigForAPI {
   id: string
   name: string
+  client: {
+    id: string
+    name: string
+  }
   baserow: {
     token: string
     databaseId: string
@@ -15,6 +19,7 @@ interface ClientConfigForAPI {
       publishingSchedule: string
       performanceAnalytics: string
       images: string
+      videos: string
       emailIdeas: string
       templates: string
       blogPosts: string
@@ -61,6 +66,10 @@ export async function getClientConfigForAPI(clientId: string): Promise<ClientCon
     const transformedConfig: ClientConfigForAPI = {
       id: clientConfig.id,
       name: clientConfig.displayName, // Use displayName as name
+      client: {
+        id: clientConfig.id,
+        name: clientConfig.displayName
+      },
       baserow: {
         token: clientConfig.baserowToken,
         databaseId: clientConfig.baserowDatabaseId,
@@ -72,6 +81,7 @@ export async function getClientConfigForAPI(clientId: string): Promise<ClientCon
           publishingSchedule: '',
           performanceAnalytics: '',
           images: clientConfig.tables.images || '',
+          videos: clientConfig.tables.videos || '',
           emailIdeas: clientConfig.tables.emailIdeas || '',
           templates: clientConfig.tables.templates || '',
           blogPosts: clientConfig.tables.blogPosts || '',

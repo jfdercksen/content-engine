@@ -56,13 +56,13 @@ export default function DashboardPage() {
             route: `/dashboard/${clientId}/image-ideas`
         },
         {
-            id: 'video-content',
+            id: 'video-ideas',
             title: 'Video Ideas',
-            description: 'Plan video content strategy',
+            description: 'Generate and manage AI-powered videos',
             icon: Video,
-            color: 'bg-red-500',
-            available: false,
-            route: `/dashboard/${clientId}/video-content`
+            color: 'bg-purple-500',
+            available: true,
+            route: `/dashboard/${clientId}/videos`
         },
         {
             id: 'product-uvp',

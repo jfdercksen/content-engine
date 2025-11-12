@@ -2,12 +2,14 @@ export interface ClientConfiguration {
   id: string
   name: string
   displayName: string
+  baserowWorkspaceId?: number
   baserowDatabaseId: string
   baserowToken: string
   tables: {
     contentIdeas: string
     socialMediaContent: string
     images: string
+    videos: string
     brandAssets: string
     emailIdeas: string
     templates: string
