@@ -61,7 +61,15 @@ const videoFormSchema = z.object({
   platform: z.enum(['Facebook', 'Instagram', 'Twitter', 'LinkedIn', 'TikTok', 'YouTube'] as const).optional(),
   useCaptions: z.boolean().optional(),
   captionText: z.string().optional(),
-  captionPosition: z.enum(['Top', 'Center', 'Bottom'] as const).optional()
+  captionPosition: z.enum(['Top', 'Center', 'Bottom'] as const).optional(),
+  // UGC Ad fields
+  product: z.string().optional(),
+  productPhotoUrl: z.string().url().optional().or(z.literal('')),
+  icp: z.string().optional(),
+  productFeatures: z.string().optional(),
+  videoSetting: z.string().optional(),
+  // Reference image fields
+  referenceImageUrl: z.string().url().optional().or(z.literal(''))
 })
 
 export default function VideoGenerationForm({
@@ -104,7 +112,15 @@ export default function VideoGenerationForm({
       platform: initialData?.platform,
       useCaptions: initialData?.useCaptions || false,
       captionText: initialData?.captionText || '',
-      captionPosition: initialData?.captionPosition || 'Bottom'
+      captionPosition: initialData?.captionPosition || 'Bottom',
+      // UGC Ad fields
+      product: initialData?.product || '',
+      productPhotoUrl: initialData?.productPhotoUrl || '',
+      icp: initialData?.icp || '',
+      productFeatures: initialData?.productFeatures || '',
+      videoSetting: initialData?.videoSetting || '',
+      // Reference image fields
+      referenceImageUrl: initialData?.referenceImageUrl || ''
     }
   })
 
@@ -230,13 +246,42 @@ export default function VideoGenerationForm({
   const onFormSubmit = async (data: VideoFormData) => {
     setIsSubmitting(true)
     try {
+      // Get current form values (includes setValue updates)
+      const allFormValues = watch()
+      
+      console.log('📋 All form values:', {
+        product: allFormValues.product,
+        productPhotoUrl: allFormValues.productPhotoUrl,
+        icp: allFormValues.icp,
+        productFeatures: allFormValues.productFeatures,
+        videoSetting: allFormValues.videoSetting,
+        referenceImageUrl: allFormValues.referenceImageUrl
+      })
+      
       // Add uploaded files and selected image IDs to form data
       const formData: VideoFormData = {
         ...data,
+        ...allFormValues, // Include all watched values (captures setValue updates)
         referenceImage: referenceImage || undefined,
         referenceImageId: selectedReferenceImageId || undefined,
-        productPhoto: productPhoto || undefined
+        referenceImageUrl: allFormValues.referenceImageUrl || data.referenceImageUrl || '',
+        productPhoto: productPhoto || undefined,
+        productPhotoUrl: allFormValues.productPhotoUrl || data.productPhotoUrl || '',
+        // Ensure UGC fields are explicitly included (even if empty)
+        product: allFormValues.product || data.product || '',
+        icp: allFormValues.icp || data.icp || '',
+        productFeatures: allFormValues.productFeatures || data.productFeatures || '',
+        videoSetting: allFormValues.videoSetting || data.videoSetting || ''
       }
+      console.log('📤 Submitting video form data:', {
+        videoType: formData.videoType,
+        model: formData.model,
+        product: formData.product,
+        productPhotoUrl: formData.productPhotoUrl,
+        icp: formData.icp,
+        productFeatures: formData.productFeatures,
+        videoSetting: formData.videoSetting
+      })
       await onSubmit(formData)
     } finally {
       setIsSubmitting(false)

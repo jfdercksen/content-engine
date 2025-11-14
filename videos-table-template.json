@@ -1,0 +1,329 @@
+{
+  "table_name": "Videos",
+  "fields": [
+    {
+      "name": "video",
+      "type": "file",
+      "description": "Final generated video file"
+    },
+    {
+      "name": "videoUrl",
+      "type": "url",
+      "description": "URL to generated video"
+    },
+    {
+      "name": "thumbnailUrl",
+      "type": "url",
+      "description": "Video thumbnail URL"
+    },
+    {
+      "name": "videoPrompt",
+      "type": "long_text",
+      "description": "Main generation prompt",
+      "required": true
+    },
+    {
+      "name": "videoType",
+      "type": "single_select",
+      "description": "Type of video generation",
+      "required": true,
+      "options": [
+        "Text-to-Video",
+        "Image-to-Video",
+        "Storyboard",
+        "Multi-Scene Process",
+        "UGC Ad",
+        "Social Post Video"
+      ]
+    },
+    {
+      "name": "videoStatus",
+      "type": "single_select",
+      "description": "Current processing status",
+      "required": true,
+      "options": [
+        "Pending",
+        "Preparing",
+        "Generating Scenes",
+        "Generating Images",
+        "Generating Videos",
+        "Processing Audio",
+        "Finalizing",
+        "Completed",
+        "Failed"
+      ]
+    },
+    {
+      "name": "model",
+      "type": "single_select",
+      "description": "AI model used for generation",
+      "required": true,
+      "options": [
+        "Sora 2",
+        "Veo 3.1",
+        "Veo 3.1 Fast",
+        "Kling Video",
+        "NanoBanana + Veo 3.1",
+        "fal.ai"
+      ]
+    },
+    {
+      "name": "clientId",
+      "type": "text",
+      "description": "Client identifier",
+      "required": true
+    },
+    {
+      "name": "aspectRatio",
+      "type": "single_select",
+      "description": "Video dimensions",
+      "required": true,
+      "options": [
+        "9:16 (Vertical)",
+        "16:9 (Landscape)",
+        "1:1 (Square)",
+        "4:5 (Portrait)"
+      ]
+    },
+    {
+      "name": "duration",
+      "type": "number",
+      "description": "Duration in seconds",
+      "number_decimal_places": 0,
+      "required": true
+    },
+    {
+      "name": "nFrames",
+      "type": "number",
+      "description": "Number of frames (for Sora 2)",
+      "number_decimal_places": 0
+    },
+    {
+      "name": "removeWatermark",
+      "type": "boolean",
+      "description": "Remove AI watermark"
+    },
+    {
+      "name": "referenceImage",
+      "type": "file",
+      "description": "Reference image for generation"
+    },
+    {
+      "name": "referenceImageUrl",
+      "type": "url",
+      "description": "Reference image URL"
+    },
+    {
+      "name": "referenceVideo",
+      "type": "file",
+      "description": "Reference video file"
+    },
+    {
+      "name": "referenceVideoUrl",
+      "type": "url",
+      "description": "Reference video URL"
+    },
+    {
+      "name": "styleReferenceImage",
+      "type": "file",
+      "description": "Style reference for consistent visuals"
+    },
+    {
+      "name": "process",
+      "type": "text",
+      "description": "Process name for multi-scene videos"
+    },
+    {
+      "name": "processId",
+      "type": "link_row",
+      "description": "Link to Process Ideas table (if exists)"
+    },
+    {
+      "name": "backgroundMusicPrompt",
+      "type": "long_text",
+      "description": "Music description/prompt"
+    },
+    {
+      "name": "musicTrack",
+      "type": "link_row",
+      "description": "Link to Music Library (if exists)"
+    },
+    {
+      "name": "product",
+      "type": "text",
+      "description": "Product name (for UGC Ads)"
+    },
+    {
+      "name": "productPhoto",
+      "type": "file",
+      "description": "Product image file"
+    },
+    {
+      "name": "productPhotoUrl",
+      "type": "url",
+      "description": "Product photo URL"
+    },
+    {
+      "name": "icp",
+      "type": "long_text",
+      "description": "Ideal Customer Profile"
+    },
+    {
+      "name": "productFeatures",
+      "type": "long_text",
+      "description": "Product features to highlight"
+    },
+    {
+      "name": "videoSetting",
+      "type": "long_text",
+      "description": "Scene/environment description"
+    },
+    {
+      "name": "platform",
+      "type": "single_select",
+      "description": "Target social media platform",
+      "options": [
+        "Facebook",
+        "Instagram",
+        "Twitter",
+        "LinkedIn",
+        "TikTok",
+        "YouTube"
+      ]
+    },
+    {
+      "name": "scenes",
+      "type": "link_row",
+      "description": "Link to Video Scenes (if exists)"
+    },
+    {
+      "name": "sceneCount",
+      "type": "number",
+      "description": "Number of scenes",
+      "number_decimal_places": 0
+    },
+    {
+      "name": "useCaptions",
+      "type": "boolean",
+      "description": "Add captions to video"
+    },
+    {
+      "name": "captionText",
+      "type": "long_text",
+      "description": "Caption text content"
+    },
+    {
+      "name": "captionFontStyle",
+      "type": "text",
+      "description": "Caption font style"
+    },
+    {
+      "name": "captionFontSize",
+      "type": "text",
+      "description": "Caption font size"
+    },
+    {
+      "name": "captionPosition",
+      "type": "single_select",
+      "description": "Caption placement",
+      "options": [
+        "Top",
+        "Center",
+        "Bottom"
+      ]
+    },
+    {
+      "name": "useMusic",
+      "type": "boolean",
+      "description": "Add background music"
+    },
+    {
+      "name": "useSoundFX",
+      "type": "boolean",
+      "description": "Add sound effects"
+    },
+    {
+      "name": "rawVideoUrl",
+      "type": "url",
+      "description": "Pre-processing video URL"
+    },
+    {
+      "name": "processedVideoUrl",
+      "type": "url",
+      "description": "Post-processing video URL"
+    },
+    {
+      "name": "socialMediaContent",
+      "type": "link_row",
+      "description": "Link to Social Media Content"
+    },
+    {
+      "name": "contentIdea",
+      "type": "link_row",
+      "description": "Link to Content Ideas"
+    },
+    {
+      "name": "youtubeTitle",
+      "type": "text",
+      "description": "YouTube video title (max 80 chars)"
+    },
+    {
+      "name": "youtubeHashtags",
+      "type": "text",
+      "description": "YouTube hashtags"
+    },
+    {
+      "name": "youtubeVideoId",
+      "type": "text",
+      "description": "YouTube video ID after upload"
+    },
+    {
+      "name": "taskId",
+      "type": "text",
+      "description": "AI API task ID for tracking"
+    },
+    {
+      "name": "errorMessage",
+      "type": "long_text",
+      "description": "Error details if generation failed"
+    },
+    {
+      "name": "metadata",
+      "type": "long_text",
+      "description": "Additional JSON metadata"
+    },
+    {
+      "name": "createdAt",
+      "type": "date",
+      "description": "Creation timestamp",
+      "date_include_time": true,
+      "required": true
+    },
+    {
+      "name": "updatedAt",
+      "type": "last_modified",
+      "description": "Last update timestamp (auto-managed)"
+    },
+    {
+      "name": "completedAt",
+      "type": "date",
+      "description": "Completion timestamp",
+      "date_include_time": true
+    }
+  ],
+  "instructions": {
+    "step_1": "Go to Baserow Client Info database (233)",
+    "step_2": "Click 'Create table'",
+    "step_3": "Name it 'Videos'",
+    "step_4": "Create each field manually using the specifications above",
+    "step_5": "Note down the Table ID and all Field IDs",
+    "step_6": "Update VIDEOS_TABLE_STRUCTURE.md with the new IDs"
+  },
+  "notes": [
+    "Link row fields (processId, musicTrack, scenes, socialMediaContent, contentIdea) require target tables to exist first",
+    "You can create these fields later when you set up those features",
+    "For MVP, you only need the core fields (video through completedAt)",
+    "The updatedAt field uses 'last_modified' type which auto-updates"
+  ]
+}
+

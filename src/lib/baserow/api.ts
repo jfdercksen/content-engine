@@ -1455,4 +1455,118 @@ export class BaserowAPI {
     // Map the field IDs to property names
     return this.mapFieldsFromBaserow(result, 'brandAssets', true)
   }
+
+  // ==================== VIDEO METHODS ====================
+
+  /**
+   * Get all videos with optional filters
+   */
+  async getVideos(tableId: string, filters?: any) {
+    console.log('BaserowAPI: Getting videos from table:', tableId)
+    
+    let url = `/api/database/rows/table/${tableId}/?user_field_names=true`
+    
+    // Add filters if provided
+    if (filters) {
+      const filterParams = new URLSearchParams()
+      
+      // Status filter
+      if (filters.videoStatus) {
+        filterParams.append('filter__field_43318__equal', filters.videoStatus)
+      }
+      
+      // Client ID filter
+      if (filters.clientId) {
+        filterParams.append('filter__field_43320__equal', filters.clientId)
+      }
+      
+      // Video Type filter
+      if (filters.videoType) {
+        filterParams.append('filter__field_43364__equal', filters.videoType)
+      }
+      
+      if (filterParams.toString()) {
+        url += `&${filterParams.toString()}`
+      }
+    }
+    
+    const result = await this.request(url)
+    console.log(`BaserowAPI: Retrieved ${result.results?.length || 0} videos`)
+    
+    return result
+  }
+
+  /**
+   * Get a single video by ID
+   */
+  async getVideoById(tableId: string, recordId: string) {
+    console.log('BaserowAPI: Getting video by ID:', recordId)
+    
+    const result = await this.request(
+      `/api/database/rows/table/${tableId}/${recordId}/?user_field_names=true`
+    )
+    
+    console.log('BaserowAPI: Video retrieved:', result.id)
+    return result
+  }
+
+  /**
+   * Create a new video record
+   */
+  async createVideo(tableId: string, data: any) {
+    console.log('BaserowAPI: Creating video with data:', {
+      videoPrompt: data.videoPrompt?.substring(0, 50) + '...',
+      videoType: data.videoType,
+      model: data.model,
+      aspectRatio: data.aspectRatio
+    })
+    
+    const result = await this.request(
+      `/api/database/rows/table/${tableId}/?user_field_names=true`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }
+    )
+    
+    console.log('BaserowAPI: Video created with ID:', result.id)
+    return result
+  }
+
+  /**
+   * Update an existing video record
+   */
+  async updateVideo(tableId: string, recordId: string, data: any) {
+    console.log('BaserowAPI: Updating video:', recordId, 'with data:', {
+      ...data,
+      videoPrompt: data.videoPrompt ? data.videoPrompt.substring(0, 50) + '...' : undefined
+    })
+    
+    const result = await this.request(
+      `/api/database/rows/table/${tableId}/${recordId}/?user_field_names=true`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }
+    )
+    
+    console.log('BaserowAPI: Video updated:', result.id)
+    return result
+  }
+
+  /**
+   * Delete a video record
+   */
+  async deleteVideo(tableId: string, recordId: string) {
+    console.log('BaserowAPI: Deleting video:', recordId)
+    
+    await this.request(
+      `/api/database/rows/table/${tableId}/${recordId}/`,
+      {
+        method: 'DELETE'
+      }
+    )
+    
+    console.log('BaserowAPI: Video deleted:', recordId)
+  }
 }

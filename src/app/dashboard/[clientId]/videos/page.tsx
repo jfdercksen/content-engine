@@ -46,16 +46,45 @@ export default function VideosPage({ params }: VideosPageProps) {
         url += `?${params.toString()}`
       }
 
-      const response = await fetch(url)
-      const data = await response.json()
+      console.log(`📡 Fetching videos from: ${url}`)
+      
+      let response: Response
+      try {
+        response = await fetch(url)
+      } catch (fetchError: any) {
+        console.error('❌ Network error fetching videos:', fetchError)
+        throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server'}`)
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error response')
+        console.error(`❌ Failed to fetch videos: ${response.status} ${response.statusText}`, errorText)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      let data: any
+      try {
+        data = await response.json()
+      } catch (jsonError: any) {
+        console.error('❌ Failed to parse response as JSON:', jsonError)
+        throw new Error('Invalid response from server')
+      }
 
       if (data.success) {
         setVideos(data.videos || [])
       } else {
         console.error('Failed to fetch videos:', data.error)
+        setVideos([])
       }
-    } catch (error) {
-      console.error('Error fetching videos:', error)
+    } catch (error: any) {
+      console.error('❌ Error fetching videos:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      // Set empty array on error to prevent UI breaking
+      setVideos([])
     } finally {
       setIsLoading(false)
     }
@@ -72,6 +101,19 @@ export default function VideosPage({ params }: VideosPageProps) {
   // Handle video creation
   const handleCreateVideo = async (data: VideoFormData) => {
     try {
+      console.log('📤 handleCreateVideo - Received data:', {
+        videoType: data.videoType,
+        model: data.model,
+        product: data.product,
+        productPhotoUrl: data.productPhotoUrl,
+        icp: data.icp,
+        productFeatures: data.productFeatures,
+        videoSetting: data.videoSetting,
+        referenceImageUrl: data.referenceImageUrl,
+        hasProductPhoto: !!data.productPhoto,
+        hasReferenceImage: !!data.referenceImage
+      })
+      
       // Check if we have files to upload
       const hasFiles = data.referenceImage || data.productPhoto
       
@@ -91,18 +133,20 @@ export default function VideosPage({ params }: VideosPageProps) {
                 formData.append(key, value)
               }
             } else {
-              // Add regular fields
+              // Add regular fields (including productPhotoUrl, referenceImageUrl, etc.)
               formData.append(key, String(value))
             }
           }
         })
         
+        console.log('📦 FormData created with fields:', Array.from(formData.keys()))
         body = formData
         // Don't set Content-Type header for FormData - browser will set it with boundary
       } else {
         // Use JSON for text-only requests
         headers = { 'Content-Type': 'application/json' }
         body = JSON.stringify(data)
+        console.log('📄 JSON body:', body)
       }
 
       const response = await fetch(`/api/baserow/${clientId}/videos`, {

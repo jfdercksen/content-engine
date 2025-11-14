@@ -81,8 +81,17 @@ export async function GET(
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   try {
+    console.log('📹 GET /api/baserow/[clientId]/videos - Route handler started')
+    
     const { clientId } = await params
     console.log(`📹 GET /api/baserow/${clientId}/videos - Fetching videos`)
+
+    if (!clientId) {
+      return NextResponse.json(
+        { success: false, error: 'Client ID is required' },
+        { status: 400 }
+      )
+    }
 
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -95,10 +104,24 @@ export async function GET(
       filters.videoType = searchParams.get('videoType')
     }
 
-    // Fetch videos from shared table (automatically filtered by clientId)
-    const result = await getClientVideos(clientId, filters)
+    console.log(`📹 Fetching videos with filters:`, filters)
 
-    console.log(`✅ Retrieved ${result.results?.length || 0} videos`)
+    // Fetch videos from shared table (automatically filtered by clientId)
+    let result
+    try {
+      result = await getClientVideos(clientId, filters)
+      console.log(`✅ Retrieved ${result.results?.length || 0} videos`)
+    } catch (apiError: any) {
+      console.error('❌ Error calling getClientVideos:', apiError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to fetch from Baserow: ${apiError.message || 'Unknown error'}`,
+          stack: process.env.NODE_ENV === 'development' ? apiError.stack : undefined
+        },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -107,11 +130,13 @@ export async function GET(
     })
 
   } catch (error: any) {
-    console.error('❌ Error fetching videos:', error)
+    console.error('❌ Error in GET /videos route:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to fetch videos'
+        error: error.message || 'Failed to fetch videos',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     )
@@ -310,28 +335,28 @@ export async function POST(
         duration: data.duration,
         nFrames: data.nFrames,
         removeWatermark: data.removeWatermark,
-        referenceImageUrl: data.referenceImageUrl || fileReferences.referenceImage?.url,
-        referenceVideoUrl: data.referenceVideoUrl,
-        product: data.product,
-        productPhotoUrl: data.productPhotoUrl || fileReferences.productPhoto?.url,
-        icp: data.icp,
-        productFeatures: data.productFeatures,
-        setting: data.videoSetting,
-        process: data.process,
-        platform: data.platform,
-        useCaptions: data.useCaptions,
-        captionText: data.captionText,
-        captionFontStyle: data.captionFontStyle,
-        captionFontSize: data.captionFontSize,
-        captionPosition: data.captionPosition,
-        useMusic: data.useMusic,
-        musicPrompt: data.backgroundMusicPrompt,
-        useSoundFX: data.useSoundFX,
-        socialMediaContentId: data.socialMediaContentId,
-        contentIdeaId: data.contentIdeaId,
+        referenceImageUrl: data.referenceImageUrl || fileReferences.referenceImage?.url || '',
+        referenceVideoUrl: data.referenceVideoUrl || '',
+        product: data.product || '',
+        productPhotoUrl: data.productPhotoUrl || fileReferences.productPhoto?.url || data.referenceImageUrl || '',
+        icp: data.icp || '',
+        productFeatures: data.productFeatures || '',
+        setting: data.videoSetting || '',
+        process: data.process || '',
+        platform: data.platform || '',
+        useCaptions: data.useCaptions || false,
+        captionText: data.captionText || '',
+        captionFontStyle: data.captionFontStyle || '',
+        captionFontSize: data.captionFontSize || '',
+        captionPosition: data.captionPosition || '',
+        useMusic: data.useMusic || false,
+        musicPrompt: data.backgroundMusicPrompt || '',
+        useSoundFX: data.useSoundFX || false,
+        socialMediaContentId: data.socialMediaContentId || '',
+        contentIdeaId: data.contentIdeaId || '',
         // Include file info for n8n
-        hasReferenceImage: !!fileReferences.referenceImage,
-        hasProductPhoto: !!fileReferences.productPhoto
+        hasReferenceImage: !!fileReferences.referenceImage || !!data.referenceImageUrl,
+        hasProductPhoto: !!fileReferences.productPhoto || !!data.productPhotoUrl
       },
 
       metadata: {

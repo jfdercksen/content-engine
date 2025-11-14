@@ -1,0 +1,607 @@
+{
+  "name": "Video Generation - Complete Multi-Model Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "video-generation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 400],
+      "webhookId": "video-generation-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "clientId",
+              "value": "={{ $json.body.clientId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "videoType",
+              "value": "={{ $json.body.videoType }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "model",
+              "value": "={{ $json.body.model }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "recordId",
+              "value": "={{ $json.body.tables.videos.recordId }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "tableId",
+              "value": "={{ $json.body.tables.videos.id }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "videoPrompt",
+              "value": "={{ $json.body.video.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "aspectRatio",
+              "value": "={{ $json.body.video.aspectRatio }}",
+              "type": "string"
+            },
+            {
+              "id": "8",
+              "name": "duration",
+              "value": "={{ $json.body.video.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "9",
+              "name": "referenceImageUrl",
+              "value": "={{ $json.body.video.referenceImageUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "10",
+              "name": "hasReferenceImage",
+              "value": "={{ $json.body.video.hasReferenceImage }}",
+              "type": "boolean"
+            },
+            {
+              "id": "11",
+              "name": "productPhotoUrl",
+              "value": "={{ $json.body.video.productPhotoUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "12",
+              "name": "product",
+              "value": "={{ $json.body.video.product }}",
+              "type": "string"
+            },
+            {
+              "id": "13",
+              "name": "icp",
+              "value": "={{ $json.body.video.icp }}",
+              "type": "string"
+            },
+            {
+              "id": "14",
+              "name": "productFeatures",
+              "value": "={{ $json.body.video.productFeatures }}",
+              "type": "string"
+            },
+            {
+              "id": "15",
+              "name": "videoSetting",
+              "value": "={{ $json.body.video.setting }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "parse-payload",
+      "name": "Parse Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Preparing\"\n}",
+        "options": {}
+      },
+      "id": "update-preparing",
+      "name": "Update Status: Preparing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "id": "1",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "Text-to-Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "2",
+                    "leftValue": "={{ $('Parse Payload').item.json.model }}",
+                    "rightValue": "Sora 2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "textToVideoSora2"
+            },
+            {
+              "id": "2",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "Image-to-Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "2",
+                    "leftValue": "={{ $('Parse Payload').item.json.model }}",
+                    "rightValue": "Kling Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imageToVideoKling"
+            },
+            {
+              "id": "3",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "UGC Ad",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ugcAd"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [900, 400],
+      "id": "route-switch",
+      "name": "Route By Type & Model"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Payload').item.json.videoPrompt.replace(/\\r?\\n|\\r/g, ' ').replace(/\\\"/g, '') }}\",\n    \"aspect_ratio\": \"{{ $('Parse Payload').item.json.aspectRatio.includes('9:16') ? 'portrait' : ($('Parse Payload').item.json.aspectRatio.includes('16:9') ? 'landscape' : 'square') }}\",\n    \"n_frames\": \"{{ $('Parse Payload').item.json.duration }}\",\n    \"remove_watermark\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "sora2-generate",
+      "name": "Sora 2: Text-to-Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"kling-video\",\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Payload').item.json.videoPrompt.replace(/\\r?\\n|\\r/g, ' ').replace(/\\\"/g, '') }}\",\n    \"image_url\": \"{{ $('Parse Payload').item.json.referenceImageUrl }}\",\n    \"duration\": \"{{ $('Parse Payload').item.json.duration }}\",\n    \"aspect_ratio\": \"{{ $('Parse Payload').item.json.aspectRatio.includes('9:16') ? '9:16' : ($('Parse Payload').item.json.aspectRatio.includes('16:9') ? '16:9' : '1:1') }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "kling-generate",
+      "name": "Kling: Image-to-Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.aiautomata.co.za/webhook/ugc-script-generator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"product\": \"{{ $('Parse Payload').item.json.product }}\",\n  \"icp\": \"{{ $('Parse Payload').item.json.icp }}\",\n  \"features\": \"{{ $('Parse Payload').item.json.productFeatures }}\",\n  \"style\": \"{{ $('Parse Payload').item.json.videoSetting }}\"\n}",
+        "options": {}
+      },
+      "id": "ugc-script",
+      "name": "NanoBanana: Generate UGC Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 600]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Generating Videos\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.taskId }}\": \"{{ $json.data.taskId }}\"\n}",
+        "options": {}
+      },
+      "id": "update-generating",
+      "name": "Update Status: Generating",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "wait-10s",
+      "name": "Wait 10s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Update Status: Generating').item.json.field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.taskId }} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-status",
+      "name": "Check Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-complete",
+      "name": "Is Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "videoUrl",
+              "value": "={{ JSON.parse($json.data.resultJson).resultUrls[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "videoName",
+              "value": "={{ JSON.parse($json.data.resultJson).resultUrls[0].split('/').pop() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-url",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 200],
+      "id": "download-video",
+      "name": "Download Video"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 200],
+      "id": "upload-to-baserow",
+      "name": "Upload to Baserow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Completed\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoUrl }}\": \"{{ $('Extract Video URL').item.json.videoUrl }}\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.video }}\": \"{{ $json.name }}\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.completedAt }}\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "update-completed",
+      "name": "Update Status: Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Video generation complete\", \"videoUrl\": \"{{ $('Extract Video URL').item.json.videoUrl }}\" }",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3100, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Failed\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.errorMessage }}\": \"Video generation timed out\"\n}",
+        "options": {}
+      },
+      "id": "update-failed",
+      "name": "Update Status: Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"message\": \"Video generation failed\" }",
+        "options": {}
+      },
+      "id": "respond-failed",
+      "name": "Respond: Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2440, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Parse Payload", "type": "main", "index": 0 }]]
+    },
+    "Parse Payload": {
+      "main": [[{ "node": "Update Status: Preparing", "type": "main", "index": 0 }]]
+    },
+    "Update Status: Preparing": {
+      "main": [[{ "node": "Route By Type & Model", "type": "main", "index": 0 }]]
+    },
+    "Route By Type & Model": {
+      "main": [
+        [{ "node": "Sora 2: Text-to-Video", "type": "main", "index": 0 }],
+        [{ "node": "Kling: Image-to-Video", "type": "main", "index": 0 }],
+        [{ "node": "NanoBanana: Generate UGC Script", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sora 2: Text-to-Video": {
+      "main": [[{ "node": "Update Status: Generating", "type": "main", "index": 0 }]]
+    },
+    "Kling: Image-to-Video": {
+      "main": [[{ "node": "Update Status: Generating", "type": "main", "index": 0 }]]
+    },
+    "NanoBanana: Generate UGC Script": {
+      "main": [[{ "node": "Update Status: Generating", "type": "main", "index": 0 }]]
+    },
+    "Update Status: Generating": {
+      "main": [[{ "node": "Wait 10s", "type": "main", "index": 0 }]]
+    },
+    "Wait 10s": {
+      "main": [[{ "node": "Check Video Status", "type": "main", "index": 0 }]]
+    },
+    "Check Video Status": {
+      "main": [[{ "node": "Is Complete?", "type": "main", "index": 0 }]]
+    },
+    "Is Complete?": {
+      "main": [
+        [{ "node": "Extract Video URL", "type": "main", "index": 0 }],
+        [{ "node": "Wait 10s", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Video URL": {
+      "main": [[{ "node": "Download Video", "type": "main", "index": 0 }]]
+    },
+    "Download Video": {
+      "main": [[{ "node": "Upload to Baserow", "type": "main", "index": 0 }]]
+    },
+    "Upload to Baserow": {
+      "main": [[{ "node": "Update Status: Completed", "type": "main", "index": 0 }]]
+    },
+    "Update Status: Completed": {
+      "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]]
+    },
+    "Update Status: Failed": {
+      "main": [[{ "node": "Respond: Failed", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["video", "ai-generation", "multi-model"],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-12T00:00:00.000Z",
+  "versionId": "2"
+}
+

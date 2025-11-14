@@ -1,0 +1,1637 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"message\": \"Video generation failed\" }",
+        "options": {}
+      },
+      "id": "1eae8363-0def-4e64-bcb9-7d63d5969426",
+      "name": "Respond: Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3712,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Failed\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.errorMessage }}\": \"Video generation timed out\"\n}",
+        "options": {}
+      },
+      "id": "2ae7e8ea-63be-43e4-a015-edb524b9682b",
+      "name": "Update Status: Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3936,
+        -448
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Video generation complete\", \"videoUrl\": \"{{ $('Extract Video URL').item.json.videoUrl }}\" }",
+        "options": {}
+      },
+      "id": "9ef46c4d-5dad-4aa7-a0ec-1ad0a03948e2",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1456,
+        -572
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $('Webhook Trigger').item.json.body.client.baserowToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Completed\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoUrl }}\": \"{{ $('Extract Video URL').item.json.videoUrl }}\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.video }}\": \"{{ $json.name }}\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.completedAt }}\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "6c7c0901-b9f9-4535-b239-a543ac69ec1f",
+      "name": "Update Status: Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1232,
+        -572
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $('Webhook Trigger').item.json.body.client.baserowToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        -572
+      ],
+      "id": "fc3ed5c0-c36f-4bd0-9a69-31110b0f9341",
+      "name": "Upload to Baserow"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        784,
+        -572
+      ],
+      "id": "10d40be8-42fb-4fbb-a7ce-4207b17c953c",
+      "name": "Download Video"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "videoUrl",
+              "value": "={{ $json.data?.response?.resultUrls?.[0] || JSON.parse($json.data?.resultJson || '{}').resultUrls?.[0] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "videoName",
+              "value": "={{ ($json.data?.response?.resultUrls?.[0] || JSON.parse($json.data?.resultJson || '{}').resultUrls?.[0] || '').split('/').pop() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "850fe81c-909e-4e83-8e07-5c2be8d0d490",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        -572
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e0164920-aac8-4316-80b1-4fff51f95612",
+      "name": "Sora Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1584,
+        -836
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data?.response ? 'success' : ($json.data?.state || 'processing') }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4f86721-a236-4324-a750-41fbec6c439e",
+      "name": "Veo Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Store Sora TaskId').item.json.taskId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "40408e17-e90b-4c69-b996-d74d02236c4c",
+      "name": "Check Sora Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1808,
+        -908
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/veo/record-info",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Store Veo TaskId').item.json.taskId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc58ba79-d568-4776-8379-a78903ee47c0",
+      "name": "Check Veo Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        -492
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "6c5fc055-4673-4220-82e6-e6d338092d42",
+      "name": "Wait 10s Sora",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2032,
+        -836
+      ],
+      "webhookId": "d44839dd-8e2f-474b-84dc-55278508241d"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "f2fd08d6-eb7d-43c2-8f89-c76a8c65673f",
+      "name": "Wait 10s Veo",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -112,
+        -300
+      ],
+      "webhookId": "5f865cfd-4f4e-4a14-8916-9c9c7ad517b2"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $('Webhook Trigger').item.json.body.client.baserowToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Generating Videos\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.taskId }}\": \"{{ $json.taskId }}\"\n}",
+        "options": {}
+      },
+      "id": "d8a2fb54-002d-44a7-9505-fc15d490c927",
+      "name": "Update Status: Generating Sora",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2256,
+        -836
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "taskId",
+              "value": "={{ $json.taskId || $json.data.taskId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "modelType",
+              "value": "veo",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "977154ab-fea0-47a7-bb85-f009930e9f1c",
+      "name": "Store Veo TaskId",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "taskId",
+              "value": "={{ $json.data.taskId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "modelType",
+              "value": "sora",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f84f85a2-1b88-4605-91d8-66793da35853",
+      "name": "Store Sora TaskId",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2480,
+        -836
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $('Webhook Trigger').item.json.body.client.baserowToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Generating Videos\",\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.taskId }}\": \"{{ $json.taskId || $json.data.taskId }}\"\n}",
+        "options": {}
+      },
+      "id": "5fe07c8c-82fe-4b98-ac23-abb4684f4ed5",
+      "name": "Update Status: Generating Veo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -336,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sora-2-image-to-video\",\n  \"input\": {\n    \"prompt\": \"{{ ($json.output || $('Parse Payload').item.json.videoPrompt || '').replace(/\\r?\\n|\\r/g, ' ').replace(/\"/g, '').replace(/[\"\"\"]/g, '') }}\",\n    \"image_urls\": [\"{{ $json.imageUrl || (typeof $json.data?.resultJson === 'string' ? JSON.parse($json.data.resultJson).resultUrls?.[0] : $json.data?.resultJson?.resultUrls?.[0]) || $('Parse Payload').item.json.referenceImageUrl || $('Parse Payload').item.json.productPhotoUrl || '' }}\"],\n    \"aspect_ratio\": \"portrait\",\n    \"n_frames\": \"10\",\n    \"remove_watermark\": true\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2704,
+        -712
+      ],
+      "id": "f6f0dde7-6a35-4c97-9094-f072a2112da1",
+      "name": "Sora 2: Generate UGC Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/veo/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": \"{{ $json.output.replace(/\\r?\\n|\\r/g, ' ').replace(/\"/g, '').replace(/[\"\"\"]/g, '') }}\",\n  \"imageUrls\": [\"{{ $('Extract Image URL').item.json.imageUrl }}\"],\n  \"model\": \"veo3_fast\",\n  \"aspectRatio\": \"9:16\",\n  \"enableTranslation\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -784,
+        -300
+      ],
+      "id": "6f610c10-5f89-48f6-b025-3085e5c06dce",
+      "name": "Veo 3.1: Generate Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Product: {{ $('Parse Payload').item.json.product }}\n\nProduct ICP: {{ $('Parse Payload').item.json.icp }}\n\nProduct Features: {{ $('Parse Payload').item.json.productFeatures }}\n\nVideo Setting: {{ $('Parse Payload').item.json.videoSetting }}\n\nReference Image Description: {{ $json.field_43389 }}",
+        "options": {
+          "systemMessage": "=# System Prompt Template: Sora 2 UGC Selfie Video Generation (10 Seconds)\n\n## Role\nYou are an **advanced UGC video creator** optimizing for **Sora 2**.  \nYour task is to **generate a prompt for a Sora 2 AI video model** based on:\n- The **product**\n- The **ideal customer profile (ICP)**\n- **Product features**\n- The **video setting**\n- A **reference image**\n\nYour goal is to create a **realistic, spontaneous selfie-style video** filmed by an influencer using **one hand to hold the phone** and **one hand to hold or use the product**. The result should feel **natural, unfiltered, and human**, while ensuring **visual and style consistency with the provided reference image**.  \nThe phone or camera must **never appear** in the shot.\n\n---\n\n## Video Requirements\n\n### Subject & Framing\n- The subject should clearly represent the **ICP persona** — including their age, attire, and overall vibe.\n- The video is recorded **selfie-style**, handheld at **arm's length**, in **vertical (9:16)** format.\n- The subject **faces the camera directly** while naturally interacting with the product.\n- The video should capture subtle **camera shake** and **micro-movements** that make it feel handheld and authentic.\n\n### Visual Style\n- The **product**, **subject**, and **setting** must all appear **natural, consistent, and true to the reference image**.\n- The **reference image** determines the **product's exact logo, color, and appearance** — match it precisely without altering or linking to it.\n- Use **natural lighting** and **realistic environments** (e.g., bedroom, gym, kitchen, car, or outdoor space) that align with the ICP's lifestyle.\n- Avoid perfection — include **minor imperfections**, **realistic grain**, and **slight exposure variations**.\n- No overlays, subtitles, watermarks, reflections, or visible phones.\n\n### Tone & Dialogue\n- The subject delivers **1–2 scripted, conversational sentences** about what they personally love about the product.\n- Dialogue must feel **authentic, personal, and spontaneous**, referencing at least one **real product feature**.\n- Example phrasing: \"I love how [feature] helps me [benefit]\" or \"This [product] actually makes my day easier.\"\n- Maintain a natural rhythm and tone that sounds human, not rehearsed or ad-like.\n\n### Technical Specs\n- **Duration:** 10 seconds  \n- **Shot Type:** Handheld, selfie-style  \n- **Orientation:** Vertical (9:16)  \n- **Lighting:** Natural and realistic  \n- **Audio:** Ambient, organic background sound (no music or voice-over)  \n- **Reference Image:** Used only for appearance and color matching  \n\n---\n\n## Prompt Construction Instructions\nWhen generating the Sora 2 video prompt, make sure to:\n\n- Explicitly request **selfie-style framing** (one hand recording, one hand holding product).  \n- Describe the **human's appearance**, **attire**, and **personality** consistent with the ICP.  \n- Include realistic **environmental details** (e.g., time of day, background objects, ambient sounds).  \n- Reference the **product's exact look** from the provided image to maintain consistency.  \n- Keep dialogue short, natural, and fitted within the **10-second duration**.  \n- Ensure the overall tone feels **authentic, relatable, and human-made**, not promotional.\n\n---\n\n## Example Output Prompt (for Sora 2 AI Video Model)\n\n> \"A natural, handheld selfie-style vertical video filmed by a young woman in her kitchen, holding **[Product]** in one hand and her iPhone in the other. She looks directly into the camera, smiling casually in soft morning light. The kitchen background is cozy and well-lit, with gentle movement from her arm. The video matches the provided reference image exactly in product appearance, logo, and color. She speaks casually and naturally:  \n>   \n> **Script Example:**  \n> *'Okay, I've been using this for a week now, and I swear my hair has never been this shiny. Like, it actually looks like I just left the salon.'*  \n>   \n> Her tone is light, genuine, and conversational — she smiles mid-sentence and glances briefly at the product before looking back at the camera. The product and her face are clearly visible, with no phone or reflections in the shot. The video lasts 10 seconds, using only natural lighting and soft ambient background sound.\"\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -3056,
+        -712
+      ],
+      "id": "848dbc74-8f1a-412a-99e9-7f3143f785d2",
+      "name": "Sora Video Prompt Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Product: {{ $('Parse Payload').item.json.product }}\n\nProduct ICP: {{ $('Parse Payload').item.json.icp }}\n\nProduct Features: {{ $('Parse Payload').item.json.productFeatures }}\n\nVideo Setting: {{ $('Parse Payload').item.json.videoSetting }}\n\nReference Image Description: {{ $json.content }}",
+        "options": {
+          "systemMessage": "=# System Prompt Template: Veo 3 UGC Selfie Video Generation (8 Seconds)\n\n## Role\nYou are an **advanced UGC video creator** optimizing for **Veo 3**.  \nYour task is to **generate a prompt for a Veo 3 AI video model** based on:\n- The **product**\n- The **ideal customer profile (ICP)**\n- **Product features**\n- The **video setting**\n- A **reference image**\n\nYour goal is to create a **realistic, spontaneous selfie-style video** filmed by an influencer using **one hand to hold the phone** and **one hand to hold or use the product**. The result should feel **natural, unfiltered, and human**, while ensuring **visual and style consistency with the provided reference image**.  \nThe phone or camera must **never appear** in the shot.\n\n---\n\n## Video Requirements\n\n### Subject & Framing\n- The subject should clearly represent the **ICP persona** — including their age, attire, and overall vibe.\n- The video is recorded **selfie-style**, handheld at **arm's length**, in **vertical (9:16)** format.\n- The subject **faces the camera directly** while naturally interacting with the product.\n- The video should capture subtle **camera shake** and **micro-movements** that make it feel handheld and authentic.\n\n### Visual Style\n- The **product**, **subject**, and **setting** must all appear **natural, consistent, and true to the reference image**.\n- The **reference image** determines the **product's exact logo, color, and appearance** — match it precisely without altering or linking to it.\n- Use **natural lighting** and **realistic environments** (e.g., bedroom, gym, kitchen, car, or outdoor space) that align with the ICP's lifestyle.\n- Avoid perfection — include **minor imperfections**, **realistic grain**, and **slight exposure variations**.\n- No overlays, subtitles, watermarks, reflections, or visible phones.\n\n### Tone & Dialogue\n- The subject delivers **1–2 scripted, conversational sentences** about what they personally love about the product.\n- Dialogue must feel **authentic, personal, and spontaneous**, referencing at least one **real product feature**.\n- Example phrasing: \"I love how [feature] helps me [benefit]\" or \"This [product] actually makes my day easier.\"\n- Maintain a natural rhythm and tone that sounds human, not rehearsed or ad-like.\n\n### Technical Specs\n- **Duration:** 8 seconds  \n- **Shot Type:** Handheld, selfie-style  \n- **Orientation:** Vertical (9:16)  \n- **Lighting:** Natural and realistic  \n- **Audio:** Ambient, organic background sound (no music or voice-over)  \n- **Reference Image:** Used only for appearance and color matching  \n\n---\n\n## Prompt Construction Instructions\nWhen generating the Veo 3 video prompt, make sure to:\n\n- Explicitly request **selfie-style framing** (one hand recording, one hand holding product).  \n- Describe the **human's appearance**, **attire**, and **personality** consistent with the ICP.  \n- Include realistic **environmental details** (e.g., time of day, background objects, ambient sounds).  \n- Reference the **product's exact look** from the provided image to maintain consistency.  \n- Keep dialogue short, natural, and fitted within the **8-second duration**.  \n- Ensure the overall tone feels **authentic, relatable, and human-made**, not promotional.\n\n---\n\n## Example Output Prompt (for Veo 3 AI Video Model)\n\n> \"A natural, handheld selfie-style vertical video filmed by a young woman in her kitchen, holding **[Product]** in one hand and her iPhone in the other. She looks directly into the camera, smiling casually in soft morning light. The kitchen background is cozy and well-lit, with gentle movement from her arm. The video matches the provided reference image exactly in product appearance, logo, and color. She speaks casually and naturally:  \n>   \n> **Script Example:**  \n> *'Okay, I've been using this for a week now, and I swear my hair has never been this shiny. Like, it actually looks like I just left the salon.'*  \n>   \n> Her tone is light, genuine, and conversational — she smiles mid-sentence and glances briefly at the product before looking back at the camera. The product and her face are clearly visible, with no phone or reflections in the shot. The video lasts 8 seconds, using only natural lighting and soft ambient background sound.\"\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -1136,
+        -300
+      ],
+      "id": "0927eab1-f9ac-4932-8e42-c521743691b0",
+      "name": "Veo Video Prompt Agent"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "text": "Describe what is in the image. Describe the environment and the human who is the focus of the image, as well as what the human is holding.",
+        "imageUrls": "={{ $('Extract Image URL').item.json.imageUrl || JSON.parse($json.data?.resultJson || '{}').resultUrls?.[0] || '' }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1360,
+        -300
+      ],
+      "id": "12c1edbd-bf05-48b6-9071-95fe727048bd",
+      "name": "Analyze Generated Image",
+      "credentials": {
+        "openAiApi": {
+          "id": "MaSTde2xxBu2ZRiy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1808,
+        -396
+      ],
+      "id": "b0cba7e5-60e7-492b-9204-9a5567a2d9ba",
+      "name": "Nano Image Complete?"
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('NanoBanana: Generate Image').item.json.data.taskId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2032,
+        -468
+      ],
+      "id": "86c43bbe-aa0f-46ad-9056-e09ef2a2a23f",
+      "name": "Check Nano Image Status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2256,
+        -396
+      ],
+      "id": "a5ba20e5-c3da-4801-a2ea-034206abdfb2",
+      "name": "Wait for Nano Image",
+      "webhookId": "0ffa05a2-7a5f-4d19-96a8-78785608ba60"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/nano-banana-edit\",\n  \"input\": {\n    \"prompt\": \"{{ $('Veo Image Prompt Agent').item.json.output.replace(/\\r?\\n|\\r/g, ' ') }}\",\n    \"image_urls\": [\"{{ $('Parse Payload').item.json.productPhotoUrl || $('Parse Payload').item.json.referenceImageUrl }}\"],\n    \"output_format\": \"png\",\n    \"image_size\": \"9:16\"\n  }\n}",
+        "options": {}
+      },
+      "id": "33344c19-e7eb-4dde-9801-7f9f60bec4fa",
+      "name": "NanoBanana: Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2480,
+        -396
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "imageUrl",
+              "value": "={{ JSON.parse($json.data?.resultJson || '{}').resultUrls?.[0] || ($json.data?.resultJson && typeof $json.data.resultJson === 'string' ? JSON.parse($json.data.resultJson).resultUrls?.[0] : null) || $('Parse Payload').item.json.referenceImageUrl || $('Parse Payload').item.json.productPhotoUrl || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4b2935be-f0ca-48b9-b510-86c69331b5fc",
+      "name": "Extract Image URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1584,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "data",
+              "value": "={\n  \"taskId\": \"skip-nano\",\n  \"state\": \"success\",\n  \"resultJson\": \"{\\\"resultUrls\\\": [\\\"{{ $('Parse Payload').item.json.referenceImageUrl || $('Parse Payload').item.json.productPhotoUrl }}\\\"]}\"\n}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "51044437-f1b3-4106-84b4-e05314759a83",
+      "name": "Skip Nano: Use Reference Image",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1808,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $('Parse Payload').item.json.model }}",
+              "rightValue": "Sora 2",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $('Parse Payload').item.json.productPhotoUrl || $('Parse Payload').item.json.referenceImageUrl }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2704,
+        -300
+      ],
+      "id": "632057f3-51ec-4746-a6e2-bf03636769ef",
+      "name": "Use NanoBanana? (Always for Sora 2)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Product: {{ $('Parse Payload').item.json.product }}\n\nImage Setting: {{ $('Parse Payload').item.json.videoSetting }}",
+        "options": {
+          "systemMessage": "=## System Prompt: Hyper-Realistic UGC Photography Prompt Generator\n\nYou are an **expert in hyper-realistic user-generated content (UGC) photography** and your role is to **generate detailed image prompts**, not the images themselves.  \n\nYour task is to **write a descriptive image prompt** that an image generation model can use to create a **highly authentic selfie-style photo** featuring a **human influencer holding a product**.\n\nYou will be provided with:\n- A **product photo** (⚠️ must not be changed or altered in any way)\n- A **specific setting or scene description**\n\nYour job is to **generate a written prompt** that instructs the model to create an image where a real human is naturally holding the exact provided product while taking a selfie.  \nThe **iPhone must not appear** in the image itself.\n\n---\n\n### 🧠 Prompt Guidelines\n\nWhen writing the image prompt, make sure it includes the following details and stylistic elements:\n\n#### 1. Human Realism\n- Describe a **realistic, diverse human** with:\n  - Lifelike skin texture and tone  \n  - Slight asymmetries and natural facial features  \n  - Visible hand details (fingernails, subtle lines, and a genuine grip)\n\n#### 2. Product Accuracy\n- Emphasize that the **product must be identical** to the provided photo  \n- Clearly state that the **product cannot be modified or enhanced**  \n- The prompt should reinforce that the product is **untouched and true to the original source image**\n\n#### 3. Composition & Perspective\n- Specify a **selfie-style composition**:\n  - The human holds the product **prominently in the foreground**, slightly angled toward the camera  \n  - The **person's face is visible**, smiling or candid  \n  - The subject makes **natural eye contact** with the viewer  \n\n#### 4. Lighting & Environment\n- Use **natural, high-quality lighting** (e.g., daylight or golden hour)\n- Include **authentic indoor or outdoor settings** based on the given scene  \n\n#### 5. Authentic Details\n- Add **subtle imperfections** that make it look like real user-generated content:\n  - Stray hairs, casual attire, and natural posture  \n  - Everyday realism and spontaneity, not a posed studio shot  \n\n#### 6. Technical Style\n- Explicitly state to **avoid**:\n  - Visible phones, selfie sticks, or camera reflections  \n  - Anything that looks artificial or overly edited  \n- Maintain **sharp focus** on both the human and the product  \n- Mention a **shallow depth of field** for a cinematic, relatable look  \n\n---\n\n### ⚠️ Critical Instruction\n> Your output must be a **written image prompt only** — not an actual image.  \n>  \n> The generated prompt should fully describe the scene for a text-to-image model while **keeping the provided product completely unchanged** and **accurately represented**.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -3056,
+        -300
+      ],
+      "id": "adcdd809-fe39-4b73-987a-1cdbb1e4223c",
+      "name": "Veo Image Prompt Agent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Payload').item.json.videoPrompt.replace(/\\r?\\n|\\r/g, ' ').replace(/\\\"/g, '') }}\",\n    \"aspect_ratio\": \"{{ $('Parse Payload').item.json.aspectRatio.includes('9:16') ? 'portrait' : ($('Parse Payload').item.json.aspectRatio.includes('16:9') ? 'landscape' : 'square') }}\",\n    \"n_frames\": \"{{ $('Parse Payload').item.json.duration }}\",\n    \"remove_watermark\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "943c56dd-f5dc-4172-aebb-2c52996b2ba1",
+      "name": "Sora 2: Text-to-Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2704,
+        -960
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AkbAjhqtJ0xgwVv2",
+          "name": "kie.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "Text-to-Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "2",
+                    "leftValue": "={{ $('Parse Payload').item.json.model }}",
+                    "rightValue": "Sora 2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "Image-to-Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "2",
+                    "leftValue": "={{ $('Parse Payload').item.json.model }}",
+                    "rightValue": "Sora 2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imageToVideoSora2"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $('Parse Payload').item.json.videoType }}",
+                    "rightValue": "UGC Ad",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ugcAd"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -3280,
+        -728
+      ],
+      "id": "31968466-d9fa-4eef-90c8-dfa958777714",
+      "name": "Route By Type & Model"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://baserow.aiautomata.co.za/api/database/rows/table/{{ $('Webhook Trigger').item.json.body.tables.videos.id }}/{{ $('Webhook Trigger').item.json.body.tables.videos.recordId }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $('Webhook Trigger').item.json.body.client.baserowToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"field_{{ $('Webhook Trigger').item.json.body.fieldMappings.videos.videoStatus }}\": \"Preparing\"\n}",
+        "options": {}
+      },
+      "id": "d795d1c5-d9b4-4a79-999d-56b75a9fdcc7",
+      "name": "Update Status: Preparing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3504,
+        -712
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "clientId",
+              "value": "={{ $json.body.clientId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "videoType",
+              "value": "={{ $json.body.videoType }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "model",
+              "value": "={{ $json.body.model }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "recordId",
+              "value": "={{ $json.body.tables.videos.recordId }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "tableId",
+              "value": "={{ $json.body.tables.videos.id }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "videoPrompt",
+              "value": "={{ $json.body.video.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "aspectRatio",
+              "value": "={{ $json.body.video.aspectRatio }}",
+              "type": "string"
+            },
+            {
+              "id": "8",
+              "name": "duration",
+              "value": "={{ $json.body.video.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "9",
+              "name": "productPhotoUrl",
+              "value": "={{ $json.body.video.productPhotoUrl || $json.body.video.referenceImageUrl || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "10",
+              "name": "referenceImageUrl",
+              "value": "={{ $json.body.video.referenceImageUrl || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "11",
+              "name": "product",
+              "value": "={{ $json.body.video.product || 'Product' }}",
+              "type": "string"
+            },
+            {
+              "id": "12",
+              "name": "icp",
+              "value": "={{ $json.body.video.icp || 'General audience' }}",
+              "type": "string"
+            },
+            {
+              "id": "13",
+              "name": "productFeatures",
+              "value": "={{ $json.body.video.productFeatures || 'High quality product' }}",
+              "type": "string"
+            },
+            {
+              "id": "14",
+              "name": "videoSetting",
+              "value": "={{ $json.body.video.setting || 'Casual Selfie' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d4b04eb-d839-4cfd-bf65-a8ab2935d11e",
+      "name": "Parse Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3728,
+        -712
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "video-generation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c27eee86-6d37-4b91-b71d-b229f1d341e7",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3952,
+        -712
+      ],
+      "webhookId": "video-generation-webhook"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-5-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2128,
+        48
+      ],
+      "id": "e72e9cf6-5a7b-4232-94fe-1505aa2700aa",
+      "name": "GPT-5-mini1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "eni2kFdHGvy7lEd3",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Update Status: Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond: Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Completed": {
+      "main": [
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Baserow": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sora Complete?": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10s Sora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veo Complete?": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10s Veo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Sora Status": {
+      "main": [
+        [
+          {
+            "node": "Sora Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Veo Status": {
+      "main": [
+        [
+          {
+            "node": "Veo Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s Sora": {
+      "main": [
+        [
+          {
+            "node": "Check Sora Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s Veo": {
+      "main": [
+        [
+          {
+            "node": "Check Veo Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Generating Sora": {
+      "main": [
+        [
+          {
+            "node": "Wait 10s Sora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Veo TaskId": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Generating Veo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Sora TaskId": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Generating Sora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Generating Veo": {
+      "main": [
+        [
+          {
+            "node": "Wait 10s Veo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sora 2: Generate UGC Video": {
+      "main": [
+        [
+          {
+            "node": "Store Sora TaskId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veo 3.1: Generate Video": {
+      "main": [
+        [
+          {
+            "node": "Store Veo TaskId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sora Video Prompt Agent": {
+      "main": [
+        [
+          {
+            "node": "Sora 2: Generate UGC Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veo Video Prompt Agent": {
+      "main": [
+        [
+          {
+            "node": "Veo 3.1: Generate Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Generated Image": {
+      "main": [
+        [
+          {
+            "node": "Veo Video Prompt Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nano Image Complete?": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for Nano Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Nano Image Status": {
+      "main": [
+        [
+          {
+            "node": "Nano Image Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Nano Image": {
+      "main": [
+        [
+          {
+            "node": "Check Nano Image Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NanoBanana: Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Wait for Nano Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image URL": {
+      "main": [
+        [
+          {
+            "node": "Analyze Generated Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Nano: Use Reference Image": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use NanoBanana? (Always for Sora 2)": {
+      "main": [
+        [
+          {
+            "node": "NanoBanana: Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Nano: Use Reference Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veo Image Prompt Agent": {
+      "main": [
+        [
+          {
+            "node": "Use NanoBanana? (Always for Sora 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sora 2: Text-to-Video": {
+      "main": [
+        [
+          {
+            "node": "Store Sora TaskId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route By Type & Model": {
+      "main": [
+        [
+          {
+            "node": "Sora 2: Text-to-Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Veo Image Prompt Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Veo Image Prompt Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Preparing": {
+      "main": [
+        [
+          {
+            "node": "Route By Type & Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payload": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Preparing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-5-mini1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sora Video Prompt Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Veo Video Prompt Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Veo Image Prompt Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "headers": {
+          "host": "n8n.aiautomata.co.za",
+          "user-agent": "node",
+          "content-length": "2130",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "accept-language": "*",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "165.73.28.159",
+          "cf-ipcountry": "ZA",
+          "cf-ray": "99deed1abfb4f4ac-MAD",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "content-type": "application/json",
+          "sec-fetch-mode": "cors",
+          "x-forwarded-for": "172.68.134.177",
+          "x-forwarded-host": "n8n.aiautomata.co.za",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "76d7d2696ec9",
+          "x-real-ip": "172.68.134.177"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "event": "video_generation",
+          "clientId": "modern-management",
+          "videoType": "UGC Ad",
+          "model": "Sora 2",
+          "timestamp": "2025-11-13T14:23:17.614Z",
+          "client": {
+            "id": "modern-management",
+            "name": "Modern Management",
+            "baserowToken": "SXe0k6Btm7i28uZP5mp8hr5KPBoWsiE1",
+            "databaseId": "176"
+          },
+          "tables": {
+            "videos": {
+              "id": "3395",
+              "recordId": "21"
+            }
+          },
+          "fieldMappings": {
+            "videos": {
+              "video": "43368",
+              "videoUrl": "43369",
+              "thumbnailUrl": "43370",
+              "videoPrompt": "43371",
+              "videoType": "43372",
+              "videoStatus": "43373",
+              "model": "43374",
+              "clientId": "43375",
+              "aspectRatio": "43376",
+              "duration": "43377",
+              "nFrames": "43378",
+              "removeWatermark": "43379",
+              "referenceImage": "43380",
+              "referenceImageUrl": "43381",
+              "referenceVideo": "43382",
+              "referenceVideoUrl": "43383",
+              "styleReferenceImage": "43384",
+              "process": "43385",
+              "backgroundMusicPrompt": "43386",
+              "product": "43387",
+              "productPhoto": "43388",
+              "productPhotoUrl": "43389",
+              "icp": "43390",
+              "productFeatures": "43391",
+              "videoSetting": "43392",
+              "platform": "43393",
+              "sceneCount": "43394",
+              "useCaptions": "43395",
+              "captionText": "43396",
+              "captionFontStyle": "43397",
+              "captionFontSize": "43398",
+              "captionPosition": "43399",
+              "useMusic": "43400",
+              "useSoundFX": "43401",
+              "rawVideoUrl": "43402",
+              "processedVideoUrl": "43403",
+              "youtubeTitle": "43404",
+              "youtubeHashtags": "43405",
+              "youtubeVideoId": "43406",
+              "taskId": "43407",
+              "errorMessage": "43408",
+              "metadata": "43409",
+              "createdAt": "43410",
+              "updatedAt": "43411",
+              "completedAt": "43412"
+            }
+          },
+          "video": {
+            "prompt": "Lady in happy mood",
+            "type": "UGC Ad",
+            "model": "Sora 2",
+            "aspectRatio": "9:16 (Vertical)",
+            "duration": 10,
+            "referenceImageUrl": "",
+            "referenceVideoUrl": "",
+            "product": "MG ZS",
+            "productPhotoUrl": "https://baserow.aiautomata.co.za/media/user_files/LnrGRJKxpvAWeKhJBLraj0TAGZ14xGuv_951be67ee7d6523f8a3ae504a414fbbcec7bceea7de519af9f4914edded25420.png",
+            "icp": "Student",
+            "productFeatures": "Apple car play",
+            "setting": "Lifestyle",
+            "process": "",
+            "platform": "Instagram",
+            "useCaptions": false,
+            "captionText": "",
+            "captionFontStyle": "",
+            "captionFontSize": "",
+            "captionPosition": "Bottom",
+            "useMusic": false,
+            "musicPrompt": "",
+            "useSoundFX": false,
+            "socialMediaContentId": "",
+            "contentIdeaId": "",
+            "hasReferenceImage": false,
+            "hasProductPhoto": true
+          },
+          "metadata": {
+            "source": "content-engine-app",
+            "version": "1.0"
+          }
+        },
+        "webhookUrl": "https://n8n.aiautomata.co.za/webhook/video-generation",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15a60e08082ab352e35a507877bcd1434fb079a9fcbac992f93eb2b8909136d7"
+  }
+}
