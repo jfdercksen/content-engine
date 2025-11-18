@@ -496,10 +496,10 @@ export class BaserowAPI {
     
     console.log('BaserowAPI: Social media content created:', result)
     
-    // Map response back to human-readable format
+    // Map response back to human-readable format with camelCase conversion
     return {
       ...result,
-      ...this.mapFieldsFromBaserow(result, 'socialMediaContent')
+      ...this.mapFieldsFromBaserow(result, 'socialMediaContent', true)
     }
   }
 
@@ -587,11 +587,11 @@ export class BaserowAPI {
         }
       }
       
-      // Map all results to human-readable format
+      // Map all results to human-readable format with camelCase conversion
       if (result.results) {
         result.results = result.results.map((item: any) => ({
           ...item,
-          ...this.mapFieldsFromBaserow(item, 'socialMediaContent')
+          ...this.mapFieldsFromBaserow(item, 'socialMediaContent', true)
         }))
       }
       
@@ -609,7 +609,12 @@ export class BaserowAPI {
     const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/`)
     
     console.log('BaserowAPI: Social media content retrieved by ID:', result)
-    return result
+    
+    // Map fields to human-readable format with camelCase conversion
+    return {
+      ...result,
+      ...this.mapFieldsFromBaserow(result, 'socialMediaContent', true)
+    }
   }
 
   async updateSocialMediaContent(tableId: string, rowId: string, data: any) {
@@ -626,10 +631,10 @@ export class BaserowAPI {
     
     console.log('BaserowAPI: Social media content updated:', result)
     
-    // Map response back to human-readable format
+    // Map response back to human-readable format with camelCase conversion
     return {
       ...result,
-      ...this.mapFieldsFromBaserow(result, 'socialMediaContent')
+      ...this.mapFieldsFromBaserow(result, 'socialMediaContent', true)
     }
   }
 

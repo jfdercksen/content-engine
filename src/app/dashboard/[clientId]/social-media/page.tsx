@@ -605,12 +605,13 @@ export default function SocialMediaPage() {
                     await handleViewIdea(selectedIdeaForSocialMedia)
                     alert('Post created successfully!')
                 } else {
-                    // For existing content, update the local state
-                setSocialMediaContentForIdea(prev => prev.map(content => 
-                    content.id === editingContent.id 
-                        ? { ...content, ...formData }
-                        : content
-                ))
+                    // For existing content, refetch from server to get all updated fields
+                    if (selectedIdeaForSocialMedia) {
+                        await handleViewIdea(selectedIdeaForSocialMedia)
+                    } else {
+                        // If no idea selected, just refresh the general list
+                        await fetchSocialMediaContent()
+                    }
                     alert('Content updated successfully!')
                 }
                 
