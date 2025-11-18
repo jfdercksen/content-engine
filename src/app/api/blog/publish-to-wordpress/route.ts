@@ -27,16 +27,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch blog post data
-    const blogPostResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/baserow/${clientId}/blog-posts/${blogPostId}`
+    // Fetch blog post data directly using BaserowAPI
+    const baserowAPI = new BaserowAPI(
+      clientConfig.baserow.token,
+      clientConfig.baserow.databaseId,
+      clientConfig.fieldMappings
     )
-
-    if (!blogPostResponse.ok) {
-      throw new Error(`Failed to fetch blog post: ${blogPostResponse.statusText}`)
+    
+    const blogPostsTableId = clientConfig.baserow.tables.blogPosts
+    if (!blogPostsTableId) {
+      return NextResponse.json(
+        { error: 'Blog Posts table not configured' },
+        { status: 500 }
+      )
     }
-
-    const blogPost = await blogPostResponse.json()
+    
+    let blogPost
+    try {
+      blogPost = await baserowAPI.getBlogPostById(blogPostsTableId, blogPostId)
+    } catch (error) {
+      console.error('❌ Error fetching blog post:', error)
+      throw new Error(`Failed to fetch blog post: ${error instanceof Error ? error.message : 'Not Found'}`)
+    }
+    
+    if (!blogPost) {
+      throw new Error('Blog post not found')
+    }
     console.log('📝 Blog post data fetched:', { 
       title: blogPost.title, 
       status: blogPost.status,
@@ -51,11 +67,6 @@ export async function POST(request: NextRequest) {
     // If we have a linked image, fetch it and extract the URL
     if (blogPost.featured_image && !featuredImageUrl) {
       try {
-        const baserowAPI = new BaserowAPI(
-          clientConfig.baserow.token,
-          clientConfig.baserow.databaseId,
-          clientConfig.fieldMappings
-        )
         
         // Extract image ID(s) from the linked field
         const imageIds = Array.isArray(blogPost.featured_image) 
