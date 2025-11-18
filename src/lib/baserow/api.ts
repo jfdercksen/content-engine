@@ -244,6 +244,11 @@ export class BaserowAPI {
         'contentTypeStrategy': 'contenttypestrategy',
         'primaryObjective': 'primaryobjectiveoptions',
         'scheduledTime': 'scheduledtime',
+        // Social Media Content fields
+        'contentTheme': 'contenttheme',
+        'psychologicalTrigger': 'psychologicaltrigger',
+        'engagementObjective': 'engagementobjective',
+        'imagePrompt': 'imageprompt',
         // Brand Assets fields
         'assetName': 'assetname',
         'contentType': 'contenttype',
@@ -259,7 +264,7 @@ export class BaserowAPI {
         'createdDate': 'createddate',
         'lastUpdated': 'lastupdated'
       }
-      return conversions[camelCaseName] || camelCaseName
+      return conversions[camelCaseName] || camelCaseName.toLowerCase()
     }
 
     // Map field names to field IDs
