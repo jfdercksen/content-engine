@@ -777,7 +777,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Payload').item.json.videoPrompt.replace(/\\r?\\n|\\r/g, ' ').replace(/\\\"/g, '') }}\",\n    \"aspect_ratio\": \"{{ $('Parse Payload').item.json.aspectRatio.includes('9:16') ? 'portrait' : ($('Parse Payload').item.json.aspectRatio.includes('16:9') ? 'landscape' : 'square') }}\",\n    \"n_frames\": \"{{ $('Parse Payload').item.json.duration }}\",\n    \"remove_watermark\": true\n  }\n}",
+        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Payload').item.json.videoPrompt.replace(/\\r?\\n|\\r/g, ' ').replace(/\\\"/g, '') }}\",\n    \"aspect_ratio\": \"{{ ($('Parse Payload').item.json.aspectRatio || '').toLowerCase().includes('9:16') || ($('Parse Payload').item.json.aspectRatio || '').toLowerCase().includes('portrait') ? 'portrait' : 'landscape' }}\",\n    \"n_frames\": \"{{ $('Parse Payload').item.json.duration }}\",\n    \"remove_watermark\": true\n  }\n}",
         "options": {}
       },
       "id": "943c56dd-f5dc-4172-aebb-2c52996b2ba1",
@@ -975,7 +975,7 @@
             {
               "id": "7",
               "name": "aspectRatio",
-              "value": "={{ $json.body.video.aspectRatio }}",
+              "value": "={{ $json.body.video.aspectRatio?.value || $json.body.video.aspectRatio || '' }}",
               "type": "string"
             },
             {

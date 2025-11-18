@@ -311,6 +311,75 @@ export async function PUT(
       await baserowAPI.updateContentIdea(contentIdeasTableId, id, fileUpdates)
     }
 
+    // Step 4: Update related social media content if Angle, Intent, Psychological Trigger, or Engagement Objective were changed
+    const fieldsToSync = ['angle', 'intent', 'psychologicalTrigger', 'engagementObjective']
+    const fieldsToSyncMap: { [key: string]: string } = {
+      'angle': 'angle',
+      'intent': 'intent',
+      'psychologicalTrigger': 'psychologicalTrigger',
+      'engagementObjective': 'engagementObjective'
+    }
+    
+    const hasFieldsToSync = fieldsToSync.some(field => 
+      formData[field] !== undefined || 
+      formData[field.charAt(0).toUpperCase() + field.slice(1)] !== undefined ||
+      formData[field.replace(/([A-Z])/g, '_$1').toLowerCase()] !== undefined
+    )
+
+    if (hasFieldsToSync) {
+      console.log('🔄 Syncing fields to related social media content...')
+      try {
+        const socialMediaTableId = clientConfig.baserow.tables.socialMediaContent
+        if (socialMediaTableId) {
+          // Get all social media content linked to this content idea
+          const relatedContent = await baserowAPI.getSocialMediaContentByContentIdea(id, socialMediaTableId)
+          
+          if (relatedContent?.results && relatedContent.results.length > 0) {
+            console.log(`📝 Found ${relatedContent.results.length} social media content records to update`)
+            
+            // Prepare update data with only the fields that were changed
+            const updateData: any = {}
+            
+            fieldsToSync.forEach(field => {
+              // Check various possible field name formats
+              const value = formData[field] || 
+                           formData[field.charAt(0).toUpperCase() + field.slice(1)] ||
+                           formData[field.replace(/([A-Z])/g, '_$1').toLowerCase()]
+              
+              if (value !== undefined && value !== null && value !== '') {
+                updateData[fieldsToSyncMap[field]] = value
+              }
+            })
+            
+            if (Object.keys(updateData).length > 0) {
+              console.log('📝 Updating social media content with:', updateData)
+              
+              // Update each related social media content record
+              const updatePromises = relatedContent.results.map((content: any) => 
+                baserowAPI.updateSocialMediaContent(socialMediaTableId, content.id, updateData)
+                  .catch((error: any) => {
+                    console.error(`❌ Failed to update social media content ${content.id}:`, error)
+                    return null // Continue with other updates even if one fails
+                  })
+              )
+              
+              await Promise.all(updatePromises)
+              console.log(`✅ Updated ${relatedContent.results.length} social media content records`)
+            } else {
+              console.log('⚠️ No valid field values to sync')
+            }
+          } else {
+            console.log('ℹ️ No related social media content found for this content idea')
+          }
+        } else {
+          console.warn('⚠️ Social Media Content table ID not configured')
+        }
+      } catch (syncError) {
+        console.error('❌ Error syncing fields to social media content:', syncError)
+        // Don't fail the whole request, just log the error
+      }
+    }
+
     return NextResponse.json({
       success: true,
       id: result.id,

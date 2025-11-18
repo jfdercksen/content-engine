@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
 import { getWebhookUrl } from '@/lib/utils/getWebhookUrl'
 import { SettingsManager } from '@/lib/config/settingsManager'
+import { BaserowAPI } from '@/lib/baserow/api'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +40,67 @@ export async function POST(request: NextRequest) {
     console.log('📝 Blog post data fetched:', { 
       title: blogPost.title, 
       status: blogPost.status,
-      hasImage: !!blogPost.featured_image_url
+      hasImage: !!blogPost.featured_image_url,
+      hasLinkedImage: !!blogPost.featured_image
     })
+
+    // Extract featured image from linked image if available
+    let featuredImageUrl = blogPost.featured_image_url || ''
+    let featuredImageAlt = blogPost.featured_image_alt || ''
+    
+    // If we have a linked image, fetch it and extract the URL
+    if (blogPost.featured_image && !featuredImageUrl) {
+      try {
+        const baserowAPI = new BaserowAPI(
+          clientConfig.baserow.token,
+          clientConfig.baserow.databaseId,
+          clientConfig.fieldMappings
+        )
+        
+        // Extract image ID(s) from the linked field
+        const imageIds = Array.isArray(blogPost.featured_image) 
+          ? blogPost.featured_image.map((img: any) => img.id || img.value || img)
+          : [blogPost.featured_image.id || blogPost.featured_image.value || blogPost.featured_image]
+        
+        if (imageIds.length > 0 && imageIds[0]) {
+          const imageId = imageIds[0]
+          console.log('📸 Fetching linked featured image:', imageId)
+          
+          // Fetch the image record
+          const imagesTableId = clientConfig.baserow.tables.images
+          if (imagesTableId) {
+            const imagesResult = await baserowAPI.getImages(imagesTableId, {})
+            const linkedImage = imagesResult.results?.find((img: any) => 
+              img.id === imageId || img.id === imageId.toString() || img.id.toString() === imageId.toString()
+            )
+            
+            if (linkedImage) {
+              // Extract image URL - try imageLinkUrl first, then image field
+              if (linkedImage.imageLinkUrl) {
+                featuredImageUrl = linkedImage.imageLinkUrl
+              } else if (linkedImage.image) {
+                if (Array.isArray(linkedImage.image) && linkedImage.image.length > 0) {
+                  featuredImageUrl = linkedImage.image[0].url || linkedImage.image[0]
+                } else if (typeof linkedImage.image === 'string') {
+                  featuredImageUrl = linkedImage.image
+                }
+              }
+              
+              // Extract alt text from caption or prompt
+              featuredImageAlt = linkedImage.captionText || linkedImage.imagePrompt || blogPost.title || ''
+              
+              console.log('✅ Extracted featured image from linked record:', {
+                url: featuredImageUrl,
+                alt: featuredImageAlt
+              })
+            }
+          }
+        }
+      } catch (error) {
+        console.error('⚠️ Error fetching linked featured image:', error)
+        // Continue without image if fetch fails
+      }
+    }
 
     // Get WordPress settings from client settings
     const { settings, preferences } = await SettingsManager.getAllClientConfig(clientId)
@@ -90,10 +150,10 @@ export async function POST(request: NextRequest) {
       },
 
       // Featured Image
-      featuredImage: blogPost.featured_image_url ? {
-        url: blogPost.featured_image_url,
-        alt: blogPost.featured_image_alt || blogPost.title || '',
-        caption: blogPost.featured_image_alt || '',
+      featuredImage: featuredImageUrl ? {
+        url: featuredImageUrl,
+        alt: featuredImageAlt || blogPost.title || '',
+        caption: featuredImageAlt || '',
       } : null,
 
       // WordPress Configuration
