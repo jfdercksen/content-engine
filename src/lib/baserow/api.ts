@@ -110,10 +110,15 @@ export class BaserowAPI {
         'scheduled_publish_date': 'scheduledPublishDate',
         'author_id': 'authorId',
         'featured_image_prompt': 'featuredImagePrompt',
+        'featured_image_url': 'featuredImageUrl',
+        'featured_image_alt': 'featuredImageAlt',
+        'featured_image': 'featuredImage',
         'alt_texts': 'altTexts',
         'internal_links': 'internalLinks',
         'external_sources': 'externalSources',
-        'processing_log': 'processingLog'
+        'processing_log': 'processingLog',
+        'created_at': 'createdAt',
+        'updated_at': 'updatedAt'
       }
       
       return camelCaseMap[fieldName] || fieldName
@@ -185,6 +190,76 @@ export class BaserowAPI {
     
     // Handle other types (strings, numbers, etc.)
     return value
+  }
+
+  private async findFeaturedImageFieldId(tableId: string): Promise<number | null> {
+    try {
+      console.log(`🔍 Fetching table fields for table ${tableId} to find featured_image link_row field...`)
+      const fields = await this.getTableFields(tableId)
+      
+      if (!fields || !Array.isArray(fields)) {
+        console.error('❌ Invalid fields response:', fields)
+        return null
+      }
+      
+      console.log(`📋 Found ${fields.length} fields in table. Searching for featured_image link_row field...`)
+      
+      // First, look specifically for "Featured Image" link_row field (exact match preferred)
+      let featuredImageField = fields.find((field: any) => {
+        if (!field.name || field.type !== 'link_row') return false
+        
+        // Exact matches first (most reliable)
+        const exactMatches = 
+          field.name === 'Featured Image' ||
+          field.name === 'featured_image' ||
+          field.name === 'FeaturedImage' ||
+          field.name.toLowerCase() === 'featured image'
+        
+        if (exactMatches) {
+          console.log(`✅ Found exact match: "${field.name}" (type: ${field.type}, ID: ${field.id})`)
+          return true
+        }
+        
+        return false
+      })
+      
+      // If no exact match, try partial match but ONLY for link_row fields
+      if (!featuredImageField) {
+        featuredImageField = fields.find((field: any) => {
+          if (!field.name || field.type !== 'link_row') return false
+          
+          const name = field.name.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')
+          const fieldNameLower = field.name.toLowerCase()
+          
+          // Only match if it contains both "featured" and "image" AND is a link_row
+          const matches = 
+            name === 'featuredimage' || 
+            name === 'featured_image' ||
+            (fieldNameLower.includes('featured') && fieldNameLower.includes('image') && !fieldNameLower.includes('prompt') && !fieldNameLower.includes('url') && !fieldNameLower.includes('alt'))
+          
+          if (matches) {
+            console.log(`🔍 Found partial match: "${field.name}" (type: ${field.type}, ID: ${field.id})`)
+          }
+          
+          return matches
+        })
+      }
+      
+      if (featuredImageField && featuredImageField.type === 'link_row') {
+        console.log(`✅ Auto-detected featured_image link_row field: "${featuredImageField.name}" (type: ${featuredImageField.type}, ID: ${featuredImageField.id}, links to table: ${featuredImageField.link_row_table_id})`)
+        return featuredImageField.id
+      } else {
+        console.warn(`⚠️ No featured_image link_row field found.`)
+        console.warn(`   Available link_row fields:`, fields.filter((f: any) => f.type === 'link_row').map((f: any) => `${f.name} (ID: ${f.id})`).join(', '))
+      }
+    } catch (error) {
+      console.error('❌ Error auto-detecting featured_image field:', error)
+      if (error instanceof Error) {
+        console.error('   Error message:', error.message)
+        console.error('   Error stack:', error.stack)
+      }
+    }
+    return null
   }
 
   private mapFieldsToBaserow(data: any, tableName: string) {
@@ -262,7 +337,14 @@ export class BaserowAPI {
         'platformSpecificRules': 'platform-specificrules',
         'notes': 'assetnotes',
         'createdDate': 'createddate',
-        'lastUpdated': 'lastupdated'
+        'lastUpdated': 'lastupdated',
+        // Blog Post fields
+        'featuredImage': 'featuredimage',
+        'featured_image': 'featuredimage',
+        'featuredImageUrl': 'featuredimageurl',
+        'featured_image_url': 'featuredimageurl',
+        'featuredImageAlt': 'featuredimagealt',
+        'featured_image_alt': 'featuredimagealt'
       }
       return conversions[camelCaseName] || camelCaseName.toLowerCase()
     }
@@ -272,6 +354,7 @@ export class BaserowAPI {
       const mappedFieldName = convertFieldName(fieldName)
       const fieldId = tableFieldMappings[mappedFieldName]
       console.log(`DEBUG: Mapping field "${fieldName}" -> "${mappedFieldName}" -> fieldId: ${fieldId}`)
+      
       if (fieldId) {
         // Skip null values for link_row fields to avoid validation errors
         if (value === null && (mappedFieldName === 'blog_post_id' || mappedFieldName === 'completion_timestamp')) {
@@ -288,7 +371,26 @@ export class BaserowAPI {
           continue
         }
         
-        mapped[`field_${fieldId}`] = value
+        // Convert empty strings to null for datetime fields (Baserow doesn't accept empty strings)
+        // Check if this is likely a datetime field by checking common datetime field names
+        const isDateTimeField = mappedFieldName.includes('time') || 
+                                mappedFieldName.includes('date') || 
+                                mappedFieldName.includes('scheduled') ||
+                                mappedFieldName.includes('timestamp') ||
+                                fieldName.toLowerCase().includes('time') ||
+                                fieldName.toLowerCase().includes('date') ||
+                                fieldName.toLowerCase().includes('scheduled')
+        
+        if (isDateTimeField && (value === '' || value === null || value === undefined)) {
+          console.log(`Converting empty/null value to null for datetime field: ${mappedFieldName} (${fieldName})`)
+          mapped[`field_${fieldId}`] = null
+        } else if (value === '') {
+          // For non-datetime fields, skip empty strings to avoid validation errors
+          console.log(`Skipping empty string for field: ${mappedFieldName} (${fieldName})`)
+          continue
+        } else {
+          mapped[`field_${fieldId}`] = value
+        }
       } else {
         // Keep unmapped fields as-is (like id, order)
         mapped[fieldName] = value
@@ -447,6 +549,30 @@ export class BaserowAPI {
     }
   }
 
+  // Get table fields metadata to find field IDs by name
+  async getTableFields(tableId: string) {
+    console.log('BaserowAPI: Getting table fields for table:', tableId)
+    
+    try {
+      // Get all fields for this table directly
+      const fields = await this.request(`/api/database/fields/table/${tableId}/`)
+      console.log(`BaserowAPI: Retrieved ${fields?.length || 0} fields from table ${tableId}`)
+      
+      if (fields && Array.isArray(fields)) {
+        // Log all field names for debugging
+        console.log('BaserowAPI: Field names:', fields.map((f: any) => `${f.name} (${f.type})`).join(', '))
+      }
+      
+      return fields
+    } catch (error) {
+      console.error('BaserowAPI: Error getting table fields:', error)
+      if (error instanceof Error) {
+        console.error('   Error details:', error.message)
+      }
+      throw error
+    }
+  }
+
   // Upload file to Baserow
   async uploadFile(file: File): Promise<any> {
     const formData = new FormData()
@@ -522,7 +648,7 @@ export class BaserowAPI {
             console.warn('BaserowAPI: contentIdea field mapping not found, skipping filter')
           }
         } else {
-          params.append(key, filters[key])
+        params.append(key, filters[key])
         }
       }
     })
@@ -548,7 +674,7 @@ export class BaserowAPI {
     }
     
     if (allFields.length > 0) {
-      params.append('include', allFields.join(','))
+    params.append('include', allFields.join(','))
     } else {
       console.log('BaserowAPI: No field mappings found, fetching all fields')
     }
@@ -1306,18 +1432,112 @@ export class BaserowAPI {
   async getBlogPostById(tableId: string, id: string) {
     console.log('BaserowAPI: Getting blog post by ID:', id)
 
-    const result = await this.request(`/api/database/rows/table/${tableId}/${id}/`, {
+    // Build URL with expand parameter for featured_image field (same as social media images)
+    const params = new URLSearchParams()
+    
+    // Try to find featured_image field ID to expand it
+    const blogPostsFieldMappings = this.fieldMappings['blogPosts']
+    let featuredImageFieldId: string | number | null = null
+    
+    // Check field mappings for featured_image
+    if (blogPostsFieldMappings) {
+      featuredImageFieldId = blogPostsFieldMappings['featuredimage'] || 
+                             blogPostsFieldMappings['featured image'] ||
+                             blogPostsFieldMappings['featured_image'] ||
+                             blogPostsFieldMappings['Featured Image']
+    }
+    
+    // If not in mappings, try to auto-detect it synchronously
+    if (!featuredImageFieldId) {
+      try {
+        featuredImageFieldId = await this.findFeaturedImageFieldId(tableId)
+        if (featuredImageFieldId) {
+          console.log(`✅ Auto-detected featured_image field ID for expand: ${featuredImageFieldId}`)
+        }
+      } catch (error) {
+        console.log('⚠️ Could not auto-detect featured_image field for expand, continuing without expand')
+      }
+    }
+    
+    // Expand featured_image field if we know its ID
+    if (featuredImageFieldId) {
+      const fieldIdNum = typeof featuredImageFieldId === 'string' && featuredImageFieldId.startsWith('field_')
+        ? featuredImageFieldId.replace('field_', '')
+        : featuredImageFieldId
+      params.append('expand', `field_${fieldIdNum}`)
+      console.log('BaserowAPI: Expanding featured_image field:', `field_${fieldIdNum}`)
+    }
+
+    const url = `/api/database/rows/table/${tableId}/${id}/${params.toString() ? '?' + params.toString() : ''}`
+    
+    const result = await this.request(url, {
       method: 'GET'
     })
 
     console.log('BaserowAPI: Blog post retrieved:', result)
-    return this.mapFieldsFromBaserow(result, 'blogPosts', false)
+    return this.mapFieldsFromBaserow(result, 'blogPosts', false) // Use false to keep underscores (form expects underscores)
   }
 
-  async updateBlogPost(tableId: string, id: string, data: any) {
+  async updateBlogPost(tableId: string, id: string, data: any, imagesTableId?: number) {
     console.log('BaserowAPI: Updating blog post:', id)
+    console.log('BaserowAPI: Input data:', JSON.stringify(data, null, 2))
 
-    const mappedData = this.mapFieldsToBaserow(data, 'blogPosts')
+    // If featured_image is being updated, try to get current record to find the field ID
+    let featuredImageFieldId: number | null = null
+    if (data.featured_image !== undefined && data.featured_image !== null) {
+      try {
+        // First try auto-detection
+        featuredImageFieldId = await this.findFeaturedImageFieldId(tableId)
+        
+        // If auto-detection failed, try to find it from the current record
+        if (!featuredImageFieldId) {
+          console.log('🔍 Auto-detection failed, trying to find field from current record...')
+          try {
+            const currentRecord = await this.request(`/api/database/rows/table/${tableId}/${id}/`)
+            
+            // imagesTableId is passed from the API route which has access to client config
+            console.log(`   Checking link_row fields against Images table ID: ${imagesTableId}`)
+            
+            // Look for link_row fields that are arrays (empty or with data)
+            for (const [fieldKey, fieldValue] of Object.entries(currentRecord)) {
+              if (fieldKey.startsWith('field_') && Array.isArray(fieldValue)) {
+                // This might be the featured_image field - check by getting field info
+                const fieldIdNum = fieldKey.replace('field_', '')
+                try {
+                  const fieldInfo = await this.request(`/api/database/fields/${fieldIdNum}/`)
+                  
+                  // Check if it's a link_row field that links to Images table OR has "featured" or "image" in name
+                  const isLinkToImages = fieldInfo.type === 'link_row' && 
+                                        imagesTableId && 
+                                        String(fieldInfo.link_row_table_id) === String(imagesTableId)
+                  const hasFeaturedImageName = fieldInfo.type === 'link_row' && 
+                                              (fieldInfo.name?.toLowerCase().includes('featured') || 
+                                               fieldInfo.name?.toLowerCase().includes('image'))
+                  
+                  console.log(`   Checking field ${fieldIdNum}: "${fieldInfo.name}" (type: ${fieldInfo.type}, links to: ${fieldInfo.link_row_table_id})`)
+                  
+                  if (isLinkToImages || hasFeaturedImageName) {
+                    featuredImageFieldId = parseInt(fieldIdNum, 10)
+                    console.log(`✅ Found featured_image field from record: "${fieldInfo.name}" (type: ${fieldInfo.type}, links to: ${fieldInfo.link_row_table_id}, field_${featuredImageFieldId})`)
+                    break
+                  }
+                } catch (e) {
+                  // Skip if we can't get field info
+                  console.log(`   Skipping field ${fieldIdNum} - couldn't get field info:`, e)
+                }
+              }
+            }
+          } catch (recordError) {
+            console.error('Error fetching current record for field detection:', recordError)
+          }
+        }
+      } catch (error) {
+        console.error('Error finding featured_image field:', error)
+      }
+    }
+
+    const mappedData = await this.mapFieldsToBaserowAsync(data, 'blogPosts', tableId, featuredImageFieldId)
+    console.log('BaserowAPI: Mapped data for Baserow:', JSON.stringify(mappedData, null, 2))
     
     const result = await this.request(`/api/database/rows/table/${tableId}/${id}/`, {
       method: 'PATCH',
@@ -1326,6 +1546,263 @@ export class BaserowAPI {
 
     console.log('BaserowAPI: Blog post updated:', result)
     return this.mapFieldsFromBaserow(result, 'blogPosts', false)
+  }
+
+  // Async version of mapFieldsToBaserow for cases where we need to fetch field info
+  private async mapFieldsToBaserowAsync(data: any, tableName: string, tableId?: string, featuredImageFieldId?: number | null): Promise<any> {
+    const mapped: any = {}
+    
+    // Get field mappings for this table
+    const tableFieldMappings = this.fieldMappings[tableName]
+    console.log(`DEBUG: Available field mappings for ${tableName}:`, Object.keys(tableFieldMappings || {}))
+    
+    if (!tableFieldMappings || Object.keys(tableFieldMappings).length === 0) {
+      console.log(`No dynamic field mappings found for table: ${tableName}, using hardcoded fallback`)
+      
+      // Use hardcoded field mappings as fallback
+      switch (tableName) {
+        case 'socialMediaContent':
+          return mapSocialMediaContentToBaserow(data)
+        case 'brandAssets':
+          return mapBrandAssetsToBaserow(data)
+        case 'images':
+          return mapImagesToBaserow(data)
+        case 'emailIdeas':
+          return mapEmailIdeasToBaserow(data)
+        case 'templates':
+          return mapTemplatesToBaserow(data)
+        case 'imageIdeas':
+          return mapImageIdeasToBaserow(data)
+        case 'contentIdeas':
+          // For contentIdeas, we should use dynamic mapping, so return data as-is for fallback
+          console.log(`Using fallback for contentIdeas - returning data as-is`)
+          return data
+        case 'blogRequests':
+          // For blogRequests, we should use dynamic mapping, so return data as-is for fallback
+          console.log(`Using fallback for blogRequests - returning data as-is`)
+          return data
+        case 'blogPosts':
+          // For blogPosts, we should use dynamic mapping, so return data as-is for fallback
+          console.log(`Using fallback for blogPosts - returning data as-is`)
+          return data
+        default:
+          console.log(`No fallback mapping found for table: ${tableName}`)
+          return data
+      }
+    }
+    
+    // Helper function to convert camelCase to field mapping names
+    const convertFieldName = (camelCaseName: string): string => {
+      const conversions: Record<string, string> = {
+        'contentIdea': 'contentidea',
+        'ideaType': 'ideatype', 
+        'numberOfPosts': 'number_of_posts',
+        'hookFocus': 'hook_focus',
+        'targetAudience': 'targetaudience',
+        'informationSource': 'information_source',
+        'sourceUrl': 'sourceurl',
+        'sourceContent': 'sourcecontent',
+        'contentStrategy': 'contentstrategy',
+        'contentTypeStrategy': 'contenttypestrategy',
+        'primaryObjective': 'primaryobjectiveoptions',
+        'scheduledTime': 'scheduledtime',
+        // Social Media Content fields
+        'contentTheme': 'contenttheme',
+        'psychologicalTrigger': 'psychologicaltrigger',
+        'engagementObjective': 'engagementobjective',
+        'imagePrompt': 'imageprompt',
+        // Brand Assets fields
+        'assetName': 'assetname',
+        'contentType': 'contenttype',
+        'assetType': 'assettype',
+        'assetInformation': 'assetinformation',
+        'fileUrl': 'fileurl',
+        'brandVoiceGuidelines': 'brandvoiceguidelines',
+        'approvedHashtags': 'approvedhashtags',
+        'toneStylePreferences': 'tone/stylepreferences',
+        'forbiddenWordsTopics': 'forbiddenwords/topics',
+        'platformSpecificRules': 'platform-specificrules',
+        'notes': 'assetnotes',
+        'createdDate': 'createddate',
+        'lastUpdated': 'lastupdated',
+        // Blog Post fields
+        'featuredImage': 'featuredimage',
+        'featured_image': 'featuredimage',
+        'featuredImageUrl': 'featuredimageurl',
+        'featured_image_url': 'featuredimageurl',
+        'featuredImageAlt': 'featuredimagealt',
+        'featured_image_alt': 'featuredimagealt'
+      }
+      return conversions[camelCaseName] || camelCaseName.toLowerCase()
+    }
+
+    // Map field names to field IDs
+    for (const [fieldName, value] of Object.entries(data)) {
+      const mappedFieldName = convertFieldName(fieldName)
+      const fieldId = tableFieldMappings[mappedFieldName]
+      console.log(`DEBUG: Mapping field "${fieldName}" -> "${mappedFieldName}" -> fieldId: ${fieldId}`)
+      
+      // Special handling for featured_image link_row field (same pattern as social media 'images' field)
+      // Skip it entirely if null/undefined to avoid sending it to wrong field types
+      if (fieldName === 'featured_image' || fieldName === 'featuredImage') {
+        // If null or undefined, skip it completely (don't update the field)
+        if (value === null || value === undefined) {
+          console.log(`⚠️ Skipping featured_image field (null/undefined)`)
+          continue
+        }
+        
+        // Ensure it's an array of numbers for link_row fields (same as social media images)
+        const arrayValue = Array.isArray(value) ? value : [value]
+        const numericArray = arrayValue.map((id: any) => {
+          if (typeof id === 'string') {
+            const parsed = parseInt(id, 10)
+            return isNaN(parsed) ? null : parsed
+          }
+          return typeof id === 'number' ? id : null
+        }).filter((id: any) => id !== null && !isNaN(id))
+        
+        // If we have a field ID from mappings, use it (standard path - same as social media)
+        if (fieldId) {
+          mapped[`field_${fieldId}`] = numericArray
+          console.log(`✅ Set featured_image link_row field via mapping: field_${fieldId} =`, numericArray)
+          continue
+        }
+        
+        // If we have a pre-detected field ID from updateBlogPost, use it
+        if (featuredImageFieldId) {
+          mapped[`field_${featuredImageFieldId}`] = numericArray
+          console.log(`✅ Set featured_image using pre-detected field ID: field_${featuredImageFieldId} =`, numericArray)
+          continue
+        }
+        
+        // Try alternative field name formats that might exist in Baserow
+        const altFieldId1 = tableFieldMappings['featured image'] // With space
+        const altFieldId2 = tableFieldMappings['featuredimage'] // No underscore  
+        const altFieldId3 = tableFieldMappings['featured_image'] // With underscore
+        const altFieldId4 = tableFieldMappings['Featured Image'] // Capitalized with space
+        const altFieldId5 = tableFieldMappings['FeaturedImage'] // CamelCase
+        
+        const finalFieldId = altFieldId1 || altFieldId2 || altFieldId3 || altFieldId4 || altFieldId5
+        
+        if (finalFieldId) {
+          // Extract just the number from field_XXXXX format if needed
+          const fieldIdNum = typeof finalFieldId === 'string' && finalFieldId.startsWith('field_') 
+            ? finalFieldId.replace('field_', '') 
+            : finalFieldId
+          mapped[`field_${fieldIdNum}`] = numericArray
+          console.log(`✅ Set featured_image link_row field (alt mapping): field_${fieldIdNum} =`, numericArray)
+          continue
+        }
+        
+        // Try to auto-detect the field ID from Baserow table structure (fallback)
+        if (tableId && tableName === 'blogPosts') {
+          console.log(`🔍 Attempting to auto-detect featured_image field ID from table ${tableId}...`)
+          try {
+            const autoDetectedId = await this.findFeaturedImageFieldId(tableId)
+            if (autoDetectedId) {
+              mapped[`field_${autoDetectedId}`] = numericArray
+              console.log(`✅ Set featured_image using auto-detected field ID: field_${autoDetectedId} =`, numericArray)
+              continue
+            }
+          } catch (detectionError) {
+            console.error(`❌ Auto-detection error:`, detectionError)
+          }
+        }
+        
+        // Field mapping not found - skip it and log warning (don't send invalid data)
+        console.warn(`⚠️ WARNING: featured_image field mapping not found for table "${tableName}"`)
+        console.warn(`   Available field mappings:`, Object.keys(tableFieldMappings).join(', '))
+        console.warn(`   Tried: "featuredimage", "featured image", "featured_image", "Featured Image", "FeaturedImage"`)
+        console.warn(`   Skipping featured_image update - add field mapping to client config to enable`)
+        continue
+      }
+      
+      if (fieldId) {
+        // Skip null values for link_row fields to avoid validation errors
+        if (value === null && (mappedFieldName === 'blog_post_id' || mappedFieldName === 'completion_timestamp')) {
+          continue
+        }
+        
+        // Skip read-only fields (created_on, last_modified) - they're automatically set by Baserow
+        if (mappedFieldName === 'submission_timestamp' || mappedFieldName === 'created_at' || mappedFieldName === 'updated_at') {
+          continue
+        }
+        
+        // Skip empty strings for select fields to avoid validation errors
+        if (value === '' && (mappedFieldName === 'category' || mappedFieldName === 'status' || mappedFieldName === 'tags' || mappedFieldName === 'meta_title' || mappedFieldName === 'meta_description')) {
+          continue
+        }
+        
+        // Don't send null/undefined to fields that expect strings (Baserow validation error)
+        if (value === null || value === undefined) {
+          console.log(`⚠️ Skipping null/undefined value for field: ${mappedFieldName} (field_${fieldId})`)
+          continue
+        }
+        
+        // Arrays should only be sent to link_row or multiple select fields
+        // Check if this field is specifically a link_row or multiple select by checking field name patterns
+        // For blog posts: featured_image is link_row, but featured_image_url/featured_image_alt are strings
+        const isLinkRowField = (mappedFieldName === 'featuredimage' || mappedFieldName === 'images') && 
+                               fieldName !== 'featured_image_url' && 
+                               fieldName !== 'featured_image_alt' &&
+                               fieldName !== 'featuredImageUrl' &&
+                               fieldName !== 'featuredImageAlt'
+        const isMultipleSelectField = mappedFieldName.includes('tags') || 
+                                     mappedFieldName.includes('keywords') ||
+                                     mappedFieldName === 'secondary_keywords'
+        
+        if (Array.isArray(value) && !isLinkRowField && !isMultipleSelectField) {
+          // Arrays should not be sent to text/string fields - this is likely a mapping error
+          console.error(`❌ ERROR: Attempting to send array to string field: ${fieldName} (${mappedFieldName}) -> field_${fieldId}`)
+          console.error(`   Array value:`, value)
+          console.error(`   This field expects a string, not an array. Skipping to prevent validation error.`)
+          continue
+        }
+        
+        // Validate and convert values based on field type expectations
+        // Don't send objects or booleans to string fields unless they're properly formatted
+        if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+          // Objects should be stringified for text fields
+          console.log(`⚠️ Converting object to JSON string for field: ${mappedFieldName} (field_${fieldId})`)
+          try {
+            mapped[`field_${fieldId}`] = JSON.stringify(value)
+          } catch (e) {
+            console.error(`❌ Failed to stringify object for field: ${mappedFieldName}`, e)
+            continue
+          }
+        } else if (typeof value === 'boolean') {
+          // Convert boolean to string for text fields
+          console.log(`⚠️ Converting boolean to string for field: ${mappedFieldName} (field_${fieldId})`)
+          mapped[`field_${fieldId}`] = String(value)
+        } else if (typeof value === 'number') {
+          // Check if this is likely a text field (not a number field)
+          const isNumberField = mappedFieldName.includes('score') || 
+                               mappedFieldName.includes('count') || 
+                               (mappedFieldName.includes('id') && mappedFieldName !== 'author_id') ||
+                               mappedFieldName.includes('volume') ||
+                               mappedFieldName.includes('difficulty')
+          
+          if (!isNumberField) {
+            // Convert number to string for text fields
+            console.log(`⚠️ Converting number to string for text field: ${mappedFieldName} (field_${fieldId})`)
+            mapped[`field_${fieldId}`] = String(value)
+          } else {
+            mapped[`field_${fieldId}`] = value
+          }
+        } else {
+          // String, array, or other types - send as-is
+          mapped[`field_${fieldId}`] = value
+        }
+        
+        // Log what we're sending for debugging
+        console.log(`✅ Mapping field "${fieldName}" (${mappedFieldName}) -> field_${fieldId}: ${typeof mapped[`field_${fieldId}`]} = ${JSON.stringify(mapped[`field_${fieldId}`]).substring(0, 100)}`)
+      } else {
+        // Keep unmapped fields as-is (like id, order)
+        mapped[fieldName] = value
+      }
+    }
+    
+    return mapped
   }
 
   async deleteBlogPost(tableId: string, id: string) {

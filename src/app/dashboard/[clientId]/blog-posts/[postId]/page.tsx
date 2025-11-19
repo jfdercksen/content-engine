@@ -58,6 +58,9 @@ export default function BlogPostDetailPage() {
       setIsSaving(true)
       setError(null)
 
+      console.log('💾 Saving blog post with data:', JSON.stringify(formData, null, 2))
+      console.log('💾 Featured image value:', formData.featured_image, 'Type:', typeof formData.featured_image)
+
       const response = await fetch(`/api/baserow/${clientConfig.id}/blog-posts/${postId}`, {
         method: 'PATCH',
         headers: {
@@ -255,6 +258,7 @@ export default function BlogPostDetailPage() {
         onCancel={handleCancel}
         isLoading={isSaving}
         mode={isEditing ? 'edit' : 'view'}
+        clientId={clientConfig.id}
       />
     </div>
   )

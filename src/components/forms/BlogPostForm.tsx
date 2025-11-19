@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Edit3, Eye, Save, X } from 'lucide-react'
+import { Calendar, Edit3, Eye, Save, X, Image as ImageIcon } from 'lucide-react'
+import ImageBrowserModal from '@/components/modals/ImageBrowserModal'
+import { Image } from '@/lib/types/content'
 
 export interface BlogPostFormData {
   id?: number
@@ -28,6 +30,7 @@ export interface BlogPostFormData {
   featured_image_prompt: string
   featured_image_url?: string
   featured_image_alt?: string
+  featured_image?: number | number[] | null // Linked image field (ID or array of IDs)
   alt_texts: string
   internal_links: string
   external_sources: string
@@ -42,6 +45,7 @@ interface BlogPostFormProps {
   onCancel: () => void
   isLoading?: boolean
   mode: 'create' | 'edit' | 'view'
+  clientId?: string // Required for image browser
 }
 
 const statusOptions = [
@@ -63,7 +67,8 @@ export default function BlogPostForm({
   onSubmit, 
   onCancel, 
   isLoading = false,
-  mode = 'edit'
+  mode = 'edit',
+  clientId = ''
 }: BlogPostFormProps) {
   const [formData, setFormData] = useState<BlogPostFormData>(
     initialData ? {
@@ -84,6 +89,7 @@ export default function BlogPostForm({
       featured_image_prompt: initialData.featured_image_prompt || '',
       featured_image_url: initialData.featured_image_url || '',
       featured_image_alt: initialData.featured_image_alt || '',
+      featured_image: initialData.featured_image || null,
       alt_texts: initialData.alt_texts || '',
       internal_links: initialData.internal_links || '',
       external_sources: initialData.external_sources || '',
@@ -107,6 +113,7 @@ export default function BlogPostForm({
       featured_image_prompt: '',
       featured_image_url: '',
       featured_image_alt: '',
+      featured_image: null,
       alt_texts: '',
       internal_links: '',
       external_sources: '',
@@ -117,14 +124,103 @@ export default function BlogPostForm({
   )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showImageBrowser, setShowImageBrowser] = useState(false)
+  const [featuredImagePreview, setFeaturedImagePreview] = useState<string | null>(
+    initialData?.featured_image_url || null
+  )
+
+  // Update preview when initialData changes
+  useEffect(() => {
+    if (initialData?.featured_image_url) {
+      setFeaturedImagePreview(initialData.featured_image_url)
+    }
+  }, [initialData?.featured_image_url])
 
   const handleInputChange = (field: keyof BlogPostFormData, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Update preview when featured_image_url changes
+    if (field === 'featured_image_url') {
+      setFeaturedImagePreview(value as string || null)
+    }
     
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+  }
+
+  // Handle image selection from browser
+  const handleSelectImageFromBrowser = (image: Partial<Image>) => {
+    console.log('Selected image from browser:', image)
+    
+    let imageId: number | null = null
+    let imageUrl: string = ''
+    let imageCaption: string = ''
+    let imagePrompt: string = ''
+    
+    // Cast image to any to access all possible properties
+    const imageObj = image as any
+    
+    if (image?.id) {
+      imageId = typeof image.id === 'string' ? parseInt(image.id, 10) : image.id
+      
+      // First try imageLinkUrl (capital L)
+      if (imageObj.imageLinkUrl && typeof imageObj.imageLinkUrl === 'string' && imageObj.imageLinkUrl.trim() !== '') {
+        imageUrl = imageObj.imageLinkUrl
+        console.log('Got image URL from imageLinkUrl:', imageUrl)
+      }
+      // Then try image array
+      else if (imageObj.image && Array.isArray(imageObj.image) && imageObj.image.length > 0 && imageObj.image[0].url) {
+        imageUrl = imageObj.image[0].url
+        console.log('Got image URL from image[0].url:', imageUrl)
+      }
+      // Fallback to imagelinkurl (lowercase)
+      else if (imageObj.imagelinkurl && typeof imageObj.imagelinkurl === 'string') {
+        imageUrl = imageObj.imagelinkurl
+        console.log('Got image URL from imagelinkurl (lowercase):', imageUrl)
+      }
+      // Try imageUrl directly
+      else if (imageObj.imageUrl && typeof imageObj.imageUrl === 'string') {
+        imageUrl = imageObj.imageUrl
+        console.log('Got image URL from imageUrl:', imageUrl)
+      }
+      
+      // Extract caption and prompt for alt text
+      imageCaption = imageObj.captionText || imageObj.caption || ''
+      imagePrompt = imageObj.imagePrompt || imageObj.prompt || ''
+    }
+    
+    if (!imageId) {
+      console.error('No image ID found in selected image:', image)
+      alert('Selected image does not have a valid ID.')
+      return
+    }
+
+    if (!imageUrl || imageUrl.trim() === '') {
+      console.warn('No valid image URL found, but will still link the image. Image object:', image)
+      // Still allow linking even without URL preview
+    }
+
+    console.log('Linking image to blog post - ID:', imageId, 'URL:', imageUrl)
+
+    // Update form data with both the linked image ID and URL
+    setFormData(prev => ({
+      ...prev,
+      featured_image: imageId, // Link the image by ID
+      featured_image_url: imageUrl || prev.featured_image_url, // Update URL if available
+      featured_image_alt: imageCaption || imagePrompt || prev.featured_image_alt || prev.title || '' // Use caption or prompt as alt text
+    }))
+    
+    // Update preview
+    if (imageUrl) {
+      setFeaturedImagePreview(imageUrl)
+    }
+    
+    // Close the browser
+    setShowImageBrowser(false)
+    
+    console.log('✅ Image linked to blog post')
   }
 
   const validateForm = (): boolean => {
@@ -394,24 +490,43 @@ export default function BlogPostForm({
 
           {/* Featured Image */}
           <div className="space-y-2">
-            <Label htmlFor="featured_image_url">Featured Image URL</Label>
-            <Input
-              id="featured_image_url"
-              value={formData.featured_image_url || ''}
-              onChange={(e) => handleInputChange('featured_image_url', e.target.value)}
-              placeholder="https://example.com/image.jpg or upload/generate image"
-              readOnly={isReadOnly}
-            />
-            {formData.featured_image_url && (
+            <Label htmlFor="featured_image_url">Featured Image</Label>
+            <div className="flex gap-2">
+              <Input
+                id="featured_image_url"
+                value={formData.featured_image_url || ''}
+                onChange={(e) => handleInputChange('featured_image_url', e.target.value)}
+                placeholder="https://example.com/image.jpg or browse from library"
+                readOnly={isReadOnly}
+                className="flex-1"
+              />
+              {!isReadOnly && clientId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowImageBrowser(true)}
+                  className="whitespace-nowrap"
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Browse Image
+                </Button>
+              )}
+            </div>
+            {(featuredImagePreview || formData.featured_image_url) && (
               <div className="mt-2 border rounded-lg p-2">
                 <img 
-                  src={formData.featured_image_url} 
+                  src={featuredImagePreview || formData.featured_image_url || ''} 
                   alt={formData.featured_image_alt || 'Featured image'} 
                   className="w-full max-w-md rounded"
                   onError={(e) => {
                     e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext x="50%" y="50%" text-anchor="middle" fill="%23999"%3EImage not found%3C/text%3E%3C/svg%3E'
                   }}
                 />
+                {formData.featured_image && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    ✓ Linked to image ID: {formData.featured_image}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -483,6 +598,16 @@ export default function BlogPostForm({
                 {isLoading ? 'Saving...' : mode === 'create' ? 'Create Post' : 'Save Changes'}
               </Button>
             </div>
+          )}
+
+          {/* Image Browser Modal */}
+          {showImageBrowser && clientId && (
+            <ImageBrowserModal
+              clientId={clientId}
+              onSelectImage={handleSelectImageFromBrowser}
+              onClose={() => setShowImageBrowser(false)}
+              isOpen={showImageBrowser}
+            />
           )}
         </form>
       </CardContent>
