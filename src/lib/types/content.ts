@@ -549,16 +549,54 @@ export const BRAND_ASSET_PRIORITY = {
 
 // Email Ideas Constants
 export const EMAIL_TYPES = {
-  WELCOME_ONBOARDING: 'Welcome & Onboarding Emails',
-  PROMOTIONAL: 'Promotional Emails',
-  NEWSLETTER_CONTENT: 'Newsletter / Content Emails',
-  LEAD_NURTURE_DRIP: 'Lead Nurture / Drip Emails',
-  EVENT_LAUNCH: 'Event or Launch Emails',
-  TRANSACTIONAL: 'Transactional Emails',
-  RE_ENGAGEMENT: 'Re-Engagement Emails',
-  CUSTOMER_LOYALTY_UPSELL: 'Customer Loyalty & Upsell Emails',
-  SURVEY_FEEDBACK: 'Survey & Feedback Emails'
+  WELCOME: 'Welcome',
+  PROMOTIONAL: 'Promotional',
+  NEWSLETTER: 'Newsletter'
 } as const
+
+// Email Media Section Types
+export type EmailSectionType = 'header' | 'body' | 'cta'
+export type EmailBodyType = 'text' | 'product'
+export type EmailMediaType = 'image' | 'video'
+
+export interface EmailMedia {
+  type: EmailMediaType | null
+  url: string | null
+  imageId: string | null // if from database
+  altText: string | null
+}
+
+export interface EmailSection {
+  id: string
+  type: EmailSectionType
+  order: number
+  media: EmailMedia
+  
+  // Header section content
+  hook?: string
+  ctaButton?: string | null
+  
+  // Body section content
+  bodyType?: EmailBodyType
+  bodyText?: string | null // for text type - guidance for AI
+  productName?: string | null // for product type
+  productDescription?: string | null // for product type
+  productCtaButton?: string | null // for product type
+  
+  // CTA section content
+  ctaUrl?: string
+  ctaButtonName?: string
+  ctaDescription?: string
+}
+
+export interface EmailMediaStructure {
+  emailType: 'Welcome' | 'Promotional' | 'Newsletter'
+  sections: EmailSection[]
+  contentSource: {
+    type: 'text' | 'voice' | 'url'
+    value: string
+  }
+}
 
 export const EMAIL_STATUS = {
   DRAFT: 'Draft',

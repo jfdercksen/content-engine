@@ -1,228 +1,458 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClientConfigForAPI } from '@/lib/utils/getClientConfigForAPI'
+import { emailIdeasFieldMapping } from '@/lib/baserow/fieldMappings'
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 Email idea generation webhook called - START')
+  
   try {
-    console.log('Email idea generation webhook called')
+    // Dynamic imports to avoid module loading issues
+    const { getClientConfigForAPI } = await import('@/lib/utils/getClientConfigForAPI')
+    const { BaserowAPI } = await import('@/lib/baserow/api')
+    
+    // Parse form data
     const formData = await request.formData()
     
-    // Extract form data
-    const emailIdeaName = formData.get('emailIdeaName') as string
-    const emailType = formData.get('emailType') as string
-    const hook = formData.get('hook') as string
-    const cta = formData.get('cta') as string
-    const emailTextIdea = formData.get('emailTextIdea') as string
-    const emailUrlIdea = formData.get('emailUrlIdea') as string
-    const status = formData.get('status') as string
-    const templates = formData.get('templates') as string
-    const selectedTemplateId = formData.get('templateId') as string
-    const selectedTemplateName = formData.get('selectedTemplateName') as string
+    // Extract new structure data
     const emailIdeaId = formData.get('emailIdeaId') as string
+    const clientId = formData.get('clientId') as string
+    const emailMediaStructureJson = formData.get('emailMediaStructure') as string
+    const emailType = formData.get('emailType') as string
+    const contentSourceType = formData.get('contentSourceType') as string
+    const contentSourceValue = formData.get('contentSourceValue') as string
+    const sectionsCount = formData.get('sectionsCount') as string
     
-    // Extract new content source fields
-    const contentSource = formData.get('contentSource') as string
-    const useUrlAsCta = formData.get('useUrlAsCta') as string
-    const useVideoInEmail = formData.get('useVideoInEmail') as string
+    // Parse emailMediaStructure JSON
+    let emailMediaStructure: any = null
+    if (emailMediaStructureJson) {
+      try {
+        emailMediaStructure = JSON.parse(emailMediaStructureJson)
+      } catch (e) {
+        console.error('Failed to parse emailMediaStructure:', e)
+      }
+    }
     
-    // Extract image slots data
-    const imageSlotsCount = formData.get('imageCount') as string
-    const imageSlots: any[] = []
-    
-    if (imageSlotsCount) {
-      const count = parseInt(imageSlotsCount)
+    // Extract individual sections from FormData
+    const sections: any[] = []
+    if (sectionsCount) {
+      const count = parseInt(sectionsCount)
       for (let i = 0; i < count; i++) {
-        const position = formData.get(`image_${i}_position`) as string
-        const imageId = formData.get(`image_${i}_id`) as string
-        const imageUrl = formData.get(`image_${i}_url`) as string
-        
-        if (position) {
-          imageSlots.push({
-            position,
-            imageId,
-            imageUrl,
-            finalUrl: imageUrl
-          })
+        const sectionJson = formData.get(`section_${i}`) as string
+        if (sectionJson) {
+          try {
+            const section = JSON.parse(sectionJson)
+            sections.push(section)
+          } catch (e) {
+            console.error(`Failed to parse section_${i}:`, e)
+          }
         }
       }
     }
     
-    // Extract voice and video files
-    const voiceFiles: any[] = []
-    const videoFiles: any[] = []
-    
-    // Get all voice files
-    const voiceFileEntries = formData.getAll('emailVoiceIdea')
-    voiceFileEntries.forEach((entry, index) => {
-      if (entry instanceof File) {
-        voiceFiles.push({
-          name: entry.name,
-          size: entry.size,
-          type: entry.type,
-          index
-        })
+    // Use emailMediaStructure if available, otherwise build from individual fields
+    if (!emailMediaStructure && emailType) {
+      emailMediaStructure = {
+        emailType: emailType,
+        sections: sections.length > 0 ? sections : [],
+        contentSource: {
+          type: contentSourceType || 'text',
+          value: contentSourceValue || ''
+        }
       }
-    })
+    }
+
+    // Get client ID - use from form data or default
+    const finalClientId = clientId || 'modern-management'
     
-    // Get all video files
-    const videoFileEntries = formData.getAll('emailVideoIdea')
-    videoFileEntries.forEach((entry, index) => {
-      if (entry instanceof File) {
-        videoFiles.push({
-          name: entry.name,
-          size: entry.size,
-          type: entry.type,
-          index
-        })
-      }
-    })
-    
-    console.log('Extracted form data:', {
-      emailIdeaName,
-      emailType,
-      hook,
-      cta,
-      emailTextIdea,
-      emailUrlIdea,
-      status,
-      templates,
-      selectedTemplateId,
-      selectedTemplateName,
-      emailIdeaId,
-      contentSource,
-      useUrlAsCta,
-      useVideoInEmail,
-      imageSlotsCount,
-      imageSlots,
-      voiceFiles: voiceFiles.length,
-      videoFiles: videoFiles.length
-    })
-    
-    console.log('Template details:', {
-      templatesRaw: templates,
-      templatesParsed: templates ? JSON.parse(templates) : [],
-      selectedTemplateId,
-      selectedTemplateName
-    })
-    
-    // Get client ID from the request URL or form data
-    const clientId = formData.get('clientId') as string || 'modern-management'
-    console.log('Client ID:', clientId)
-    const clientConfig = await getClientConfigForAPI(clientId)
-    
+    // Get client configuration (same as working route)
+    const clientConfig = await getClientConfigForAPI(finalClientId)
     if (!clientConfig) {
-      console.error('❌ Client not found:', clientId)
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+      console.error('❌ Client configuration not found for:', finalClientId)
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      )
     }
     
-    console.log('✅ Client config found for:', clientId)
+    console.log('✅ Client config found for:', finalClientId)
+
+    // Get base URL from env or use default
+    const baserowBaseUrl = process.env.BASEROW_BASE_URL || process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za'
 
     console.log('Client config:', {
       name: clientConfig.name,
       hasBaserow: !!clientConfig.baserow,
-      baseUrl: clientConfig.baserow?.baseUrl,
       databaseId: clientConfig.baserow?.databaseId,
       hasToken: !!clientConfig.baserow?.token
     })
 
-    // Prepare n8n payload similar to content ideas
+    // Fetch image URLs for sections that have imageId but no URL
+    const allSections = emailMediaStructure?.sections || sections || []
+    const imagesTableId = clientConfig.baserow?.tables?.images
+    
+    if (imagesTableId) {
+      const sectionsNeedingUrls = allSections.filter((s: any) => 
+        s.media?.imageId && !s.media?.url
+      )
+      
+      if (sectionsNeedingUrls.length > 0) {
+        console.log(`📸 Fetching ${sectionsNeedingUrls.length} image URL(s) from Baserow...`)
+        
+        for (const section of sectionsNeedingUrls) {
+          try {
+            const imageId = section.media.imageId
+            const imageResponse = await fetch(
+              `${baserowBaseUrl}/api/database/rows/table/${imagesTableId}/${imageId}/?user_field_names=true`,
+              {
+                headers: {
+                  'Authorization': `Token ${clientConfig.baserow.token}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            )
+            
+            if (imageResponse.ok) {
+              const imageData = await imageResponse.json()
+              
+              // Log available fields for debugging
+              console.log(`🔍 Image ${imageId} fields:`, Object.keys(imageData))
+              
+              // Extract URL - check "Image" field first (capital I, array format)
+              let imageUrl = ''
+              
+              // Method 1: Check "Image" field (capital I) - array format: [{ url: "..." }]
+              if (imageData.Image && Array.isArray(imageData.Image) && imageData.Image[0]?.url) {
+                imageUrl = imageData.Image[0].url
+                console.log(`✅ Found URL in Image[0].url`)
+              }
+              // Method 2: Check "image" field (lowercase) - array format
+              else if (imageData.image && Array.isArray(imageData.image) && imageData.image[0]?.url) {
+                imageUrl = imageData.image[0].url
+                console.log(`✅ Found URL in image[0].url`)
+              }
+              // Method 3: Check "Image Link URL" field
+              else if (imageData['Image Link URL']) {
+                imageUrl = imageData['Image Link URL']
+                console.log(`✅ Found URL in Image Link URL`)
+              }
+              // Method 4: Check imageLinkUrl (camelCase)
+              else if (imageData.imageLinkUrl) {
+                imageUrl = imageData.imageLinkUrl
+                console.log(`✅ Found URL in imageLinkUrl`)
+              }
+              // Method 5: Check nested image.url
+              else if (imageData.image?.url) {
+                imageUrl = imageData.image.url
+                console.log(`✅ Found URL in image.url`)
+              }
+              // Method 6: Check direct url field
+              else if (imageData.url) {
+                imageUrl = imageData.url
+                console.log(`✅ Found URL in url`)
+              }
+              // Method 7: Check field IDs (common Baserow field IDs for images)
+              else {
+                // Try common field ID patterns
+                const fieldKeys = Object.keys(imageData).filter(k => k.startsWith('field_'))
+                for (const fieldKey of fieldKeys) {
+                  const fieldValue = imageData[fieldKey]
+                  if (Array.isArray(fieldValue) && fieldValue[0]?.url) {
+                    imageUrl = fieldValue[0].url
+                    console.log(`✅ Found URL in ${fieldKey}[0].url`)
+                    break
+                  }
+                }
+              }
+              
+              // Extract alt text
+              const altText = imageData['Caption Text'] || 
+                            imageData.captionText || 
+                            imageData.imagePrompt || 
+                            imageData.altText || 
+                            ''
+              
+              if (imageUrl) {
+                section.media.url = imageUrl
+                if (altText && !section.media.altText) {
+                  section.media.altText = altText
+                }
+                console.log(`✅ Fetched image URL for imageId ${imageId}: ${imageUrl.substring(0, 50)}...`)
+              } else {
+                console.warn(`⚠️ Image ${imageId} found but no URL available. Available fields:`, Object.keys(imageData))
+                console.warn(`⚠️ Image data sample:`, JSON.stringify(imageData, null, 2).substring(0, 500))
+              }
+            } else {
+              console.error(`❌ Failed to fetch image ${imageId}: ${imageResponse.statusText}`)
+            }
+          } catch (imageError) {
+            console.error(`⚠️ Error fetching image ${section.media.imageId}:`, imageError)
+            // Continue with other images
+          }
+        }
+      }
+    }
+
+    // Extract product names from body sections and fetch Product UVP details
+    const productSections = allSections.filter(
+      (s: any) => s.type === 'body' && s.bodyType === 'product' && s.productName
+    )
+    const productNames = productSections.map((s: any) => s.productName).filter(Boolean)
+    
+    console.log('=== Product UVP Fetching ===')
+    console.log('Product sections found:', productSections.length)
+    console.log('Product names:', productNames)
+    
+    let productUvpDataArray: any[] = []
+    if (productNames.length > 0 && clientConfig.baserow?.tables?.productUvps) {
+      try {
+        const productUvpsTableId = clientConfig.baserow.tables.productUvps
+        
+        // Fetch all product UVPs directly
+        const uvpsResponse = await fetch(
+          `${baserowBaseUrl}/api/database/rows/table/${productUvpsTableId}/?user_field_names=true`,
+          {
+            headers: {
+              'Authorization': `Token ${clientConfig.baserow.token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+        
+        if (!uvpsResponse.ok) {
+          throw new Error(`Failed to fetch Product UVPs: ${uvpsResponse.statusText}`)
+        }
+        
+        const uvpsData = await uvpsResponse.json()
+        const allUvps = uvpsData.results || []
+        console.log(`Found ${allUvps.length} total Product UVPs in database`)
+        
+        // Match product names to UVPs
+        for (const productName of productNames) {
+          const matchingUvp = allUvps.find((uvp: any) => {
+            const uvpName = uvp['Product/Service Name'] || uvp.productServiceName || ''
+            return uvpName.toLowerCase().trim() === productName.toLowerCase().trim()
+          })
+          
+          if (matchingUvp) {
+            const uvpData = {
+              id: matchingUvp.id,
+              productName: matchingUvp['Product/Service Name'] || matchingUvp.productServiceName || '',
+              productUrl: matchingUvp['Product/Service URL'] || matchingUvp.productUrl || '',
+              customerType: matchingUvp['Customer Type'] || matchingUvp.customerType || '',
+              industryCategory: matchingUvp['Industry Category'] || matchingUvp.industryCategory || '',
+              problemSolved: matchingUvp['Problem Solved'] || matchingUvp.problemSolved || '',
+              keyDifferentiator: matchingUvp['Key Differentiator'] || matchingUvp.keyDifferentiator || '',
+              uvp: matchingUvp['UVP'] || matchingUvp.uvp || '',
+              // Baserow metadata
+              baserow: {
+                tableId: productUvpsTableId,
+                recordId: matchingUvp.id
+              }
+            }
+            productUvpDataArray.push(uvpData)
+            console.log(`✅ Matched Product UVP for "${productName}":`, uvpData.id)
+          } else {
+            console.log(`⚠️ No Product UVP found for "${productName}"`)
+          }
+        }
+        
+        console.log(`✅ Fetched ${productUvpDataArray.length} Product UVP(s)`)
+      } catch (uvpError) {
+        console.error('⚠️ Error fetching Product UVP details:', uvpError)
+        // Continue without UVP data if fetch fails
+      }
+    }
+
+    // Validate required baserow config
+    if (!clientConfig.baserow) {
+      console.error('❌ Baserow config not found for client:', finalClientId)
+      return NextResponse.json({ 
+        error: 'Baserow configuration not found for this client' 
+      }, { status: 500 })
+    }
+
+    if (!clientConfig.baserow.databaseId || !clientConfig.baserow.token) {
+      console.error('❌ Incomplete Baserow config:', {
+        hasDatabaseId: !!clientConfig.baserow.databaseId,
+        hasToken: !!clientConfig.baserow.token
+      })
+      return NextResponse.json({ 
+        error: 'Incomplete Baserow configuration' 
+      }, { status: 500 })
+    }
+
+    // Prepare n8n payload with new structure
     const n8nPayload = {
-      client_id: clientId,
+      client_id: finalClientId,
       base_id: clientConfig.baserow.databaseId,
-      table_id: "730", // Email Ideas table ID
+      table_id: clientConfig.baserow.tables?.emailIdeas || "730", // Email Ideas table ID
       event: "email_idea_generation",
       timestamp: new Date().toISOString(),
-      clientId: clientId,
+      clientId: finalClientId,
       client: {
-        name: clientConfig.name,
-        id: clientId
+        name: clientConfig.name || finalClientId,
+        id: finalClientId
       },
       tables: {
         emailIdeas: {
-          id: "730",
-          recordId: null // Will be set after creation
+          id: clientConfig.baserow.tables?.emailIdeas || "730",
+          recordId: emailIdeaId || null
+        },
+        brandAssets: {
+          id: clientConfig.baserow.tables?.brandAssets || ''
+        },
+        images: {
+          id: clientConfig.baserow.tables?.images || ''
         },
         templates: {
-          id: "731" // Templates table ID
+          id: clientConfig.baserow.tables?.templates || ''
         }
       },
       baserow: {
-        baseUrl: clientConfig.baserow.baseUrl,
+        baseUrl: baserowBaseUrl,
         databaseId: clientConfig.baserow.databaseId,
         token: clientConfig.baserow.token,
-        tableId: "730",
-        recordId: null
+        tableId: clientConfig.baserow.tables?.emailIdeas || "730",
+        recordId: emailIdeaId || null
       },
-      emailIdea: {
-        emailIdeaName,
-        emailType,
-        hook,
-        cta,
-        emailTextIdea,
-        emailUrlIdea,
-        status,
-        templates: templates ? JSON.parse(templates) : [],
-        selectedTemplateId,
-        selectedTemplateName,
-        contentSource,
-        useUrlAsCta: useUrlAsCta === 'true',
-        useVideoInEmail: useVideoInEmail === 'true',
-        imageSlots,
-        voiceFiles,
-        videoFiles
+      // New email structure (use updated sections with fetched URLs)
+      emailMediaStructure: {
+        ...emailMediaStructure,
+        sections: allSections
       },
+      emailType: emailType,
+      contentSource: {
+        type: contentSourceType || emailMediaStructure?.contentSource?.type || 'text',
+        value: contentSourceValue || emailMediaStructure?.contentSource?.value || ''
+      },
+      sections: allSections,
+      sectionsCount: sections.length || emailMediaStructure?.sections?.length || 0,
+      // Product UVP information (if products are in sections)
+      productUVPs: productUvpDataArray,
+      productUVPsCount: productUvpDataArray.length,
+      hasProductUVPs: productUvpDataArray.length > 0,
+      // Metadata
+      emailIdeaId: emailIdeaId,
       metadata: {
         createdAt: new Date().toISOString(),
         source: "content-engine-app",
-        version: "1.0",
+        version: "2.0", // Updated version for new structure
         contentType: "email_idea"
       }
     }
 
-    // Use the record ID from the form data if available, otherwise create a new record
-    let finalRecordId = emailIdeaId
+    // Add Product UVPs table info if available
+    if (clientConfig.baserow.tables.productUvps) {
+      (n8nPayload.tables as any).productUvps = {
+        id: clientConfig.baserow.tables.productUvps
+      }
+    }
+
+    // Prepare email ideas field mappings for the workflow
+    // Get client-specific mappings if available, otherwise use defaults
+    const clientEmailIdeaMappings: Record<string, any> = (clientConfig.fieldMappings?.emailIdeas as Record<string, any>) || {}
+    
+    // Create both forward (fieldId -> fieldName) and reverse (fieldName -> fieldId) mappings
+    const emailIdeasFieldMappings: Record<string, string> = {}
+    const emailIdeasReverseMappings: Record<string, string> = {}
+    
+    // Start with default mappings
+    for (const [fieldId, fieldName] of Object.entries(emailIdeasFieldMapping)) {
+      emailIdeasFieldMappings[fieldId] = fieldName as string
+      emailIdeasReverseMappings[fieldName as string] = fieldId
+    }
+    
+    // Override with client-specific mappings if they exist
+    // Client mappings might be in format: { "fieldName": "field_XXXXX" } or { "fieldName": number }
+    for (const [fieldName, fieldId] of Object.entries(clientEmailIdeaMappings)) {
+      const fieldIdValue = String(fieldId)
+      if (fieldIdValue.startsWith('field_')) {
+        emailIdeasFieldMappings[fieldIdValue] = fieldName
+        emailIdeasReverseMappings[fieldName] = fieldIdValue
+      } else if (!isNaN(Number(fieldId))) {
+        // Handle numeric field IDs
+        const fieldIdStr = `field_${fieldId}`
+        emailIdeasFieldMappings[fieldIdStr] = fieldName
+        emailIdeasReverseMappings[fieldName] = fieldIdStr
+      }
+    }
+    
+    // Build common fields using dynamic mappings (no hardcoded fallbacks)
+    // Try multiple field name variations to find the correct mapping
+    const findFieldId = (possibleNames: string[]): string | null => {
+      for (const name of possibleNames) {
+        if (emailIdeasReverseMappings[name]) {
+          return emailIdeasReverseMappings[name]
+        }
+      }
+      return null
+    }
+    
+    const generatedHtmlFieldId = findFieldId(['generatedHtml', 'generatedhtml', 'generated_html', 'generatedHtml'])
+    const statusFieldId = findFieldId(['status', 'Status'])
+    const emailIdeaNameFieldId = findFieldId(['emailIdeaName', 'emailideaname', 'email_idea_name', 'emailIdeaName'])
+    const emailTypeFieldId = findFieldId(['emailType', 'emailtype', 'email_type', 'emailType'])
+    const emailTextIdeaFieldId = findFieldId(['emailTextIdea', 'emailtextidea', 'email_text_idea', 'emailTextIdea'])
+    
+    // Add field mappings directly to payload so workflow can update fields
+    // This allows the workflow to know which Baserow field IDs correspond to which fields
+    ;(n8nPayload as any).emailIdeasFieldMappings = {
+      // Forward mapping: field_XXXXX -> fieldName
+      fieldIdToName: emailIdeasFieldMappings,
+      // Reverse mapping: fieldName -> field_XXXXX  
+      nameToFieldId: emailIdeasReverseMappings,
+      // Common field IDs that workflow will need (for easy access) - only include if found
+      commonFields: {
+        ...(generatedHtmlFieldId && { generatedHtml: generatedHtmlFieldId }),
+        ...(statusFieldId && { status: statusFieldId }),
+        ...(emailIdeaNameFieldId && { emailIdeaName: emailIdeaNameFieldId }),
+        ...(emailTypeFieldId && { emailType: emailTypeFieldId }),
+        ...(emailTextIdeaFieldId && { emailTextIdea: emailTextIdeaFieldId })
+      }
+    }
+    
+    console.log('=== Email Ideas Field Mappings ===')
+    console.log('Field mappings added to payload:', {
+      totalFields: Object.keys(emailIdeasFieldMappings).length,
+      clientMappingsUsed: Object.keys(clientEmailIdeaMappings).length > 0,
+      commonFields: (n8nPayload as any).emailIdeasFieldMappings.commonFields
+    })
+    
+    if (!generatedHtmlFieldId) {
+      console.warn('⚠️ Generated HTML field ID not found in mappings. Available field names:', Object.keys(emailIdeasReverseMappings))
+    }
+    
+    console.log('=== N8N Payload ===')
+    console.log('Payload (without token):', JSON.stringify({
+      ...n8nPayload,
+      baserow: { ...n8nPayload.baserow, token: '***REDACTED***' }
+    }, null, 2))
+
+    // Use the record ID from the form data (record should already be created)
+    const finalRecordId = emailIdeaId || null
     
     if (!finalRecordId) {
-      // Create the email idea record FIRST (before sending to n8n)
-      try {
-        const createResponse = await fetch(`${clientConfig.baserow.baseUrl}/api/database/rows/table/730/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${clientConfig.baserow.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            field_7199: emailIdeaName,
-            field_7200: emailType,
-            field_7202: hook,
-            field_7203: cta,
-            field_7211: emailTextIdea,
-            field_7212: emailUrlIdea,
-            field_7216: new Date().toISOString().split('T')[0],
-            field_7223: '', // Empty initially
-            field_7224: templates ? JSON.parse(templates) : []
-          })
-        })
-
-        if (createResponse.ok) {
-          const createResult = await createResponse.json()
-          finalRecordId = createResult.id
-          console.log('Email idea created in Baserow with ID:', finalRecordId)
-        } else {
-          console.error('Failed to create record in Baserow:', await createResponse.text())
+      console.error('❌ No emailIdeaId provided - record must be created first')
+      return NextResponse.json({ 
+        error: 'Email idea ID is required. Record must be created before workflow processing.',
+        receivedData: {
+          emailIdeaId: emailIdeaId,
+          clientId: finalClientId,
+          hasEmailMediaStructure: !!emailMediaStructure
         }
-      } catch (error) {
-        console.error('Error creating record in Baserow:', error)
-      }
-    } else {
-      console.log('Using record ID from form data:', finalRecordId)
+      }, { status: 400 })
     }
+    
+    console.log('Using email idea ID from form data:', finalRecordId)
 
     // Update the n8n payload with the record ID
-    if (finalRecordId) {
+    if (n8nPayload.tables?.emailIdeas) {
       n8nPayload.tables.emailIdeas.recordId = finalRecordId
-      n8nPayload.baserow.recordId = finalRecordId
-      console.log('Updated n8n payload with record ID:', finalRecordId)
     }
+    if (n8nPayload.baserow) {
+      n8nPayload.baserow.recordId = finalRecordId
+    }
+    n8nPayload.emailIdeaId = finalRecordId
+    console.log('Updated n8n payload with record ID:', finalRecordId)
 
     // Send to n8n webhook
     console.log('All environment variables:', {
@@ -232,18 +462,12 @@ export async function POST(request: NextRequest) {
       BASEROW_BASE_URL: process.env.BASEROW_BASE_URL
     })
     
-    // Get webhook URL from client settings or environment
-    const { getWebhookUrl } = await import('@/lib/utils/getWebhookUrl')
-    const n8nWebhookUrl = await getWebhookUrl(clientId, 'email_processor')
+    // Get webhook URL - use environment variable or default (simplified to avoid module loading issues)
+    const n8nWebhookUrl = process.env.N8N_EMAIL_IDEA_WEBHOOK_URL 
+      || process.env.WEBHOOK_EMAIL_PROCESSOR 
+      || 'https://n8n.aiautomata.co.za/webhook/email-processor'
     
-    if (!n8nWebhookUrl) {
-      console.error('❌ Email webhook URL not configured')
-      return NextResponse.json({ 
-        error: 'Email webhook URL not configured. Please configure in Settings.' 
-      }, { status: 500 })
-    }
-    
-    console.log('📡 Using email webhook:', n8nWebhookUrl)
+    console.log('✅ Step 9: Webhook URL determined:', n8nWebhookUrl)
 
     console.log('Sending email idea generation request to n8n with record ID:', finalRecordId)
     console.log('Updated n8n payload:', n8nPayload)
@@ -251,25 +475,27 @@ export async function POST(request: NextRequest) {
     console.log('Email webhook payload token length:', n8nPayload.baserow.token?.length)
 
     // Update status to "Generating" before sending to n8n
-    if (finalRecordId && clientConfig?.baserow?.baseUrl) {
+    const emailIdeasTableId = clientConfig.baserow.tables?.emailIdeas || "730"
+    if (finalRecordId && emailIdeasTableId) {
       try {
-        await fetch(`${clientConfig.baserow.baseUrl}/api/database/rows/table/730/${finalRecordId}/`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Token ${clientConfig.baserow.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            field_7215: 'Generating' // Update status to "Generating"
-          })
+        const baserowAPI = new BaserowAPI(
+          clientConfig.baserow.token,
+          clientConfig.baserow.databaseId,
+          clientConfig.fieldMappings
+        )
+        
+        await baserowAPI.updateEmailIdea(emailIdeasTableId, finalRecordId, {
+          status: 'Generating'
         })
         console.log('Updated email idea status to "Generating"')
       } catch (error) {
         console.error('Error updating status to Generating:', error)
+        // Don't fail the request if status update fails
       }
     }
 
-    console.log('Making request to n8n webhook...')
+    console.log('✅ Step 10: Making request to n8n webhook:', n8nWebhookUrl)
+    console.log('📦 Payload size:', JSON.stringify(n8nPayload).length, 'bytes')
     
     // Send to n8n asynchronously (fire-and-forget)
     fetch(n8nWebhookUrl, {
@@ -279,7 +505,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(n8nPayload)
     }).then(async (n8nResponse) => {
-      console.log('N8N response status:', n8nResponse.status)
+      console.log('✅ Step 11: N8N webhook responded with status:', n8nResponse.status)
       
       if (n8nResponse.ok) {
         const n8nResult = await n8nResponse.json()
@@ -289,25 +515,19 @@ export async function POST(request: NextRequest) {
         const generatedHtml = n8nResult.generatedHtml || n8nResult.html || ''
 
         // Update the record with generated HTML and status
-        if (finalRecordId && clientConfig?.baserow?.baseUrl) {
+        if (finalRecordId && emailIdeasTableId) {
           try {
-            const updateResponse = await fetch(`${clientConfig.baserow.baseUrl}/api/database/rows/table/730/${finalRecordId}/`, {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Token ${clientConfig.baserow.token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                field_7223: generatedHtml, // Update with generated HTML
-                field_7215: 'Generated' // Update status to "Generated"
-              })
+            const baserowAPI = new BaserowAPI(
+              clientConfig.baserow.token,
+              clientConfig.baserow.databaseId,
+              clientConfig.fieldMappings || {}
+            )
+            
+            await baserowAPI.updateEmailIdea(emailIdeasTableId, finalRecordId, {
+              generatedHtml: generatedHtml,
+              status: 'Generated'
             })
-
-            if (updateResponse.ok) {
               console.log('Email idea updated with generated HTML and status')
-            } else {
-              console.error('Failed to update record with generated HTML:', await updateResponse.text())
-            }
           } catch (error) {
             console.error('Error updating record with generated HTML:', error)
           }
@@ -317,40 +537,40 @@ export async function POST(request: NextRequest) {
         console.error('N8N webhook failed:', n8nResponse.status, errorText)
         
         // Update status to "Failed" if n8n fails
-        if (finalRecordId && clientConfig?.baserow?.baseUrl) {
+        if (finalRecordId && emailIdeasTableId) {
           try {
-            await fetch(`${clientConfig.baserow.baseUrl}/api/database/rows/table/730/${finalRecordId}/`, {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Token ${clientConfig.baserow.token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                field_7215: 'Failed' // Update status to "Failed"
-              })
+            const baserowAPI = new BaserowAPI(
+              clientConfig.baserow.token,
+              clientConfig.baserow.databaseId,
+              clientConfig.fieldMappings || {}
+            )
+            
+            await baserowAPI.updateEmailIdea(emailIdeasTableId, finalRecordId, {
+              status: 'Failed'
             })
           } catch (error) {
             console.error('Error updating status to Failed:', error)
           }
         }
       }
-    }).catch((error) => {
+    }).catch(async (error) => {
       console.error('Error sending to n8n webhook:', error)
       
       // Update status to "Failed" if there's an error
-      if (finalRecordId && clientConfig?.baserow?.baseUrl) {
-        fetch(`${clientConfig.baserow.baseUrl}/api/database/rows/table/730/${finalRecordId}/`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Token ${clientConfig.baserow.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            field_7215: 'Failed' // Update status to "Failed"
+      if (finalRecordId && emailIdeasTableId) {
+        try {
+          const baserowAPI = new BaserowAPI(
+            clientConfig.baserow.token,
+            clientConfig.baserow.databaseId,
+            clientConfig.fieldMappings || {}
+          )
+          
+          await baserowAPI.updateEmailIdea(emailIdeasTableId, finalRecordId, {
+            status: 'Failed'
           })
-        }).catch(updateError => {
+        } catch (updateError) {
           console.error('Error updating status to Failed:', updateError)
-        })
+        }
       }
     })
 
@@ -363,7 +583,30 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in email idea generation webhook:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('❌ Error in email idea generation webhook:', error)
+    
+    // Log full error details
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    } else {
+      console.error('Non-Error object:', JSON.stringify(error, null, 2))
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // Return a proper JSON error response
+    return NextResponse.json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+      timestamp: new Date().toISOString()
+    }, { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
   }
 }

@@ -54,6 +54,15 @@ export default function EmailIdeasPage() {
         const data = await response.json()
         console.log('fetchEmailIdeas: Fetched data:', data)
         console.log('fetchEmailIdeas: Results count:', data.results?.length || 0)
+        
+        // Log first result to debug field names
+        if (data.results && data.results.length > 0) {
+          console.log('🔍 First email idea raw data:', data.results[0])
+          console.log('🔍 First email idea keys:', Object.keys(data.results[0]))
+          console.log('🔍 emailideaname field:', data.results[0].emailideaname)
+          console.log('🔍 emailIdeaName field:', data.results[0].emailIdeaName)
+        }
+        
         setEmailIdeas(data.results || [])
         console.log('fetchEmailIdeas: State updated with', data.results?.length || 0, 'items')
       } else {
@@ -68,12 +77,32 @@ export default function EmailIdeasPage() {
   }
 
   const filteredEmailIdeas = emailIdeas.filter(idea => {
-    const matchesSearch = (idea.emailIdeaName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (idea.hook || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (idea.cta || '').toLowerCase().includes(searchTerm.toLowerCase())
+    // Helper function to safely get string value from field (handles objects from single select fields)
+    const getStringValue = (value: any): string => {
+      if (typeof value === 'string') return value
+      if (typeof value === 'number') return String(value)
+      if (value && typeof value === 'object' && value.value) return value.value
+      return ''
+    }
+
+    // Helper to get field value from either camelCase or lowercase field names
+    const getField = (camelCase: string, lowercase: string): any => {
+      return (idea as any)[camelCase] || (idea as any)[lowercase]
+    }
+
+    const emailIdeaName = getStringValue(getField('emailIdeaName', 'emailideaname'))
+    const hook = getStringValue(getField('hook', 'hook'))
+    const cta = getStringValue(getField('cta', 'cta'))
     
-    const matchesStatus = statusFilter === 'all' || idea.status === statusFilter
-    const matchesType = typeFilter === 'all' || idea.emailType === typeFilter
+    const matchesSearch = emailIdeaName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         hook.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cta.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const statusValue = getStringValue(getField('status', 'status'))
+    const emailTypeValue = getStringValue(getField('emailType', 'emailtype'))
+    
+    const matchesStatus = statusFilter === 'all' || statusValue === statusFilter
+    const matchesType = typeFilter === 'all' || emailTypeValue === typeFilter
 
     return matchesSearch && matchesStatus && matchesType
   })
@@ -129,8 +158,53 @@ export default function EmailIdeasPage() {
     setEditingEmailIdea(emailIdea)
   }
 
-  const handleViewEmailIdea = (emailIdea: EmailIdea) => {
-    setPreviewingEmailIdea(emailIdea)
+  const handleViewEmailIdea = async (emailIdeaId: string) => {
+    // Fetch the full email idea to ensure we have the latest generatedHtml
+    try {
+      console.log('🔍 Fetching email idea for preview:', emailIdeaId)
+      const response = await fetch(`/api/baserow/${clientId}/email-ideas/${emailIdeaId}`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🔍 Email idea fetched for preview:', data)
+        
+        // The response has the full email idea data with all fields
+        // Handle both response.data and direct response
+        const emailIdeaData = data.data || data
+        
+        // Ensure generatedHtml is accessible (check both formats)
+        const generatedHtml = emailIdeaData.generatedHtml || emailIdeaData.generatedhtml || ''
+        console.log('🔍 Generated HTML found:', generatedHtml ? `${generatedHtml.length} characters` : 'empty')
+        
+        // Normalize the data to have both camelCase and lowercase fields for compatibility
+        const normalizedEmailIdea = {
+          ...emailIdeaData,
+          generatedHtml: generatedHtml,
+          generatedhtml: generatedHtml,
+          emailIdeaName: emailIdeaData.emailIdeaName || emailIdeaData.emailideaname || '',
+          emailideaname: emailIdeaData.emailideaname || emailIdeaData.emailIdeaName || '',
+          emailType: emailIdeaData.emailType || emailIdeaData.emailtype || '',
+          emailtype: emailIdeaData.emailtype || emailIdeaData.emailType || '',
+          status: emailIdeaData.status || '',
+          lastModified: emailIdeaData.lastModified || emailIdeaData.lastmodified || ''
+        }
+        
+        setPreviewingEmailIdea(normalizedEmailIdea)
+      } else {
+        console.error('Failed to fetch email idea for preview:', response.statusText)
+        // Fallback to using the email idea from the list
+        const emailIdea = emailIdeas.find(idea => String(idea.id) === String(emailIdeaId))
+        if (emailIdea) {
+          setPreviewingEmailIdea(emailIdea)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching email idea for preview:', error)
+      // Fallback to using the email idea from the list
+      const emailIdea = emailIdeas.find(idea => String(idea.id) === String(emailIdeaId))
+      if (emailIdea) {
+        setPreviewingEmailIdea(emailIdea)
+      }
+    }
   }
 
   const handleCancelEdit = () => {
@@ -356,23 +430,66 @@ export default function EmailIdeasPage() {
               </div>
             ) : viewMode === 'cards' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredEmailIdeas.map((idea) => (
-                  <EmailIdeaCard
-                    key={idea.id}
-                    email={{
+                {filteredEmailIdeas.map((idea) => {
+                  // Helper to safely get field value (handle both camelCase and lowercase, and extract from objects)
+                  const getFieldValue = (camelCase: string, lowercase: string): string => {
+                    // Try multiple field name variations
+                    const possibleKeys = [camelCase, lowercase, camelCase.toLowerCase(), lowercase.toLowerCase()]
+                    let value: any = undefined
+                    
+                    for (const key of possibleKeys) {
+                      if ((idea as any)[key] !== undefined && (idea as any)[key] !== null && (idea as any)[key] !== '') {
+                        value = (idea as any)[key]
+                        break
+                      }
+                    }
+                    
+                    if (value === undefined || value === null) return ''
+                    
+                    // Handle select field objects
+                    if (typeof value === 'object' && !Array.isArray(value) && value.value) {
+                      return String(value.value)
+                    }
+                    // Handle arrays - skip empty arrays
+                    if (Array.isArray(value) && value.length === 0) return ''
+                    // Return string representation
+                    return String(value)
+                  }
+                  
+                  // Debug log for first item to see what we're working with
+                  if (filteredEmailIdeas.indexOf(idea) === 0) {
+                    console.log('🔍 Rendering first email idea card:', {
                       id: idea.id,
-                      emailideaname: idea.emailIdeaName,
-                      emailtype: idea.emailType,
-                      hook: idea.hook,
-                      cta: idea.cta,
-                      emailtextidea: idea.emailTextIdea,
-                      status: idea.status,
-                      createddate: idea.createdDate
-                    }}
-                    onView={() => setPreviewingEmailIdea(idea)}
-                    onEdit={() => { setEditingEmailIdea(idea); setShowCreateForm(true); }}
-                  />
-                ))}
+                      emailideaname_raw: (idea as any).emailideaname,
+                      emailIdeaName_raw: (idea as any).emailIdeaName,
+                      emailtype_raw: (idea as any).emailtype,
+                      emailType_raw: (idea as any).emailType,
+                      status_raw: (idea as any).status,
+                      allKeys: Object.keys(idea),
+                      extracted_emailideaname: getFieldValue('emailIdeaName', 'emailideaname'),
+                      extracted_emailtype: getFieldValue('emailType', 'emailtype'),
+                      extracted_status: getFieldValue('status', 'status')
+                    })
+                  }
+                  
+                  return (
+                    <EmailIdeaCard
+                      key={idea.id}
+                      email={{
+                        id: String(idea.id || (idea as any).id),
+                        emailideaname: getFieldValue('emailIdeaName', 'emailideaname'),
+                        emailtype: getFieldValue('emailType', 'emailtype'),
+                        hook: getFieldValue('hook', 'hook'),
+                        cta: getFieldValue('cta', 'cta'),
+                        emailtextidea: getFieldValue('emailTextIdea', 'emailtextidea'),
+                        status: getFieldValue('status', 'status'),
+                        createddate: getFieldValue('createdDate', 'createddate') || getFieldValue('lastModified', 'lastmodified')
+                      }}
+                      onView={() => handleViewEmailIdea(String(idea.id))}
+                      onEdit={() => { setEditingEmailIdea(idea); setShowCreateForm(true); }}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <div className="space-y-4">
@@ -416,7 +533,7 @@ export default function EmailIdeasPage() {
                           <Button 
                             variant={idea.status === 'Generated' ? 'default' : 'outline'}
                             size="sm"
-                            onClick={() => handleViewEmailIdea(idea)}
+                            onClick={() => handleViewEmailIdea(String(idea.id))}
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View

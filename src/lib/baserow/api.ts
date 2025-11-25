@@ -36,7 +36,7 @@ export class BaserowAPI {
     if (!tableFieldMappings || Object.keys(tableFieldMappings).length === 0) {
       console.log(`No dynamic field mappings found for table: ${tableName}, using hardcoded fallback`)
       
-      // Use hardcoded field mappings as fallback
+      // Use hardcoded field mappings as fallback only when no dynamic mappings exist
       switch (tableName) {
         case 'socialMediaContent':
           return mapSocialMediaContentFromBaserow(baserowData)
@@ -57,9 +57,27 @@ export class BaserowAPI {
     }
     
     // Create reverse mapping (field ID -> field name)
+    // Client mappings store: { "fieldname": fieldIdNumber }
+    // Baserow returns: { "field_12345": value }
+    // So we need: field_12345 -> fieldname
     const reverseMapping: Record<string, string> = {}
     for (const [fieldName, fieldId] of Object.entries(tableFieldMappings)) {
-      reverseMapping[`field_${fieldId}`] = fieldName
+      // Handle both numeric IDs and string IDs like "field_XXXXX"
+      let actualFieldId: string
+      if (typeof fieldId === 'number') {
+        actualFieldId = `field_${fieldId}`
+      } else if (typeof fieldId === 'string') {
+        // If it's already in field_XXXXX format, use it as-is
+        actualFieldId = fieldId.startsWith('field_') ? fieldId : `field_${fieldId}`
+      } else {
+        continue
+      }
+      reverseMapping[actualFieldId] = fieldName
+    }
+    
+    console.log(`📋 Created reverse mapping for ${tableName}:`, Object.keys(reverseMapping).length, 'fields')
+    if (tableName === 'emailIdeas') {
+      console.log('📋 Email Ideas field mappings:', reverseMapping)
     }
     
     // Helper function to convert lowercase field names to camelCase for forms
@@ -124,12 +142,59 @@ export class BaserowAPI {
       return camelCaseMap[fieldName] || fieldName
     }
     
+    // Helper function to normalize field names for emailIdeas (use lowercase for frontend compatibility)
+    const normalizeEmailIdeasFieldName = (fieldName: string): string => {
+      if (tableName !== 'emailIdeas') return fieldName
+      
+      // Convert common emailIdeas field names to lowercase format expected by frontend
+      const fieldNameLower = fieldName.toLowerCase()
+      const nameMap: Record<string, string> = {
+        'emailideaname': 'emailideaname',
+        'emailideanname': 'emailideaname',
+        'emailtype': 'emailtype',
+        'emailtextidea': 'emailtextidea',
+        'generatedhtml': 'generatedhtml',
+        'emailurlidea': 'emailurlidea',
+        'emailvoiceidea': 'emailvoiceidea',
+        'emailvideoidea': 'emailvideoidea',
+        'emailimageidea': 'emailimageidea',
+        'createddate': 'createddate',
+        'lastmodified': 'lastmodified',
+        'hook': 'hook',
+        'cta': 'cta',
+        'status': 'status'
+      }
+      
+      // Check if field name matches any known pattern
+      for (const [key, normalized] of Object.entries(nameMap)) {
+        if (fieldNameLower.includes(key) || fieldNameLower === key) {
+          return normalized
+        }
+      }
+      
+      // For emailIdeas, use lowercase version of the field name
+      return fieldNameLower
+    }
+    
     // Map field IDs to field names and convert Baserow objects to display values
+    // Also include all fields from Baserow response, even if not in mapping
     for (const [fieldId, value] of Object.entries(baserowData)) {
+      // Skip standard Baserow fields that should remain as-is
+      if (fieldId === 'id' || fieldId === 'order' || fieldId === 'created_on' || fieldId === 'updated_on' || fieldId === 'created_at' || fieldId === 'updated_at') {
+        mapped[fieldId] = value
+        continue
+      }
+      
       const fieldName = reverseMapping[fieldId]
       if (fieldName) {
-        // Optionally convert to camelCase for form compatibility (only for specific use cases)
-        const finalFieldName = convertToCamelCase ? toCamelCase(fieldName) : fieldName
+        // For emailIdeas, normalize field names to lowercase format expected by frontend
+        // For other tables, optionally convert to camelCase for form compatibility
+        let finalFieldName: string
+        if (tableName === 'emailIdeas') {
+          finalFieldName = normalizeEmailIdeasFieldName(fieldName)
+        } else {
+          finalFieldName = convertToCamelCase ? toCamelCase(fieldName) : fieldName
+        }
         
         // Special handling for file fields - preserve the original array structure
         if (fieldName === 'image' && Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'url' in value[0]) {
@@ -139,9 +204,31 @@ export class BaserowAPI {
           // Convert Baserow objects to display values for other fields
           mapped[finalFieldName] = this.convertBaserowValueToDisplayValue(value)
         }
+        
+        // Also keep the original field name for backwards compatibility
+        if (tableName === 'emailIdeas' && finalFieldName !== fieldName) {
+          mapped[fieldName] = mapped[finalFieldName]
+        }
       } else {
-        // Keep unmapped fields as-is (like id, order)
-        mapped[fieldId] = value
+        // Include unmapped fields as well (with field ID as key) so all data is available
+        // This ensures fields not in the mapping are still accessible
+        mapped[fieldId] = this.convertBaserowValueToDisplayValue(value)
+        
+        if (tableName === 'emailIdeas' && fieldId.startsWith('field_')) {
+          console.log(`⚠️ Unmapped emailIdeas field found: ${fieldId} =`, typeof value === 'string' && value.length > 100 ? value.substring(0, 50) + '...' : value)
+        }
+      }
+    }
+    
+    // Log mapping results for emailIdeas to help debug
+    if (tableName === 'emailIdeas') {
+      console.log(`🗺️ Mapped emailIdeas fields:`, Object.keys(mapped).length, 'total fields')
+      console.log(`🗺️ Mapped field names:`, Object.keys(mapped).filter(k => !k.startsWith('field_')).join(', '))
+      if (mapped.generatedHtml || mapped.generatedhtml) {
+        const htmlField = mapped.generatedHtml || mapped.generatedhtml
+        console.log(`✅ Generated HTML found:`, htmlField ? `${htmlField.length} characters` : 'empty')
+      } else {
+        console.log(`⚠️ Generated HTML not found in mapped fields`)
       }
     }
     
@@ -356,8 +443,15 @@ export class BaserowAPI {
       console.log(`DEBUG: Mapping field "${fieldName}" -> "${mappedFieldName}" -> fieldId: ${fieldId}`)
       
       if (fieldId) {
-        // Skip null values for link_row fields to avoid validation errors
-        if (value === null && (mappedFieldName === 'blog_post_id' || mappedFieldName === 'completion_timestamp')) {
+        // Skip null/undefined values
+        if (value === null || value === undefined) {
+          console.log(`Skipping null/undefined value for field: ${mappedFieldName} (${fieldName})`)
+          continue
+        }
+        
+        // Skip empty arrays for link_row fields (templates, images, etc.)
+        if (Array.isArray(value) && value.length === 0) {
+          console.log(`Skipping empty array for link_row field: ${mappedFieldName} (${fieldName})`)
           continue
         }
         
@@ -443,9 +537,30 @@ export class BaserowAPI {
     console.log('BaserowAPI: Response headers:', Object.fromEntries(response.headers.entries()))
     
     if (!response.ok) {
-      const error = await response.text()
-      console.error('BaserowAPI: Error response:', error)
-      throw new Error(`Baserow API Error: ${response.status} - ${error}`)
+      let errorText = await response.text()
+      console.error('BaserowAPI: Error response:', errorText)
+      
+      // Try to parse as JSON to get detailed error info
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.detail) {
+          console.error('BaserowAPI: Validation errors by field:', errorJson.detail)
+          // Format the error details for better visibility
+          const fieldErrors = Object.entries(errorJson.detail)
+            .map(([field, errors]: [string, any]) => {
+              const errorMessages = Array.isArray(errors) 
+                ? errors.map((e: any) => e.error || e.message || String(e)).join(', ')
+                : String(errors)
+              return `${field}: ${errorMessages}`
+            })
+            .join('; ')
+          throw new Error(`Baserow API Error: ${response.status} - ${errorJson.error || 'Validation failed'}. Field errors: ${fieldErrors}`)
+        }
+        throw new Error(`Baserow API Error: ${response.status} - ${errorJson.error || errorText}`)
+      } catch (parseError) {
+        // If it's not JSON, throw with the text error
+        throw new Error(`Baserow API Error: ${response.status} - ${errorText}`)
+      }
     }
 
     // Handle 204 No Content (common for DELETE operations)
@@ -575,28 +690,79 @@ export class BaserowAPI {
 
   // Upload file to Baserow
   async uploadFile(file: File): Promise<any> {
-    const formData = new FormData()
-    formData.append('file', file)
+    try {
+      console.log('📤 BaserowAPI.uploadFile called:', {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        isFile: file instanceof File,
+        isBlob: file instanceof Blob
+      })
 
-    const response = await fetch(`${this.baseUrl}/api/user-files/upload-file/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${this.token}`,
-      },
-      body: formData
-    })
+      // In server-side Next.js, convert File to Blob for better compatibility
+      let fileToUpload: File | Blob = file
+      
+      // If we're in a server environment and the file needs conversion
+      if (typeof window === 'undefined') {
+        // Server-side: convert to Blob for FormData compatibility
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          fileToUpload = new Blob([arrayBuffer], { type: file.type || 'application/octet-stream' })
+          console.log('📦 Converted File to Blob for server-side upload')
+        } catch (conversionError) {
+          console.warn('⚠️ Could not convert File to Blob, using original:', conversionError)
+          // Fall back to using the original file
+          fileToUpload = file
+        }
+      }
 
-    console.log('Baserow file upload response status:', response.status)
+      const formData = new FormData()
+      // FormData.append accepts File, Blob, or string
+      // If it's a Blob, we can't specify filename in append, but Baserow should handle it
+      if (fileToUpload instanceof File) {
+        formData.append('file', fileToUpload, file.name || 'uploaded-file')
+      } else {
+        // For Blob, we can't specify filename in FormData.append, but that's okay
+        formData.append('file', fileToUpload, file.name || 'uploaded-file')
+      }
 
-    if (!response.ok) {
-      const error = await response.text()
-      console.error('Baserow file upload error:', error)
-      throw new Error(`Baserow file upload failed: ${response.status} - ${error}`)
+      console.log('📤 Sending file to Baserow:', {
+        url: `${this.baseUrl}/api/user-files/upload-file/`,
+        fileName: file.name,
+        fileSize: fileToUpload.size,
+        fileType: fileToUpload.type
+      })
+
+      const response = await fetch(`${this.baseUrl}/api/user-files/upload-file/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${this.token}`,
+        },
+        body: formData
+      })
+
+      console.log('📥 Baserow file upload response status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Baserow file upload error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        })
+        throw new Error(`Baserow file upload failed: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Baserow file upload result:', result)
+      return result
+    } catch (error) {
+      console.error('❌ Error in uploadFile:', error)
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error(`File upload failed: ${String(error)}`)
     }
-
-    const result = await response.json()
-    console.log('Baserow file upload result:', result)
-    return result
   }
 
   // Update record with file references
@@ -942,10 +1108,15 @@ export class BaserowAPI {
       
       // Map all results to human-readable format
       if (result.results) {
-        result.results = result.results.map((item: any) => ({
-          ...item,
-          ...this.mapFieldsFromBaserow(item, 'emailIdeas')
-        }))
+        result.results = result.results.map((item: any) => {
+          const mappedFields = this.mapFieldsFromBaserow(item, 'emailIdeas', false)
+          // For emailIdeas, merge mapped fields with original item, with mapped fields taking precedence
+          // This ensures all fields are available in both formats (field IDs and mapped names)
+          return {
+            ...item,           // Original Baserow fields (field_XXXXX format)
+            ...mappedFields    // Mapped human-readable fields (overrides any duplicates)
+          }
+        })
       }
       
       console.log('BaserowAPI: Email ideas retrieved:', result)
@@ -962,14 +1133,63 @@ export class BaserowAPI {
     try {
       const result = await this.request(`/api/database/rows/table/${tableId}/${rowId}/`)
       console.log('BaserowAPI: Raw email idea result:', result)
+      console.log('BaserowAPI: All field keys in raw result:', Object.keys(result))
       
       // Map to human-readable format
+      const mappedFields = this.mapFieldsFromBaserow(result, 'emailIdeas', false)
+      console.log('BaserowAPI: Mapped fields:', mappedFields)
+      console.log('BaserowAPI: generatedHtml in mapped fields:', mappedFields.generatedHtml)
+      console.log('BaserowAPI: All keys in mapped fields:', Object.keys(mappedFields))
+      
+      // For emailIdeas, ensure we have both original fields and mapped fields
+      // Mapped fields take precedence, but original fields are kept for debugging
       const mappedResult = {
-        ...result,
-        ...this.mapFieldsFromBaserow(result, 'emailIdeas')
+        ...result,        // Keep original Baserow response fields
+        ...mappedFields   // Add mapped fields (these override duplicates)
       }
       
-      console.log('BaserowAPI: Mapped email idea:', mappedResult)
+      // Ensure common emailIdeas fields are accessible in multiple formats
+      // Create lowercase aliases for fields that might be in camelCase
+      const fieldAliases: Record<string, string[]> = {
+        'emailideaname': ['emailIdeaName', 'email_idea_name'],
+        'emailtype': ['emailType', 'email_type'],
+        'emailtextidea': ['emailTextIdea', 'email_text_idea'],
+        'generatedhtml': ['generatedHtml', 'generated_html'],
+        'emailurlidea': ['emailUrlIdea', 'email_url_idea'],
+        'emailvoiceidea': ['emailVoiceIdea', 'email_voice_idea'],
+        'emailvideoidea': ['emailVideoIdea', 'email_video_idea'],
+        'emailimageidea': ['emailImageIdea', 'email_image_idea'],
+        'createddate': ['createdDate', 'created_date'],
+        'lastmodified': ['lastModified', 'last_modified']
+      }
+      
+      // Create lowercase aliases for fields that might be in camelCase
+      for (const [lowercaseKey, possibleKeys] of Object.entries(fieldAliases)) {
+        if (!mappedResult[lowercaseKey]) {
+          // Try to find the field in any of the possible formats
+          for (const key of possibleKeys) {
+            if (mappedResult[key]) {
+              mappedResult[lowercaseKey] = mappedResult[key]
+              break
+            }
+          }
+        }
+      }
+      
+      // Ensure generatedHtml is accessible (check both camelCase and snake_case)
+      if (!mappedResult.generatedHtml) {
+        // Try to find it by field ID
+        const fieldIdKeys = Object.keys(result).filter(key => key.startsWith('field_'))
+        console.log('BaserowAPI: Searching for generatedHtml in field IDs:', fieldIdKeys)
+        for (const fieldId of fieldIdKeys) {
+          if (result[fieldId] && typeof result[fieldId] === 'string' && result[fieldId].length > 100) {
+            // Likely HTML content
+            console.log(`BaserowAPI: Found potential HTML in ${fieldId}:`, result[fieldId].substring(0, 50))
+          }
+        }
+      }
+      
+      console.log('BaserowAPI: Final mapped email idea - generatedHtml:', mappedResult.generatedHtml ? 'Found' : 'Missing')
       return mappedResult
     } catch (error) {
       console.error('BaserowAPI: Error in getEmailIdeaById:', error)
@@ -1214,6 +1434,35 @@ export class BaserowAPI {
     
     // Map human-readable field names to Baserow field IDs
     const mappedData = this.mapFieldsToBaserow(data, 'images')
+    
+    // Check if this is a social media upload (not an email image)
+    // If imageScene or position is 'Social Media Post', exclude emailImages field
+    const isSocialMediaUpload = data.imageScene === 'Social Media Post' || 
+                                data.position === 'Social Media Post' ||
+                                (data.imageScene && typeof data.imageScene === 'string' && data.imageScene.includes('Social Media'))
+    
+    if (isSocialMediaUpload) {
+      // Remove emailImages field from mapped data if it exists
+      // emailImages is a single-select field with specific options (Header, Body 1, etc.)
+      // and 'Social Media Post' is not a valid option
+      const emailImagesFieldId = this.fieldMappings?.images?.emailimages || 
+                                  this.fieldMappings?.images?.emailImages
+      
+      if (emailImagesFieldId) {
+        const emailImagesFieldKey = `field_${emailImagesFieldId}`
+        if (mappedData[emailImagesFieldKey] !== undefined) {
+          console.log(`Removing emailImages field (${emailImagesFieldKey}) for social media upload`)
+          delete mappedData[emailImagesFieldKey]
+        }
+      }
+      
+      // Also check for hardcoded field ID (field_7226) if dynamic mapping wasn't used
+      if (mappedData.field_7226 !== undefined) {
+        console.log('Removing hardcoded emailImages field (field_7226) for social media upload')
+        delete mappedData.field_7226
+      }
+    }
+    
     console.log('BaserowAPI: Mapped data for Baserow:', mappedData)
     
     const result = await this.request(`/api/database/rows/table/${tableId}/`, {

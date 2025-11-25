@@ -158,10 +158,17 @@ export async function POST(
       throw new Error('Failed to parse request data')
     }
 
-    console.log('Creating email idea with data:', formData)
+    console.log('=== Raw Form Data Received ===')
+    console.log('Form data keys:', Object.keys(formData))
+    console.log('Form data:', JSON.stringify(formData, null, 2))
 
     // Preprocess the data
     const processedData = { ...formData }
+    console.log('Processed data keys:', Object.keys(processedData))
+    console.log('emailideaname:', processedData.emailideaname)
+    console.log('emailtype:', processedData.emailtype)
+    console.log('emailIdeaName:', processedData.emailIdeaName)
+    console.log('emailType:', processedData.emailType)
     
     // Handle templates field - convert string to array if needed
     if (typeof processedData.templates === 'string') {
@@ -178,31 +185,111 @@ export async function POST(
       console.log('Processing image IDs:', processedData.images)
     }
 
+    // Normalize field names to match Zod schema (camelCase)
+    // Handle both camelCase and lowercase/snake_case field names from form
+    const normalizedData: any = {}
+    
+    // Required fields - check both formats
+    normalizedData.emailIdeaName = processedData.emailIdeaName || processedData.emailideaname || processedData['emailIdeaName'] || ''
+    normalizedData.emailType = processedData.emailType || processedData.emailtype || processedData['emailType'] || ''
+    
+    // Optional fields - check both formats
+    if (processedData.emailTextIdea || processedData.emailtextidea || processedData['emailTextIdea']) {
+      normalizedData.emailTextIdea = processedData.emailTextIdea || processedData.emailtextidea || processedData['emailTextIdea']
+    }
+    if (processedData.emailUrlIdea || processedData.emailurlidea || processedData['emailUrlIdea']) {
+      normalizedData.emailUrlIdea = processedData.emailUrlIdea || processedData.emailurlidea || processedData['emailUrlIdea']
+    }
+    if (processedData.emailVoiceIdea || processedData.emailvoiceidea || processedData['emailVoiceIdea']) {
+      normalizedData.emailVoiceIdea = processedData.emailVoiceIdea || processedData.emailvoiceidea || processedData['emailVoiceIdea']
+    }
+    if (processedData.emailVideoIdea || processedData.emailvideoidea || processedData['emailVideoIdea']) {
+      normalizedData.emailVideoIdea = processedData.emailVideoIdea || processedData.emailvideoidea || processedData['emailVideoIdea']
+    }
+    if (processedData.emailImageIdea || processedData.emailimageidea || processedData['emailImageIdea']) {
+      normalizedData.emailImageIdea = processedData.emailImageIdea || processedData.emailimageidea || processedData['emailImageIdea']
+    }
+    if (processedData.hook || processedData['hook']) {
+      normalizedData.hook = processedData.hook || processedData['hook']
+    }
+    if (processedData.cta || processedData['cta']) {
+      normalizedData.cta = processedData.cta || processedData['cta']
+    }
+    normalizedData.status = processedData.status || processedData['status'] || 'Draft'
+    if (processedData.templates || processedData['templates']) {
+      normalizedData.templates = processedData.templates || processedData['templates']
+    }
+    if (processedData.generatedHtml || processedData.generatedhtml || processedData['generatedHtml']) {
+      normalizedData.generatedHtml = processedData.generatedHtml || processedData.generatedhtml || processedData['generatedHtml']
+    }
+    if (processedData.images || processedData['images']) {
+      normalizedData.images = processedData.images || processedData['images']
+    }
+    
+    console.log('Processed data (raw):', processedData)
+    console.log('Normalized data for validation:', normalizedData)
+    
     // Validate the data using Zod schema
     try {
-      const validatedData = emailIdeaSchema.parse(processedData)
+      const validatedData = emailIdeaSchema.parse(normalizedData)
       console.log('Data validation successful:', validatedData)
 
+      // Map simplified email types to Baserow's full format
+      const emailTypeMap: Record<string, string> = {
+        'Welcome': 'Welcome & Onboarding Emails',
+        'Promotional': 'Promotional Emails',
+        'Newsletter': 'Newsletter / Content Emails'
+      }
+      
+      const baserowEmailType = emailTypeMap[validatedData.emailType] || validatedData.emailType
+      
+      console.log(`Mapping email type: "${validatedData.emailType}" -> "${baserowEmailType}"`)
+      
       // Map form field names to API field names
-      const apiData = {
+      // Only include fields with actual values - skip empty strings and empty arrays
+      const apiData: any = {
         emailideaname: validatedData.emailIdeaName,
-        emailtype: validatedData.emailType,
-        hook: validatedData.hook,
-        cta: validatedData.cta,
-        emailtextidea: validatedData.emailTextIdea,
-        emailvoiceidea: validatedData.emailVoiceIdea,
-        emailurlidea: validatedData.emailUrlIdea,
-        emailvideoidea: validatedData.emailVideoIdea,
-        emailimageidea: validatedData.emailImageIdea,
-        status: validatedData.status,
-        templates: validatedData.templates,
-        generatedhtml: validatedData.generatedHtml,
-        images: validatedData.images,
+        emailtype: baserowEmailType, // Use mapped email type
+        emailtextidea: validatedData.emailTextIdea || '',
+        status: validatedData.status || 'Draft',
         lastmodified: new Date().toISOString().split('T')[0] // Set current date
       }
       
-      console.log('Mapped API data:', apiData)
-
+      // Only include optional fields if they have values
+      if (validatedData.hook && validatedData.hook.trim() !== '') {
+        apiData.hook = validatedData.hook
+      }
+      if (validatedData.cta && validatedData.cta.trim() !== '') {
+        apiData.cta = validatedData.cta
+      }
+      if (validatedData.emailUrlIdea && validatedData.emailUrlIdea.trim() !== '') {
+        apiData.emailurlidea = validatedData.emailUrlIdea
+      }
+      if (validatedData.emailVoiceIdea && validatedData.emailVoiceIdea.trim() !== '') {
+        apiData.emailvoiceidea = validatedData.emailVoiceIdea
+      }
+      if (validatedData.emailVideoIdea && validatedData.emailVideoIdea.trim() !== '') {
+        apiData.emailvideoidea = validatedData.emailVideoIdea
+      }
+      if (validatedData.emailImageIdea && validatedData.emailImageIdea.trim() !== '') {
+        apiData.emailimageidea = validatedData.emailImageIdea
+      }
+      if (validatedData.generatedHtml && validatedData.generatedHtml.trim() !== '') {
+        apiData.generatedhtml = validatedData.generatedHtml
+      }
+      // Only include templates/images if they have values (arrays with items)
+      if (validatedData.templates && Array.isArray(validatedData.templates) && validatedData.templates.length > 0) {
+        apiData.templates = validatedData.templates
+      }
+      if (validatedData.images && Array.isArray(validatedData.images) && validatedData.images.length > 0) {
+        apiData.images = validatedData.images
+      }
+      
+      console.log('=== Email Idea Creation Debug ===')
+      console.log('API Data being sent to Baserow:', JSON.stringify(apiData, null, 2))
+      console.log('Email Ideas Table ID:', emailIdeasTableId)
+      console.log('Field Mappings:', clientConfig.fieldMappings?.emailIdeas)
+      
       const baserowAPI = new BaserowAPI(
         clientConfig.baserow.token,
         clientConfig.baserow.databaseId,
@@ -210,8 +297,26 @@ export async function POST(
       )
       
       // Step 1: Create the record
-      const result = await baserowAPI.createEmailIdea(emailIdeasTableId, apiData)
-      console.log('Email idea record created:', result.id)
+      let result
+      try {
+        result = await baserowAPI.createEmailIdea(emailIdeasTableId, apiData)
+        console.log('✅ Email idea record created:', result.id)
+
+      } catch (baserowError: any) {
+        console.error('❌ === Baserow API Error ===')
+        console.error('Error creating email idea:', baserowError)
+        console.error('Error message:', baserowError.message)
+        console.error('Error stack:', baserowError.stack)
+        
+        // Extract detailed error information if available
+        const errorMatch = baserowError.message?.match(/Field errors: (.+)/)
+        if (errorMatch) {
+          console.error('Field-specific errors:', errorMatch[1])
+        }
+        
+        // Re-throw the original error to preserve the full error message
+        throw baserowError
+      }
 
       // Step 2: Upload files to Baserow and link them to the record if files provided
       if (Object.keys(uploadedFiles).length > 0) {

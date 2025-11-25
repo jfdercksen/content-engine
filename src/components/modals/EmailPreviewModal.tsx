@@ -21,10 +21,27 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
 
   if (!emailIdea) return null
 
+  // Helper to safely get field value (handle both camelCase and lowercase field names)
+  const getFieldValue = (camelCase: string, lowercase: string): any => {
+    const value = (emailIdea as any)[camelCase] || (emailIdea as any)[lowercase]
+    // Handle select field objects
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.value) {
+      return value.value
+    }
+    return value || ''
+  }
+
+  // Extract fields with fallback to lowercase names
+  const generatedHtml = getFieldValue('generatedHtml', 'generatedhtml') || ''
+  const emailIdeaName = getFieldValue('emailIdeaName', 'emailideaname') || ''
+  const emailType = getFieldValue('emailType', 'emailtype') || ''
+  const status = getFieldValue('status', 'status') || ''
+  const lastModified = getFieldValue('lastModified', 'lastmodified') || ''
+
   const handleCopyHtml = async () => {
-    if (emailIdea.generatedHtml) {
+    if (generatedHtml) {
       try {
-        await navigator.clipboard.writeText(emailIdea.generatedHtml)
+        await navigator.clipboard.writeText(generatedHtml)
         // You could add a toast notification here
         console.log('HTML copied to clipboard')
       } catch (err) {
@@ -34,12 +51,13 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
   }
 
   const handleDownloadHtml = () => {
-    if (emailIdea.generatedHtml) {
-      const blob = new Blob([emailIdea.generatedHtml], { type: 'text/html' })
+    if (generatedHtml) {
+      const blob = new Blob([generatedHtml], { type: 'text/html' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
+      const fileName = emailIdeaName ? emailIdeaName.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'email'
       a.href = url
-      a.download = `${emailIdea.emailIdeaName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`
+      a.download = `${fileName}.html`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -80,7 +98,7 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Email Preview: {emailIdea.emailIdeaName}
+            Email Preview: {emailIdeaName || 'Untitled Email'}
           </DialogTitle>
         </DialogHeader>
 
@@ -88,20 +106,20 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
           {/* Email Info Header - Compact */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
-              {emailIdea.status && (
-                <Badge className={getStatusColor(emailIdea.status)}>
-                  {emailIdea.status}
+              {status && (
+                <Badge className={getStatusColor(status)}>
+                  {status}
                 </Badge>
               )}
-              {emailIdea.emailType && (
-                <Badge className={getTypeColor(emailIdea.emailType)}>
-                  {emailIdea.emailType}
+              {emailType && (
+                <Badge className={getTypeColor(emailType)}>
+                  {emailType}
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar className="h-4 w-4" />
-              {emailIdea.lastModified}
+              {lastModified}
             </div>
           </div>
 
@@ -127,7 +145,7 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
                 </Button>
               </div>
               
-              {emailIdea.generatedHtml && (
+              {generatedHtml && (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -150,11 +168,11 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
             </div>
 
             <div className="flex-1 border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
-              {emailIdea.generatedHtml ? (
+              {generatedHtml ? (
                 viewMode === 'preview' ? (
                   <div className="h-full overflow-auto">
                     <iframe
-                      srcDoc={emailIdea.generatedHtml}
+                      srcDoc={generatedHtml}
                       className="w-full h-full border-0 min-h-[600px]"
                       title="Email Preview"
                       sandbox="allow-same-origin"
@@ -163,7 +181,7 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
                 ) : (
                   <div className="h-full overflow-auto p-4 bg-gray-50">
                     <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
-                      {emailIdea.generatedHtml}
+                      {generatedHtml}
                     </pre>
                   </div>
                 )
@@ -173,13 +191,13 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
                     <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-lg font-medium">No Generated Email</p>
                     <p className="text-sm">
-                      {emailIdea.status === 'Generating' 
+                      {status === 'Generating' 
                         ? 'Email is being generated... This may take a few minutes.' 
-                        : emailIdea.status === 'Failed'
+                        : status === 'Failed'
                         ? 'Email generation failed. Please try generating again.'
                         : 'This email idea has not been generated yet. Click Edit to generate the email.'}
                     </p>
-                    {emailIdea.status === 'Generating' && (
+                    {status === 'Generating' && (
                       <div className="mt-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                         {onRefresh && (

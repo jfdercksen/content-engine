@@ -51,7 +51,16 @@ export default function TemplatesPage() {
   }
 
   const filteredTemplates = templates.filter(template => {
-    const matchesSearch = template.templateName.toLowerCase().includes(searchTerm.toLowerCase())
+    // Helper function to safely get string value from field (handles objects from single select fields)
+    const getStringValue = (value: any): string => {
+      if (typeof value === 'string') return value
+      if (typeof value === 'number') return String(value)
+      if (value && typeof value === 'object' && value.value) return value.value
+      return ''
+    }
+
+    const templateName = getStringValue(template.templateName)
+    const matchesSearch = templateName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'all' || template.templateType === typeFilter
     const matchesCategory = categoryFilter === 'all' || template.templateCategory === categoryFilter
 
@@ -278,7 +287,7 @@ export default function TemplatesPage() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold text-lg truncate">
-                            {template.templateName}
+                            {template.templateName || `Template ${template.templateId || template.id}`}
                           </h3>
                           <div className="flex items-center gap-1">
                             {template.isActive && (
@@ -342,7 +351,7 @@ export default function TemplatesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">{selectedTemplate.templateName}</h2>
+                <h2 className="text-xl font-bold">{selectedTemplate.templateName || `Template ${selectedTemplate.templateId || selectedTemplate.id}`}</h2>
                 <Button 
                   variant="outline" 
                   size="sm"

@@ -252,10 +252,27 @@ export const mapImagesToBaserow = (data: any) => {
 export const mapEmailIdeasFromBaserow = (baserowData: any) => {
   const mapped: any = {}
   for (const [fieldId, propName] of Object.entries(emailIdeasFieldMapping)) {
-    if (baserowData[fieldId] !== undefined) {
+    // Always include the field, even if undefined, null, or empty string
+    // This ensures fields like generatedHtml are always present in the mapped result
+    if (baserowData.hasOwnProperty(fieldId)) {
       mapped[propName] = extractBaserowValue(baserowData[fieldId])
+    } else {
+      // Field doesn't exist in Baserow response, set to empty string or null
+      mapped[propName] = ''
     }
   }
+  
+  // Ensure generatedHtml is always present (important for displaying workflow-generated content)
+  if (!mapped.hasOwnProperty('generatedHtml')) {
+    // Try to find it by field ID directly
+    const generatedHtmlFieldId = 'field_7223'
+    if (baserowData.hasOwnProperty(generatedHtmlFieldId)) {
+      mapped.generatedHtml = extractBaserowValue(baserowData[generatedHtmlFieldId])
+    } else {
+      mapped.generatedHtml = ''
+    }
+  }
+  
   return mapped
 }
 

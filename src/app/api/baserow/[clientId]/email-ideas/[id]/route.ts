@@ -52,19 +52,49 @@ export async function GET(
       )
     }
 
+    // The result is already mapped by getEmailIdeaById using dynamic field mappings
+    // Check for generatedHtml in various possible field name formats (mapped or unmapped)
+    const generatedHtml = result.generatedHtml || result.generatedhtml || result.data?.generatedHtml || ''
+    
+    // Get status from mapped fields
+    const status = result.status || result.data?.status || ''
+    
+    console.log('Email Ideas GET: Returning email idea:', {
+      id: result.id,
+      hasGeneratedHtml: !!(result.generatedHtml || result.generatedhtml),
+      generatedHtmlLength: generatedHtml?.length || 0,
+      status: status,
+      mappedFieldsCount: Object.keys(result).filter(k => !k.startsWith('field_')).length
+    })
+
     return NextResponse.json({
       success: true,
       id: result.id,
-      status: result.status,
-      generatedHtml: result.generatedHtml,
+      status: status,
+      generatedHtml: generatedHtml,
+      // Return the full mapped result so frontend has access to all fields
       data: result
     })
 
   } catch (error) {
-    console.error('Error fetching single email idea:', error)
+    console.error('❌ Error fetching single email idea:', error)
+    
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    const errorDetails = error instanceof Error && error.stack ? error.stack : undefined
+    
     return NextResponse.json(
-      { error: 'Failed to fetch email idea', details: errorMessage },
+      { 
+        error: 'Failed to fetch email idea', 
+        details: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && errorDetails ? { stack: errorDetails } : {})
+      },
       { status: 500 }
     )
   }
