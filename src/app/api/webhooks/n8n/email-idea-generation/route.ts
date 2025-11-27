@@ -280,6 +280,107 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Fetch email idea record to get Mailchimp fields (subject line, from name, from email, etc.)
+    let emailIdeaRecord: any = null
+    let mailchimpFieldIds: Record<string, string> = {} // Store discovered Mailchimp field IDs
+    
+    if (emailIdeaId && clientConfig.baserow.tables?.emailIdeas) {
+      try {
+        const emailIdeasTableId = clientConfig.baserow.tables.emailIdeas
+        
+        // Fetch email idea record with readable field names
+        const emailIdeaResponse = await fetch(
+          `${baserowBaseUrl}/api/database/rows/table/${emailIdeasTableId}/${emailIdeaId}/?user_field_names=true`,
+          {
+            headers: {
+              'Authorization': `Token ${clientConfig.baserow.token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+        
+        if (emailIdeaResponse.ok) {
+          emailIdeaRecord = await emailIdeaResponse.json()
+          console.log('✅ Fetched email idea record for Mailchimp fields')
+        } else {
+          console.warn('⚠️ Could not fetch email idea record:', emailIdeaResponse.statusText)
+        }
+        
+        // Fetch table fields to discover Mailchimp field IDs
+        try {
+          const tableFieldsResponse = await fetch(
+            `${baserowBaseUrl}/api/database/fields/table/${emailIdeasTableId}/`,
+            {
+              headers: {
+                'Authorization': `Token ${clientConfig.baserow.token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          )
+          
+          if (tableFieldsResponse.ok) {
+            const tableFields = await tableFieldsResponse.json()
+            
+            // Map Mailchimp field names to field IDs
+            const mailchimpFieldNamePatterns = {
+              subjectLine: ['Subject Line', 'subjectLine', 'subject_line', 'Subject'],
+              previewText: ['Preview Text', 'previewText', 'preview_text', 'Preview'],
+              fromName: ['From Name', 'fromName', 'from_name', 'From'],
+              fromEmail: ['From Email', 'fromEmail', 'from_email', 'From Email Address'],
+              replyToEmail: ['Reply-To Email', 'replyToEmail', 'reply_to_email', 'Reply To', 'ReplyTo'],
+              mailchimpCampaignId: ['Mailchimp Campaign ID', 'mailchimpCampaignId', 'mailchimp_campaign_id', 'Campaign ID'],
+              mailchimpCampaignUrl: ['Mailchimp Campaign URL', 'mailchimpCampaignUrl', 'mailchimp_campaign_url', 'Campaign URL'],
+              mailchimpSegmentId: ['Mailchimp Segment ID', 'mailchimpSegmentId', 'mailchimp_segment_id', 'Segment ID'],
+              mailchimpSentDate: ['Mailchimp Sent Date', 'mailchimpSentDate', 'mailchimp_sent_date', 'Sent Date']
+            }
+            
+            for (const [key, patterns] of Object.entries(mailchimpFieldNamePatterns)) {
+              for (const pattern of patterns) {
+                const field = tableFields.find((f: any) => 
+                  f.name === pattern || 
+                  f.name?.toLowerCase() === pattern.toLowerCase()
+                )
+                if (field) {
+                  mailchimpFieldIds[key] = field.id
+                  console.log(`✅ Found Mailchimp field: ${key} -> ${field.id} (${field.name})`)
+                  break
+                }
+              }
+            }
+          }
+        } catch (fieldError) {
+          console.error('⚠️ Error fetching table fields for Mailchimp field discovery:', fieldError)
+          // Continue without field discovery
+        }
+      } catch (error) {
+        console.error('⚠️ Error fetching email idea record:', error)
+        // Continue without email idea record
+      }
+    }
+
+    // Extract Mailchimp-related fields from email idea record
+    const getFieldValue = (fieldName: string, altNames?: string[]): string | null => {
+      if (!emailIdeaRecord) return null
+      
+      // Try exact match first
+      if (emailIdeaRecord[fieldName]) {
+        const value = emailIdeaRecord[fieldName]
+        return typeof value === 'string' ? value : (value?.value || value || null)
+      }
+      
+      // Try alternative names
+      if (altNames) {
+        for (const altName of altNames) {
+          if (emailIdeaRecord[altName]) {
+            const value = emailIdeaRecord[altName]
+            return typeof value === 'string' ? value : (value?.value || value || null)
+          }
+        }
+      }
+      
+      return null
+    }
+
     // Prepare n8n payload with new structure
     const n8nPayload = {
       client_id: finalClientId,
@@ -313,6 +414,27 @@ export async function POST(request: NextRequest) {
         token: clientConfig.baserow.token,
         tableId: clientConfig.baserow.tables?.emailIdeas || "730",
         recordId: emailIdeaId || null
+      },
+      // Mailchimp Configuration (from client settings)
+      mailchimp: clientConfig.mailchimp ? {
+        apiKey: clientConfig.mailchimp.apiKey || null,
+        serverUrl: clientConfig.mailchimp.serverUrl || null,
+        serverPrefix: clientConfig.mailchimp.serverPrefix || null,
+        defaultAudienceId: clientConfig.mailchimp.defaultAudienceId || null,
+        defaultFromName: clientConfig.mailchimp.defaultFromName || null,
+        defaultFromEmail: clientConfig.mailchimp.defaultFromEmail || null,
+        defaultReplyToEmail: clientConfig.mailchimp.defaultReplyToEmail || null
+      } : null,
+      // Email Campaign Details (from email idea record)
+      emailCampaign: {
+        subjectLine: getFieldValue('Subject Line', ['subjectLine', 'subject']) || '',
+        previewText: getFieldValue('Preview Text', ['previewText', 'preview']) || null,
+        fromName: getFieldValue('From Name', ['fromName', 'from_name']) || clientConfig.mailchimp?.defaultFromName || '',
+        fromEmail: getFieldValue('From Email', ['fromEmail', 'from_email']) || clientConfig.mailchimp?.defaultFromEmail || '',
+        replyToEmail: getFieldValue('Reply-To Email', ['replyToEmail', 'reply_to_email', 'replyTo']) || clientConfig.mailchimp?.defaultReplyToEmail || null,
+        audienceId: getFieldValue('Mailchimp Audience ID', ['mailchimpAudienceId', 'audienceId']) || clientConfig.mailchimp?.defaultAudienceId || null,
+        segmentId: getFieldValue('Mailchimp Segment ID', ['mailchimpSegmentId', 'segmentId']) || null,
+        scheduledDate: getFieldValue('Mailchimp Scheduled Date', ['mailchimpScheduledDate', 'scheduledDate']) || null
       },
       // New email structure (use updated sections with fetched URLs)
       emailMediaStructure: {
@@ -393,6 +515,17 @@ export async function POST(request: NextRequest) {
     const emailTypeFieldId = findFieldId(['emailType', 'emailtype', 'email_type', 'emailType'])
     const emailTextIdeaFieldId = findFieldId(['emailTextIdea', 'emailtextidea', 'email_text_idea', 'emailTextIdea'])
     
+    // Mailchimp field IDs - use discovered IDs first, then try to find in mappings
+    const subjectLineFieldId = mailchimpFieldIds.subjectLine || findFieldId(['subjectLine', 'subjectline', 'subject_line', 'Subject Line'])
+    const previewTextFieldId = mailchimpFieldIds.previewText || findFieldId(['previewText', 'previewtext', 'preview_text', 'Preview Text'])
+    const fromNameFieldId = mailchimpFieldIds.fromName || findFieldId(['fromName', 'fromname', 'from_name', 'From Name'])
+    const fromEmailFieldId = mailchimpFieldIds.fromEmail || findFieldId(['fromEmail', 'fromemail', 'from_email', 'From Email'])
+    const replyToEmailFieldId = mailchimpFieldIds.replyToEmail || findFieldId(['replyToEmail', 'replytoemail', 'reply_to_email', 'Reply-To Email'])
+    const mailchimpCampaignIdFieldId = mailchimpFieldIds.mailchimpCampaignId || findFieldId(['mailchimpCampaignId', 'mailchimpcampaignid', 'mailchimp_campaign_id', 'Mailchimp Campaign ID'])
+    const mailchimpCampaignUrlFieldId = mailchimpFieldIds.mailchimpCampaignUrl || findFieldId(['mailchimpCampaignUrl', 'mailchimpcampaignurl', 'mailchimp_campaign_url', 'Mailchimp Campaign URL'])
+    const mailchimpSegmentIdFieldId = mailchimpFieldIds.mailchimpSegmentId || findFieldId(['mailchimpSegmentId', 'mailchimpsegmentid', 'mailchimp_segment_id', 'Mailchimp Segment ID'])
+    const mailchimpSentDateFieldId = mailchimpFieldIds.mailchimpSentDate || findFieldId(['mailchimpSentDate', 'mailchimpsentdate', 'mailchimp_sent_date', 'Mailchimp Sent Date'])
+    
     // Add field mappings directly to payload so workflow can update fields
     // This allows the workflow to know which Baserow field IDs correspond to which fields
     ;(n8nPayload as any).emailIdeasFieldMappings = {
@@ -407,6 +540,18 @@ export async function POST(request: NextRequest) {
         ...(emailIdeaNameFieldId && { emailIdeaName: emailIdeaNameFieldId }),
         ...(emailTypeFieldId && { emailType: emailTypeFieldId }),
         ...(emailTextIdeaFieldId && { emailTextIdea: emailTextIdeaFieldId })
+      },
+      // Mailchimp field IDs - these allow the workflow to update Mailchimp fields after generating the email
+      mailchimpFields: {
+        ...(subjectLineFieldId && { subjectLine: subjectLineFieldId }),
+        ...(previewTextFieldId && { previewText: previewTextFieldId }),
+        ...(fromNameFieldId && { fromName: fromNameFieldId }),
+        ...(fromEmailFieldId && { fromEmail: fromEmailFieldId }),
+        ...(replyToEmailFieldId && { replyToEmail: replyToEmailFieldId }),
+        ...(mailchimpCampaignIdFieldId && { mailchimpCampaignId: mailchimpCampaignIdFieldId }),
+        ...(mailchimpCampaignUrlFieldId && { mailchimpCampaignUrl: mailchimpCampaignUrlFieldId }),
+        ...(mailchimpSegmentIdFieldId && { mailchimpSegmentId: mailchimpSegmentIdFieldId }),
+        ...(mailchimpSentDateFieldId && { mailchimpSentDate: mailchimpSentDateFieldId })
       }
     }
     
@@ -414,11 +559,18 @@ export async function POST(request: NextRequest) {
     console.log('Field mappings added to payload:', {
       totalFields: Object.keys(emailIdeasFieldMappings).length,
       clientMappingsUsed: Object.keys(clientEmailIdeaMappings).length > 0,
-      commonFields: (n8nPayload as any).emailIdeasFieldMappings.commonFields
+      commonFields: (n8nPayload as any).emailIdeasFieldMappings.commonFields,
+      mailchimpFields: (n8nPayload as any).emailIdeasFieldMappings.mailchimpFields
     })
     
     if (!generatedHtmlFieldId) {
       console.warn('⚠️ Generated HTML field ID not found in mappings. Available field names:', Object.keys(emailIdeasReverseMappings))
+    }
+    
+    if (!subjectLineFieldId) {
+      console.warn('⚠️ Subject Line field ID not found. The workflow may not be able to update the subject line field.')
+    } else {
+      console.log('✅ Subject Line field ID found:', subjectLineFieldId, '- Workflow can update this field')
     }
     
     console.log('=== N8N Payload ===')
@@ -527,7 +679,7 @@ export async function POST(request: NextRequest) {
               generatedHtml: generatedHtml,
               status: 'Generated'
             })
-              console.log('Email idea updated with generated HTML and status')
+            console.log('Email idea updated with generated HTML and status')
           } catch (error) {
             console.error('Error updating record with generated HTML:', error)
           }

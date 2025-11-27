@@ -929,7 +929,16 @@ async function createRealFields(tables: any, clientName: string): Promise<any> {
       { name: 'Created Date', type: 'date' },
       { name: 'Templates', type: 'link_row' },
       { name: 'Generated HTML', type: 'long_text' },
-      { name: 'Images', type: 'link_row' }
+      { name: 'Images', type: 'link_row' },
+      // Mailchimp Integration Fields
+      { name: 'Subject Line', type: 'text' },
+      { name: 'From Name', type: 'text' },
+      { name: 'From Email', type: 'email' },
+      { name: 'Reply-To Email', type: 'email' },
+      { name: 'Mailchimp Campaign ID', type: 'text' },
+      { name: 'Mailchimp Campaign URL', type: 'url' },
+      { name: 'Mailchimp Segment ID', type: 'text' },
+      { name: 'Mailchimp Sent Date', type: 'date' }
     ],
     templates: [
       { name: 'Template Name', type: 'text' },

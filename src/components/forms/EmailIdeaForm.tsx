@@ -21,7 +21,8 @@ import {
   Save,
   Eye,
   Plus,
-  Edit
+  Edit,
+  Send
 } from 'lucide-react'
 import { EMAIL_TYPES, EMAIL_STATUS, EmailSection, EmailMediaStructure } from '@/lib/types/content'
 import MediaSectionBuilder from '@/components/forms/MediaSectionBuilder'
@@ -31,6 +32,8 @@ interface EmailIdeaFormProps {
   initialData?: any
   onSave?: (data: any) => void
   onCancel?: () => void
+  editMode?: boolean // Enable split-view edit mode with live preview
+  onSendToMailchimp?: (id: string) => void // Callback for sending to Mailchimp
 }
 
 interface EmailIdeaFormData {
@@ -41,13 +44,20 @@ interface EmailIdeaFormData {
   emailUrlIdea: string
   voiceFile?: File
   status: string
+  // Mailchimp fields
+  subjectLine?: string
+  fromName?: string
+  fromEmail?: string
+  replyToEmail?: string
 }
 
 export default function EmailIdeaForm({ 
   clientId, 
   initialData, 
   onSave, 
-  onCancel 
+  onCancel,
+  editMode = false,
+  onSendToMailchimp
 }: EmailIdeaFormProps) {
   // Parse initial sections from emailTextIdea if it exists
   const parseInitialSections = (): EmailSection[] => {
@@ -67,14 +77,20 @@ export default function EmailIdeaForm({
   const [sections, setSections] = useState<EmailSection[]>(parseInitialSections())
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [generatedEmail, setGeneratedEmail] = useState<string>(initialData?.generatedHtml || '')
+  const [generatedEmail, setGeneratedEmail] = useState<string>(initialData?.generatedHtml || initialData?.generatedhtml || '')
   const [showPreview, setShowPreview] = useState(false)
   const [previewMode, setPreviewMode] = useState<'preview' | 'html' | 'edit'>('preview')
-  const [editedHtml, setEditedHtml] = useState<string>(initialData?.generatedHtml || '')
+  const [editedHtml, setEditedHtml] = useState<string>(initialData?.generatedHtml || initialData?.generatedhtml || '')
   const [pollingRecordId, setPollingRecordId] = useState<string | null>(null)
   const [generationStatus, setGenerationStatus] = useState<string>('')
+  const [saving, setSaving] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Helper to get field value from initialData (handles both camelCase and lowercase)
+  const getInitialFieldValue = (camelCase: string, lowercase: string, defaultValue: string = ''): string => {
+    return initialData?.[camelCase] || initialData?.[lowercase] || defaultValue
+  }
 
   // Parse initial content source from emailTextIdea if it's JSON
   const parseInitialContentSource = (): { type: 'text' | 'voice' | 'url', value: string } => {
@@ -108,19 +124,62 @@ export default function EmailIdeaForm({
     formState: { errors }
   } = useForm<EmailIdeaFormData>({
     defaultValues: {
-      emailIdeaName: initialData?.emailIdeaName || '',
+      emailIdeaName: getInitialFieldValue('emailIdeaName', 'emailideaname'),
       emailType: (initialData?.emailType && ['Welcome', 'Promotional', 'Newsletter'].includes(initialData.emailType)) 
         ? initialData.emailType 
-        : 'Welcome',
+        : getInitialFieldValue('emailType', 'emailtype', 'Welcome'),
       contentSource: initialContentSource.type,
       emailTextIdea: initialContentSource.value,
       emailUrlIdea: initialContentSource.type === 'url' ? initialContentSource.value : '',
-      status: initialData?.status || 'Draft'
+      status: getInitialFieldValue('status', 'status', 'Draft'),
+      // Mailchimp fields
+      subjectLine: getInitialFieldValue('subjectLine', 'subjectline', ''),
+      fromName: getInitialFieldValue('fromName', 'fromname', ''),
+      fromEmail: getInitialFieldValue('fromEmail', 'fromemail', ''),
+      replyToEmail: getInitialFieldValue('replyToEmail', 'replytoemail', '')
     }
   })
 
+  // Update form values when initialData changes (for edit mode)
+  useEffect(() => {
+    if (initialData && editMode) {
+      console.log('📝 Updating form values from initialData:', initialData)
+      setValue('emailIdeaName', getInitialFieldValue('emailIdeaName', 'emailideaname'))
+      const emailType = getInitialFieldValue('emailType', 'emailtype', 'Welcome')
+      if (['Welcome', 'Promotional', 'Newsletter'].includes(emailType)) {
+        setValue('emailType', emailType as 'Welcome' | 'Promotional' | 'Newsletter')
+      }
+      const contentSource = parseInitialContentSource()
+      setValue('contentSource', contentSource.type)
+      setValue('emailTextIdea', contentSource.value)
+      setValue('emailUrlIdea', contentSource.type === 'url' ? contentSource.value : '')
+      setValue('status', getInitialFieldValue('status', 'status', 'Draft'))
+      setValue('subjectLine', getInitialFieldValue('subjectLine', 'subjectline', ''))
+      setValue('fromName', getInitialFieldValue('fromName', 'fromname', ''))
+      setValue('fromEmail', getInitialFieldValue('fromEmail', 'fromemail', ''))
+      setValue('replyToEmail', getInitialFieldValue('replyToEmail', 'replytoemail', ''))
+      
+      // Update generated HTML
+      const generatedHtml = getInitialFieldValue('generatedHtml', 'generatedhtml')
+      if (generatedHtml) {
+        setGeneratedEmail(generatedHtml)
+        setEditedHtml(generatedHtml)
+      }
+      
+      // Update sections if emailTextIdea is JSON
+      const parsedSections = parseInitialSections()
+      if (parsedSections.length > 0) {
+        setSections(parsedSections)
+      }
+    }
+  }, [initialData, editMode, setValue])
+
   const watchedContentSource = watch('contentSource')
   const watchedEmailType = watch('emailType')
+  const watchedStatus = watch('status')
+  const watchedSubjectLine = watch('subjectLine')
+  const watchedFromName = watch('fromName')
+  const watchedFromEmail = watch('fromEmail')
 
   // Polling function to check email generation status
   const startPollingForCompletion = (recordId: string) => {
@@ -202,8 +261,87 @@ export default function EmailIdeaForm({
   }
 
 
-  // Handle form submission
+  // Handle updating existing email idea
+  const onUpdate = async (data: EmailIdeaFormData) => {
+    if (!initialData?.id) {
+      alert('No email idea ID found')
+      return
+    }
+
+    try {
+      setSaving(true)
+
+      // Prepare update data - only include fields that have values
+      const updateData: any = {
+        emailIdeaName: data.emailIdeaName,
+        emailType: data.emailType,
+        status: data.status
+      }
+
+      // Add Mailchimp fields if provided
+      if (data.subjectLine) updateData.subjectLine = data.subjectLine
+      if (data.fromName) updateData.fromName = data.fromName
+      if (data.fromEmail) updateData.fromEmail = data.fromEmail
+      if (data.replyToEmail) updateData.replyToEmail = data.replyToEmail
+
+      // If HTML was edited, include it
+      if (editedHtml && editedHtml !== (initialData?.generatedHtml || initialData?.generatedhtml)) {
+        updateData.generatedHtml = editedHtml
+      }
+
+      // Update sections if they changed
+      if (sections.length > 0) {
+        const contentSourceValue = watchedContentSource === 'url' 
+          ? data.emailUrlIdea 
+          : data.emailTextIdea
+
+        const emailMediaStructure: EmailMediaStructure = {
+          emailType: data.emailType,
+          sections: sections.sort((a, b) => a.order - b.order),
+          contentSource: {
+            type: data.contentSource,
+            value: contentSourceValue
+          }
+        }
+        updateData.emailTextIdea = JSON.stringify(emailMediaStructure)
+      }
+
+      console.log('Updating email idea:', initialData.id, updateData)
+
+      const response = await fetch(`/api/baserow/${clientId}/email-ideas/${initialData.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        // Update local state
+        if (updateData.generatedHtml) {
+          setGeneratedEmail(updateData.generatedHtml)
+        }
+        onSave?.(result.data || result)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to update email: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error updating email idea:', error)
+      alert('Failed to update email. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Handle form submission (create new or update existing)
   const onSubmit = async (data: EmailIdeaFormData) => {
+    // If editMode and has initialData, use update function
+    if (editMode && initialData?.id) {
+      return onUpdate(data)
+    }
+
     try {
       setLoading(true)
 
@@ -541,13 +679,231 @@ export default function EmailIdeaForm({
     )
   }
 
+  // Split-view edit mode with live preview
+  if (editMode && initialData?.id) {
+    const currentHtml = editedHtml || generatedEmail || ''
+    const canSendToMailchimp = watchedStatus === 'Approved' && currentHtml && !initialData?.mailchimpCampaignId && !initialData?.mailchimpcampaignid
+    
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b bg-white">
+          <div>
+            <h2 className="text-2xl font-bold">Edit Email Idea</h2>
+            <p className="text-muted-foreground">Edit email details and preview changes in real-time</p>
+          </div>
+          <div className="flex gap-2">
+            {canSendToMailchimp && onSendToMailchimp && (
+              <Button 
+                onClick={() => onSendToMailchimp(initialData.id)}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Send to Mailchimp
+              </Button>
+            )}
+            <Button variant="outline" onClick={onCancel}>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit(onSubmit)} 
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Split View: Form on Left, Preview on Right */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Side: Edit Form */}
+          <div className="w-1/2 border-r overflow-y-auto bg-gray-50">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Basic Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="emailIdeaName">Email Idea Name *</Label>
+                    <Input
+                      id="emailIdeaName"
+                      {...register('emailIdeaName', { required: 'Email idea name is required' })}
+                      placeholder="Enter email idea name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="emailType">Email Type *</Label>
+                      <Select 
+                        value={watch('emailType')} 
+                        onValueChange={(value) => setValue('emailType', value as any)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select email type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(EMAIL_TYPES).map(type => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="status">Status *</Label>
+                      <Select 
+                        value={watch('status')} 
+                        onValueChange={(value) => setValue('status', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(EMAIL_STATUS).map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Mailchimp Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5" />
+                    Mailchimp Settings
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">Configure email campaign details for Mailchimp</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="subjectLine">Subject Line</Label>
+                    <Input
+                      id="subjectLine"
+                      {...register('subjectLine')}
+                      placeholder="Enter email subject line"
+                      value={watchedSubjectLine || ''}
+                      onChange={(e) => setValue('subjectLine', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="fromName">From Name</Label>
+                      <Input
+                        id="fromName"
+                        {...register('fromName')}
+                        placeholder="John from Company"
+                        value={watchedFromName || ''}
+                        onChange={(e) => setValue('fromName', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="fromEmail">From Email</Label>
+                      <Input
+                        id="fromEmail"
+                        type="email"
+                        {...register('fromEmail')}
+                        placeholder="noreply@example.com"
+                        value={watchedFromEmail || ''}
+                        onChange={(e) => setValue('fromEmail', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="replyToEmail">Reply-To Email</Label>
+                    <Input
+                      id="replyToEmail"
+                      type="email"
+                      {...register('replyToEmail')}
+                      placeholder="support@example.com"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Media Sections - Collapsed in edit mode, but still accessible */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Email Structure
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">Edit sections and content</p>
+                </CardHeader>
+                <CardContent>
+                  <MediaSectionBuilder
+                    sections={sections}
+                    onSectionsChange={setSections}
+                    clientId={clientId}
+                  />
+                </CardContent>
+              </Card>
+            </form>
+          </div>
+
+          {/* Right Side: Live Preview */}
+          <div className="w-1/2 overflow-y-auto bg-white">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Email Preview</h3>
+                <Badge variant="outline" className={watchedStatus === 'Approved' ? 'bg-green-100 text-green-800' : ''}>
+                  {watchedStatus || 'Draft'}
+                </Badge>
+              </div>
+              
+              {currentHtml ? (
+                <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
+                  <div className="bg-gray-50 p-2 border-b text-xs text-gray-600 text-center">
+                    Email Preview
+                  </div>
+                  <div className="p-4">
+                    <iframe
+                      srcDoc={currentHtml}
+                      className="w-full min-h-[600px] border-0"
+                      title="Email Preview"
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+                  <Mail className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No email preview available</p>
+                  <p className="text-sm text-gray-400 mt-2">Generate the email to see preview</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Create Email Idea</h2>
-          <p className="text-muted-foreground">Create a new email marketing campaign</p>
+          <h2 className="text-2xl font-bold">{editMode ? 'Edit Email Idea' : 'Create Email Idea'}</h2>
+          <p className="text-muted-foreground">{editMode ? 'Edit email marketing campaign' : 'Create a new email marketing campaign'}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onCancel}>
@@ -621,8 +977,76 @@ export default function EmailIdeaForm({
                 )}
               </div>
             </div>
+            {/* Status field - show in both create and edit mode */}
+            <div>
+              <Label htmlFor="status">Status *</Label>
+              <Select 
+                value={watch('status')} 
+                onValueChange={(value) => setValue('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(EMAIL_STATUS).map(status => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Mailchimp Settings - only show if editing or email is generated */}
+        {(editMode || initialData?.generatedHtml || initialData?.generatedhtml) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                Mailchimp Settings
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">Configure email campaign details for Mailchimp</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="subjectLine">Subject Line</Label>
+                <Input
+                  id="subjectLine"
+                  {...register('subjectLine')}
+                  placeholder="Enter email subject line"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="fromName">From Name</Label>
+                  <Input
+                    id="fromName"
+                    {...register('fromName')}
+                    placeholder="John from Company"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fromEmail">From Email</Label>
+                  <Input
+                    id="fromEmail"
+                    type="email"
+                    {...register('fromEmail')}
+                    placeholder="noreply@example.com"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="replyToEmail">Reply-To Email</Label>
+                <Input
+                  id="replyToEmail"
+                  type="email"
+                  {...register('replyToEmail')}
+                  placeholder="support@example.com"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Media Section Builder */}
         <Card>

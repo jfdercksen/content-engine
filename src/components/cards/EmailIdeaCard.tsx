@@ -10,7 +10,8 @@ import {
     Mail,
     MousePointerClick,
     FileText,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Send
 } from 'lucide-react'
 
 interface EmailIdeaCardProps {
@@ -23,13 +24,19 @@ interface EmailIdeaCardProps {
         emailtextidea?: string
         status?: string
         createddate?: string
+        generatedhtml?: string
+        generatedHtml?: string
+        mailchimpcampaignid?: string
+        mailchimpCampaignId?: string
     }
     onView?: (id: string) => void
     onEdit?: (id: string) => void
     onDelete?: (id: string) => void
+    onSendToMailchimp?: (id: string) => void
+    clientId?: string
 }
 
-export function EmailIdeaCard({ email, onView, onEdit, onDelete }: EmailIdeaCardProps) {
+export function EmailIdeaCard({ email, onView, onEdit, onDelete, onSendToMailchimp, clientId }: EmailIdeaCardProps) {
     const getEmailTypeColor = (type: string) => {
         const typeLower = type?.toLowerCase() || ''
         if (typeLower.includes('newsletter')) return 'bg-blue-100 text-blue-800 border-blue-200'
@@ -118,7 +125,7 @@ export function EmailIdeaCard({ email, onView, onEdit, onDelete }: EmailIdeaCard
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onView && (
+                    {(email.generatedhtml || email.generatedHtml) && onView && (
                         <Button
                             variant="outline"
                             size="sm"
@@ -138,6 +145,21 @@ export function EmailIdeaCard({ email, onView, onEdit, onDelete }: EmailIdeaCard
                         >
                             <Edit className="h-3 w-3 mr-1" />
                             Edit
+                        </Button>
+                    )}
+                    {/* Send to Mailchimp button - only show if status is Approved and not already sent */}
+                    {email.status === 'Approved' &&
+                     (email.generatedhtml || email.generatedHtml) && 
+                     !(email.mailchimpcampaignid || email.mailchimpCampaignId) && 
+                     onSendToMailchimp && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => onSendToMailchimp(email.id)}
+                            className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                            <Send className="h-3 w-3 mr-1" />
+                            Send to Mailchimp
                         </Button>
                     )}
                     {onDelete && (

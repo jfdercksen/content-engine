@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Plus, ArrowLeft, Image as ImageIcon, MessageSquare, Palette, TrendingUp } from 'lucide-react'
 import { useClientConfig } from '@/hooks/useClientConfig'
@@ -63,6 +63,19 @@ export default function SocialMediaPage() {
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingContent, setEditingContent] = useState<any>(null)
     const [isUpdatingContent, setIsUpdatingContent] = useState(false)
+    // Add state to preserve pagination when updating posts
+    const [currentPostPage, setCurrentPostPage] = useState(1)
+    // Use ref to track the current page value (to avoid stale closures)
+    const currentPostPageRef = useRef(1)
+    // Use ref to track if we're in the middle of refreshing (to prevent page reset)
+    const isRefreshingRef = useRef(false)
+    const pageToRestoreRef = useRef<number | null>(null)
+    
+    // Keep ref in sync with state
+    useEffect(() => {
+        currentPostPageRef.current = currentPostPage
+        console.log('📄 DEBUG: currentPostPageRef updated to:', currentPostPage)
+    }, [currentPostPage])
 
     // Move useEffect to the top to avoid hooks order issues
     useEffect(() => {
@@ -70,6 +83,70 @@ export default function SocialMediaPage() {
             fetchContentIdeas()
         }
     }, [clientId, clientConfig])
+
+    // Debug: Monitor page state changes to track when it resets
+    useEffect(() => {
+        const stackTrace = new Error().stack
+        console.log('📄 DEBUG: currentPostPage changed to:', currentPostPage, 'pageToRestoreRef:', pageToRestoreRef.current)
+        if (currentPostPage === 1 && pageToRestoreRef.current && pageToRestoreRef.current > 1) {
+            console.warn('⚠️ WARNING: Page was reset to 1 but we had preserved page:', pageToRestoreRef.current)
+            console.warn('⚠️ Restoring page to:', pageToRestoreRef.current)
+            // Restore the page if it was reset incorrectly
+            setCurrentPostPage(pageToRestoreRef.current)
+        }
+    }, [currentPostPage])
+
+    // Restore page after posts are updated (if we're in the middle of a refresh)
+    useEffect(() => {
+        // Check both refs and sessionStorage for the page to restore
+        const sessionStorageKey = selectedIdeaForSocialMedia?.id 
+            ? `preservePage_${selectedIdeaForSocialMedia.id}` 
+            : null
+        
+        const sessionPage = sessionStorageKey && typeof window !== 'undefined'
+            ? parseInt(sessionStorage.getItem(sessionStorageKey) || '0', 10)
+            : 0
+        
+        const refPage = pageToRestoreRef.current
+        
+        const pageToRestore = refPage || sessionPage || 0
+        
+        if ((pageToRestore > 0 || isRefreshingRef.current) && socialMediaContentForIdea.length > 0) {
+            const itemsPerPage = 10
+            const totalPages = Math.ceil(socialMediaContentForIdea.length / itemsPerPage)
+            const validPage = pageToRestore > totalPages ? Math.max(1, totalPages) : pageToRestore
+            
+            console.log('🔄 RESTORE PAGE EFFECT: refPage:', refPage, 'sessionPage:', sessionPage, 'pageToRestore:', pageToRestore, 'current:', currentPostPage, 'valid:', validPage, 'total pages:', totalPages, 'posts:', socialMediaContentForIdea.length)
+            
+            // If current page doesn't match what we want, restore it
+            if (validPage > 0 && validPage <= totalPages && currentPostPage !== validPage) {
+                console.log('✅ RESTORE PAGE EFFECT: Setting page from', currentPostPage, 'to', validPage)
+                setCurrentPostPage(validPage)
+                currentPostPageRef.current = validPage
+                
+                // Clear sessionStorage after restoring
+                if (sessionStorageKey && typeof window !== 'undefined') {
+                    setTimeout(() => {
+                        sessionStorage.removeItem(sessionStorageKey)
+                    }, 500)
+                }
+            } else if (currentPostPage === validPage) {
+                console.log('✅ RESTORE PAGE EFFECT: Page already correct:', validPage)
+                // Clear refs if page is already correct
+                if (refPage) {
+                    setTimeout(() => {
+                        pageToRestoreRef.current = null
+                        isRefreshingRef.current = false
+                        if (sessionStorageKey && typeof window !== 'undefined') {
+                            sessionStorage.removeItem(sessionStorageKey)
+                        }
+                        console.log('✅ RESTORE PAGE EFFECT: Cleared refs')
+                    }, 500)
+                }
+            }
+        }
+    }, [socialMediaContentForIdea.length, currentPostPage, selectedIdeaForSocialMedia?.id])
+
 
     // Helper function to safely get values from Baserow fields
     const getBaserowFieldValue = (field: any): string => {
@@ -270,10 +347,27 @@ export default function SocialMediaPage() {
         setShowForm(true)
     }
 
-    const handleViewIdea = async (idea: any) => {
-        console.log('DEBUG: handleViewIdea called with idea:', idea)
+    const handleViewIdea = async (idea: any, resetPage: boolean = true) => {
+        console.log('DEBUG: handleViewIdea called with idea:', idea, 'resetPage:', resetPage, 'isRefreshing:', isRefreshingRef.current)
         
         // Instead of opening the 3-tab modal, go directly to social media content
+        const isNewIdea = selectedIdeaForSocialMedia?.id !== idea.id
+        
+        // NEVER reset page if we're in the middle of refreshing (updating a post)
+        if (isRefreshingRef.current) {
+            console.log('🚫 DEBUG: Blocked page reset in handleViewIdea because we\'re refreshing')
+            resetPage = false
+        }
+        
+        // Reset to first page only if it's a new idea AND resetPage is true AND we're not refreshing
+        if (isNewIdea && resetPage && !isRefreshingRef.current && pageToRestoreRef.current === null) {
+            console.log('🔄 DEBUG: Resetting page to 1 for new idea')
+            setCurrentPostPage(1)
+            currentPostPageRef.current = 1
+        } else if (isRefreshingRef.current || pageToRestoreRef.current !== null) {
+            console.log('🚫 DEBUG: Prevented page reset - isRefreshing:', isRefreshingRef.current, 'pageToRestore:', pageToRestoreRef.current)
+        }
+        
         setSelectedIdeaForSocialMedia(idea)
         setShowSocialMediaModal(true)
         setIsLoadingSocialMedia(true)
@@ -360,6 +454,112 @@ export default function SocialMediaPage() {
         } finally {
             setIsLoadingSocialMedia(false)
             console.log('DEBUG: Loading finished, modal should be visible')
+        }
+    }
+
+    // Function to refresh posts for an idea without resetting pagination
+    const refreshPostsForIdea = async (idea: any, preservePage: number = 1) => {
+        console.log('DEBUG: refreshPostsForIdea called for idea:', idea.id, 'preserve page:', preservePage)
+        setIsLoadingSocialMedia(true)
+        
+        try {
+            const apiUrl = `/api/baserow/${clientId}/social-media-content?contentIdea=${idea.id}&debug=true`
+            const response = await fetch(apiUrl)
+            
+            if (response.ok) {
+                const data = await response.json()
+                
+                if (data.results && data.results.length > 0) {
+                    const contentIdeaFieldId = clientConfig?.fieldMappings?.socialMediaContent?.contentidea
+                    const fieldKey = contentIdeaFieldId ? `field_${contentIdeaFieldId}` : 'field_unknown'
+                    
+                    const filteredPosts = data.results.filter((post: any) => {
+                        const contentIdeaField = post[fieldKey]
+                        return contentIdeaField && Array.isArray(contentIdeaField) && 
+                            contentIdeaField.some((item: any) => item.id === idea.id)
+                    })
+                    
+                    console.log('🔄 DEBUG: Refreshing posts - preserved page:', preservePage, ', filtered posts:', filteredPosts.length)
+                    
+                    // Calculate valid page based on new post count (10 posts per page)
+                    const itemsPerPage = 10
+                    const totalPages = Math.ceil(filteredPosts.length / itemsPerPage)
+                    const validPage = preservePage > totalPages ? Math.max(1, totalPages) : preservePage
+                    
+                    console.log('📄 DEBUG: Page calculation - preserved:', preservePage, 'total pages:', totalPages, 'valid page:', validPage)
+                    
+                    console.log('🔄 DEBUG: About to update posts and preserve page:', validPage, 'current state:', currentPostPage)
+                    
+                    // Store the page to restore in ref and sessionStorage for safety
+                    pageToRestoreRef.current = validPage
+                    isRefreshingRef.current = true
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.setItem(`preservePage_${idea.id}`, validPage.toString())
+                    }
+                    
+                    console.log('📌 RESTORE: Setting page to:', validPage, 'currentPostPage:', currentPostPage)
+                    
+                    // CRITICAL: Set page state IMMEDIATELY and SYNCHRONOUSLY before updating posts
+                    // This prevents the table from resetting to page 1 when it receives new content
+                    console.log('📌 RESTORE: Setting page state IMMEDIATELY to:', validPage)
+                    setCurrentPostPage(validPage)
+                    currentPostPageRef.current = validPage
+                    
+                    // Also store in sessionStorage immediately
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.setItem(`preservePage_${idea.id}`, validPage.toString())
+                    }
+                    
+                    // Now update posts - the table should maintain the page we just set
+                    setSocialMediaContentForIdea(filteredPosts)
+                    
+                    // Verify page is still correct after state updates, restore if needed
+                    setTimeout(() => {
+                        const savedPage = typeof window !== 'undefined' 
+                            ? parseInt(sessionStorage.getItem(`preservePage_${idea.id}`) || String(validPage), 10)
+                            : validPage
+                        
+                        console.log('📄 RESTORE VERIFY: Saved page:', savedPage, 'currentPostPage:', currentPostPage, 'validPage:', validPage)
+                        
+                        if (currentPostPageRef.current !== savedPage) {
+                            console.log('⚠️ RESTORE VERIFY: Page was reset! Restoring to:', savedPage)
+                            setCurrentPostPage(savedPage)
+                            currentPostPageRef.current = savedPage
+                        } else {
+                            console.log('✅ RESTORE VERIFY: Page is correct:', savedPage)
+                        }
+                        
+                        // Clear refresh flags after verification
+                        isRefreshingRef.current = false
+                        pageToRestoreRef.current = null
+                    }, 100)
+                } else {
+                    setSocialMediaContentForIdea([])
+                    // Only reset page if we're not preserving it
+                    if (!isRefreshingRef.current && pageToRestoreRef.current === null) {
+                        setCurrentPostPage(1)
+                        currentPostPageRef.current = 1
+                    }
+                }
+            } else {
+                console.error('Failed to refresh posts for idea:', idea.id)
+                setSocialMediaContentForIdea([])
+                // Only reset page if we're not preserving it
+                if (!isRefreshingRef.current && pageToRestoreRef.current === null) {
+                    setCurrentPostPage(1)
+                    currentPostPageRef.current = 1
+                }
+            }
+        } catch (error) {
+            console.error('Error refreshing posts for idea:', error)
+            setSocialMediaContentForIdea([])
+            // Only reset page if we're not preserving it
+            if (!isRefreshingRef.current && pageToRestoreRef.current === null) {
+                setCurrentPostPage(1)
+                currentPostPageRef.current = 1
+            }
+        } finally {
+            setIsLoadingSocialMedia(false)
         }
     }
 
@@ -563,9 +763,25 @@ export default function SocialMediaPage() {
             // Check if we're creating new content or updating existing
             const isCreating = !editingContent?.id
             
+            // Preserve current page before refresh (only for updates, not creates)
+            // Use ref to get the latest value (avoid stale closures)
+            const preservedPage = !isCreating ? currentPostPageRef.current : 1
+            
             console.log(isCreating ? '📝 Creating content' : '📝 Updating content:', editingContent?.id)
             console.log('📝 Form data received:', formData)
             console.log('📝 Selected idea for social media:', selectedIdeaForSocialMedia)
+            console.log('📝 Preserving page:', preservedPage, 'currentPostPage state:', currentPostPage, 'currentPostPageRef:', currentPostPageRef.current)
+            
+            // Store the page to restore in ref and sessionStorage immediately
+            if (!isCreating) {
+                pageToRestoreRef.current = preservedPage
+                isRefreshingRef.current = true
+                // Store in sessionStorage as backup in case refs are lost
+                if (typeof window !== 'undefined') {
+                    sessionStorage.setItem(`preservePage_${selectedIdeaForSocialMedia?.id}`, preservedPage.toString())
+                }
+                console.log('📌 DEBUG: Stored preserved page in ref:', preservedPage, 'and sessionStorage')
+            }
             
             // Prepare the post data with content idea link for new posts
             const postData = {
@@ -601,13 +817,58 @@ export default function SocialMediaPage() {
                 console.log('✅ Success:', result)
                 
                 if (isCreating) {
-                    // For new content, refresh the posts list
-                    await handleViewIdea(selectedIdeaForSocialMedia)
+                    // For new content, refresh the posts list (reset to page 1)
+                    setCurrentPostPage(1)
+                    await handleViewIdea(selectedIdeaForSocialMedia, true)
                     alert('Post created successfully!')
                 } else {
-                    // For existing content, refetch from server to get all updated fields
+                    // For existing content, refetch posts but preserve the current page
+                    console.log('🔄 UPDATE FLOW: Starting post refresh, preservedPage:', preservedPage, 'currentPostPage:', currentPostPage, 'currentPostPageRef:', currentPostPageRef.current)
+                    
                     if (selectedIdeaForSocialMedia) {
-                        await handleViewIdea(selectedIdeaForSocialMedia)
+                        // Ensure we have the correct page before refreshing
+                        const pageToUse = preservedPage > 1 ? preservedPage : currentPostPageRef.current
+                        console.log('🔄 UPDATE FLOW: Starting update - preservedPage:', preservedPage, 'pageToUse:', pageToUse, 'currentPostPage state:', currentPostPage, 'currentPostPageRef:', currentPostPageRef.current)
+                        
+                        // CRITICAL: Set page state and ref IMMEDIATELY and SYNCHRONOUSLY before any async operations
+                        // This must happen before refreshPostsForIdea is called
+                        currentPostPageRef.current = pageToUse
+                        setCurrentPostPage(pageToUse)
+                        
+                        // Store in sessionStorage as backup
+                        if (typeof window !== 'undefined') {
+                            sessionStorage.setItem(`preservePage_${selectedIdeaForSocialMedia.id}`, pageToUse.toString())
+                        }
+                        
+                        console.log('🔄 UPDATE FLOW: Page state set to:', pageToUse, 'ref updated to:', currentPostPageRef.current)
+                        
+                        // Set refresh flag to prevent page resets during refresh
+                        isRefreshingRef.current = true
+                        pageToRestoreRef.current = pageToUse
+                        
+                        // Refresh posts without resetting page
+                        await refreshPostsForIdea(selectedIdeaForSocialMedia, pageToUse)
+                        
+                        // Verify and restore page after refresh completes
+                        setTimeout(() => {
+                            const savedPage = typeof window !== 'undefined' 
+                                ? parseInt(sessionStorage.getItem(`preservePage_${selectedIdeaForSocialMedia.id}`) || String(pageToUse), 10)
+                                : pageToUse
+                            
+                            console.log('🔄 UPDATE FLOW: Post-refresh verification - savedPage:', savedPage, 'currentPostPage:', currentPostPage, 'currentPostPageRef:', currentPostPageRef.current)
+                            
+                            if (currentPostPageRef.current !== savedPage || currentPostPage !== savedPage) {
+                                console.log('⚠️ UPDATE FLOW: Page mismatch detected! Restoring to:', savedPage)
+                                currentPostPageRef.current = savedPage
+                                setCurrentPostPage(savedPage)
+                            } else {
+                                console.log('✅ UPDATE FLOW: Page is correct after refresh:', savedPage)
+                            }
+                            
+                            // Clear refresh flags
+                            isRefreshingRef.current = false
+                            pageToRestoreRef.current = null
+                        }, 200)
                     } else {
                         // If no idea selected, just refresh the general list
                         await fetchSocialMediaContent()
@@ -615,8 +876,12 @@ export default function SocialMediaPage() {
                     alert('Content updated successfully!')
                 }
                 
+                // Don't close modal immediately - wait a moment for page to be restored
+                setTimeout(() => {
+                    console.log('🔒 DEBUG: Closing modal, currentPostPage:', currentPostPage)
                 setShowEditModal(false)
                 setEditingContent(null)
+                }, 100)
             } else {
                 // Try to get error response text first
                 const responseText = await response.text()
@@ -876,6 +1141,7 @@ export default function SocialMediaPage() {
                                 ) : (
                                     <>
                                         {console.log('DEBUG: Rendering SocialMediaContentTable with', socialMediaContentForIdea.length, 'posts')}
+                                        {console.log('📊 DEBUG: Rendering table - currentPostPage:', currentPostPage, 'posts count:', socialMediaContentForIdea.length, 'pageToRestoreRef:', pageToRestoreRef.current)}
                                         <SocialMediaContentTable
                                             socialMediaContent={socialMediaContentForIdea}
                                             isLoading={isLoadingSocialMedia}
@@ -887,6 +1153,16 @@ export default function SocialMediaPage() {
                                             onStatusUpdate={(contentId, status) => {
                                                 // Handle status update - this will be implemented in step 2
                                                 console.log('Update status:', contentId, status)
+                                            }}
+                                            currentPage={currentPostPage}
+                                            onPageChange={(page) => {
+                                                console.log('📄 DEBUG: Table onPageChange called - requested:', page, 'current state:', currentPostPage, 'isRefreshing:', isRefreshingRef.current)
+                                                // Only allow page changes if we're not in the middle of a refresh
+                                                if (!isRefreshingRef.current || page === pageToRestoreRef.current) {
+                                                    setCurrentPostPage(page)
+                                                } else {
+                                                    console.log('🚫 DEBUG: Blocked page change during refresh - requested:', page, 'preserved:', pageToRestoreRef.current)
+                                                }
                                             }}
                                             onDelete={handleDeleteContent}
                                             clientPrimaryColor={clientConfig.branding.primaryColor}

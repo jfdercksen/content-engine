@@ -8,12 +8,14 @@ import ClientOnly from '@/components/ClientOnly'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Mail, Search, Filter, MoreHorizontal, ArrowLeft, Eye, Edit } from 'lucide-react'
+import { Plus, Mail, Search, Filter, MoreHorizontal, ArrowLeft, Eye, Edit, Send } from 'lucide-react'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmailIdea, EMAIL_TYPES, EMAIL_STATUS } from '@/lib/types/content'
 import EmailIdeaForm from '@/components/forms/EmailIdeaForm'
 import EmailPreviewModal from '@/components/modals/EmailPreviewModal'
+import SimpleHTMLEditor from '@/components/forms/SimpleHTMLEditor'
 import { EmailIdeaCard } from '@/components/cards/EmailIdeaCard'
 import { ViewToggle } from '@/components/ui/view-toggle'
 
@@ -31,6 +33,7 @@ export default function EmailIdeasPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingEmailIdea, setEditingEmailIdea] = useState<EmailIdea | null>(null)
+  const [editingHtmlEmailIdea, setEditingHtmlEmailIdea] = useState<EmailIdea | null>(null) // For simple HTML editor
   const [previewingEmailIdea, setPreviewingEmailIdea] = useState<EmailIdea | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
@@ -154,8 +157,71 @@ export default function EmailIdeasPage() {
     console.log('handleSaveEmailIdea completed, emailIdeas state:', emailIdeas)
   }
 
-  const handleEditEmailIdea = (emailIdea: EmailIdea) => {
-    setEditingEmailIdea(emailIdea)
+  const handleEditEmailIdea = async (emailIdea: EmailIdea) => {
+    // Fetch the full email idea to ensure we have all fields including Mailchimp fields
+    try {
+      console.log('🔍 Fetching email idea for editing:', emailIdea.id)
+      const response = await fetch(`/api/baserow/${clientId}/email-ideas/${emailIdea.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🔍 Email idea fetched for editing:', data)
+        
+        // The response has the full email idea data with all fields
+        const emailIdeaData = data.data || data
+        
+        // Normalize the data to have both camelCase and lowercase fields for compatibility
+        const normalizedEmailIdea = {
+          ...emailIdeaData,
+          id: emailIdeaData.id || emailIdea.id,
+          generatedHtml: emailIdeaData.generatedHtml || emailIdeaData.generatedhtml || '',
+          generatedhtml: emailIdeaData.generatedHtml || emailIdeaData.generatedhtml || '',
+          emailIdeaName: emailIdeaData.emailIdeaName || emailIdeaData.emailideaname || '',
+          emailideaname: emailIdeaData.emailideaname || emailIdeaData.emailIdeaName || '',
+          emailType: emailIdeaData.emailType || emailIdeaData.emailtype || '',
+          emailtype: emailIdeaData.emailtype || emailIdeaData.emailType || '',
+          status: emailIdeaData.status || '',
+          subjectLine: emailIdeaData.subjectLine || emailIdeaData.subjectline || '',
+          subjectline: emailIdeaData.subjectline || emailIdeaData.subjectLine || '',
+          fromName: emailIdeaData.fromName || emailIdeaData.fromname || '',
+          fromname: emailIdeaData.fromname || emailIdeaData.fromName || '',
+          fromEmail: emailIdeaData.fromEmail || emailIdeaData.fromemail || '',
+          fromemail: emailIdeaData.fromemail || emailIdeaData.fromEmail || '',
+          replyToEmail: emailIdeaData.replyToEmail || emailIdeaData.replytoemail || '',
+          replytoemail: emailIdeaData.replytoemail || emailIdeaData.replyToEmail || '',
+          mailchimpCampaignId: emailIdeaData.mailchimpCampaignId || emailIdeaData.mailchimpcampaignid || '',
+          mailchimpcampaignid: emailIdeaData.mailchimpcampaignid || emailIdeaData.mailchimpCampaignId || '',
+          mailchimpCampaignUrl: emailIdeaData.mailchimpCampaignUrl || emailIdeaData.mailchimpcampaignurl || '',
+          mailchimpcampaignurl: emailIdeaData.mailchimpcampaignurl || emailIdeaData.mailchimpCampaignUrl || '',
+          lastModified: emailIdeaData.lastModified || emailIdeaData.lastmodified || ''
+        }
+        
+        console.log('🔍 Normalized email idea for editing:', normalizedEmailIdea)
+        
+        // If there's generated HTML, use the simple HTML editor
+        // Otherwise, use the full form editor
+        if (normalizedEmailIdea.generatedHtml || normalizedEmailIdea.generatedhtml) {
+          setEditingHtmlEmailIdea(normalizedEmailIdea)
+        } else {
+          setEditingEmailIdea(normalizedEmailIdea)
+        }
+      } else {
+        console.error('Failed to fetch email idea for editing:', response.statusText)
+        // Fallback to using the email idea from the list
+        if (emailIdea.generatedHtml || emailIdea.generatedhtml) {
+          setEditingHtmlEmailIdea(emailIdea)
+        } else {
+          setEditingEmailIdea(emailIdea)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching email idea for editing:', error)
+      // Fallback to using the email idea from the list
+      if (emailIdea.generatedHtml || emailIdea.generatedhtml) {
+        setEditingHtmlEmailIdea(emailIdea)
+      } else {
+        setEditingEmailIdea(emailIdea)
+      }
+    }
   }
 
   const handleViewEmailIdea = async (emailIdeaId: string) => {
@@ -209,11 +275,49 @@ export default function EmailIdeasPage() {
 
   const handleCancelEdit = () => {
     setEditingEmailIdea(null)
+    setEditingHtmlEmailIdea(null)
     setShowCreateForm(false)
   }
 
   const handleClosePreview = () => {
     setPreviewingEmailIdea(null)
+  }
+
+  const handleSendToMailchimp = async (emailIdeaId: string) => {
+    try {
+      console.log('📧 Sending email to Mailchimp:', emailIdeaId)
+      
+      const response = await fetch(`/api/baserow/${clientId}/email-ideas/${emailIdeaId}/send-to-mailchimp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send to Mailchimp')
+      }
+      
+      const result = await response.json()
+      console.log('✅ Mailchimp response:', result)
+      
+      toast.success('Email sent to Mailchimp successfully!', {
+        description: result.mailchimpCampaignUrl 
+          ? `Campaign created: ${result.mailchimpCampaignId}`
+          : 'Draft email created in Mailchimp'
+      })
+      
+      // Refresh the email ideas list
+      await fetchEmailIdeas()
+      setRefreshTrigger(prev => prev + 1)
+      
+    } catch (error) {
+      console.error('❌ Error sending to Mailchimp:', error)
+      toast.error('Failed to send to Mailchimp', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
+      })
+    }
   }
 
   // Conditional rendering based on client config state
@@ -472,6 +576,9 @@ export default function EmailIdeasPage() {
                     })
                   }
                   
+                  const generatedHtml = getFieldValue('generatedHtml', 'generatedhtml')
+                  const mailchimpCampaignId = getFieldValue('mailchimpCampaignId', 'mailchimpcampaignid')
+                  
                   return (
                     <EmailIdeaCard
                       key={idea.id}
@@ -483,10 +590,16 @@ export default function EmailIdeasPage() {
                         cta: getFieldValue('cta', 'cta'),
                         emailtextidea: getFieldValue('emailTextIdea', 'emailtextidea'),
                         status: getFieldValue('status', 'status'),
-                        createddate: getFieldValue('createdDate', 'createddate') || getFieldValue('lastModified', 'lastmodified')
+                        createddate: getFieldValue('createdDate', 'createddate') || getFieldValue('lastModified', 'lastmodified'),
+                        generatedhtml: generatedHtml,
+                        generatedHtml: generatedHtml,
+                        mailchimpcampaignid: mailchimpCampaignId,
+                        mailchimpCampaignId: mailchimpCampaignId
                       }}
                       onView={() => handleViewEmailIdea(String(idea.id))}
-                      onEdit={() => { setEditingEmailIdea(idea); setShowCreateForm(true); }}
+                      onEdit={() => handleEditEmailIdea(idea)}
+                      onSendToMailchimp={handleSendToMailchimp}
+                      clientId={clientId}
                     />
                   )
                 })}
@@ -529,27 +642,41 @@ export default function EmailIdeasPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {idea.generatedHtml && (
-                          <Button 
-                            variant={idea.status === 'Generated' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleViewEmailIdea(String(idea.id))}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                        )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditEmailIdea(idea)}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        {(() => {
+                          // Helper to get field value
+                          const getFieldValue = (camelCase: string, lowercase: string): string => {
+                            const value = (idea as any)[camelCase] || (idea as any)[lowercase]
+                            if (typeof value === 'object' && value?.value) return value.value
+                            return value || ''
+                          }
+                          
+                          const generatedHtml = getFieldValue('generatedHtml', 'generatedhtml')
+                          const mailchimpCampaignId = getFieldValue('mailchimpCampaignId', 'mailchimpcampaignid')
+                          const status = getFieldValue('status', 'status')
+                          
+                          return (
+                            <>
+                              {generatedHtml && (
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewEmailIdea(String(idea.id))}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </Button>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditEmailIdea(idea)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -559,15 +686,45 @@ export default function EmailIdeasPage() {
           </CardContent>
         </Card>
 
+        {/* Simple HTML Editor Modal */}
+        {editingHtmlEmailIdea && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg w-full h-full max-w-full overflow-hidden">
+              <SimpleHTMLEditor
+                clientId={clientId}
+                emailIdeaId={String(editingHtmlEmailIdea.id)}
+                initialHtml={editingHtmlEmailIdea.generatedHtml || editingHtmlEmailIdea.generatedhtml || ''}
+                emailIdeaName={editingHtmlEmailIdea.emailIdeaName || editingHtmlEmailIdea.emailideaname || ''}
+                status={editingHtmlEmailIdea.status || ''}
+                subjectLine={editingHtmlEmailIdea.subjectLine || editingHtmlEmailIdea.subjectline || ''}
+                fromName={editingHtmlEmailIdea.fromName || editingHtmlEmailIdea.fromname || ''}
+                fromEmail={editingHtmlEmailIdea.fromEmail || editingHtmlEmailIdea.fromemail || ''}
+                replyToEmail={editingHtmlEmailIdea.replyToEmail || editingHtmlEmailIdea.replytoemail || ''}
+                mailchimpCampaignId={editingHtmlEmailIdea.mailchimpCampaignId || editingHtmlEmailIdea.mailchimpcampaignid || ''}
+                mailchimpCampaignUrl={editingHtmlEmailIdea.mailchimpCampaignUrl || editingHtmlEmailIdea.mailchimpcampaignurl || ''}
+                onSave={() => {
+                  setEditingHtmlEmailIdea(null)
+                  fetchEmailIdeas()
+                  setRefreshTrigger(prev => prev + 1)
+                }}
+                onCancel={() => setEditingHtmlEmailIdea(null)}
+                onSendToMailchimp={handleSendToMailchimp}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Email Idea Form Modal */}
-        {(showCreateForm || editingEmailIdea) && (
+        {(showCreateForm || editingEmailIdea) && !editingHtmlEmailIdea && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className={`bg-white rounded-lg w-full ${editingEmailIdea ? 'max-w-full h-[95vh]' : 'max-w-6xl max-h-[90vh]'} overflow-y-auto flex flex-col`}>
               <EmailIdeaForm
                 clientId={clientId}
                 initialData={editingEmailIdea || undefined}
                 onSave={handleSaveEmailIdea}
                 onCancel={handleCancelEdit}
+                editMode={!!editingEmailIdea}
+                onSendToMailchimp={handleSendToMailchimp}
               />
             </div>
           </div>

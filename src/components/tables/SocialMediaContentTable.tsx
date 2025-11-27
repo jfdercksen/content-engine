@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,8 @@ interface SocialMediaContentTableProps {
   clientPrimaryColor: string
   showContentIdea?: boolean
   contentIdeaTitle?: string
+  currentPage?: number
+  onPageChange?: (page: number) => void
 }
 
 // Component to display generated images
@@ -160,15 +162,53 @@ export default function SocialMediaContentTable({
   onDelete,
   clientPrimaryColor,
   showContentIdea = true,
-  contentIdeaTitle
+  contentIdeaTitle,
+  currentPage: externalCurrentPage,
+  onPageChange
 }: SocialMediaContentTableProps) {
   const [filteredContent, setFilteredContent] = useState<SocialMediaContent[]>(socialMediaContent)
   const [filters, setFilters] = useState<SocialMediaContentFilters>({})
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  const [internalCurrentPage, setInternalCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
+  
+  // Use external page if provided, otherwise use internal state
+  // ALWAYS prefer external page when provided to prevent resets
+  const currentPage = externalCurrentPage !== undefined ? externalCurrentPage : internalCurrentPage
+  
+  const setCurrentPage = (page: number | ((prev: number) => number)) => {
+    if (onPageChange) {
+      // If using external control, handle function updates
+      if (typeof page === 'function') {
+        const newPage = page(currentPage)
+        onPageChange(newPage)
+      } else {
+        onPageChange(page)
+      }
+    } else {
+      // Internal state management
+      if (typeof page === 'function') {
+        setInternalCurrentPage(page)
+      } else {
+        setInternalCurrentPage(page)
+      }
+    }
+  }
 
+  // Sync internal page state when external page changes (if using external control)
+  useEffect(() => {
+    if (externalCurrentPage !== undefined && onPageChange) {
+      // When using external page control, always sync internal state to match external
+      // This prevents internal state from being out of sync when content updates
+      setInternalCurrentPage(externalCurrentPage)
+      console.log('🔄 Table: Syncing internal page to external:', externalCurrentPage)
+    }
+  }, [externalCurrentPage, onPageChange])
+
+  // Track previous filter/search values to detect actual changes
+  const prevFiltersRef = useRef<{ searchTerm: string, filters: any }>({ searchTerm: '', filters: {} })
+  
   useEffect(() => {
     let filtered = socialMediaContent
 
@@ -197,8 +237,28 @@ export default function SocialMediaContentTable({
     }
 
     setFilteredContent(filtered)
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [socialMediaContent, searchTerm, filters])
+    
+    // IMPORTANT: If using external page control (onPageChange provided), NEVER reset page
+    // The parent component is responsible for managing page state
+    // Only reset page if using internal state AND filters/search actually changed (not just content)
+    const filtersChanged = 
+      prevFiltersRef.current.searchTerm !== searchTerm ||
+      JSON.stringify(prevFiltersRef.current.filters) !== JSON.stringify(filters)
+    
+    if (onPageChange === undefined && externalCurrentPage === undefined && filtersChanged) {
+      // Using internal state - reset to first page ONLY when filters/search actually change
+      console.log('📄 Table: Filters/search changed, resetting to page 1 (internal state)')
+      setCurrentPage(1)
+    } else if (onPageChange || externalCurrentPage !== undefined) {
+      // Using external state - NEVER reset page, even if content changes
+      console.log('📄 Table: Using external page control - NOT resetting page when content changes')
+    }
+    
+    // Update ref for next comparison
+    prevFiltersRef.current = { searchTerm, filters }
+    // NOTE: We intentionally do NOT include socialMediaContent in the dependency check for page reset
+    // Content changes should NOT reset the page when using external control
+  }, [socialMediaContent, searchTerm, filters, externalCurrentPage, onPageChange])
 
   const getPlatformIcon = (platform: string | any) => {
     // Handle Baserow select field format {id, value, color}
@@ -689,7 +749,11 @@ export default function SocialMediaContentTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => {
+                const newPage = Math.max(1, currentPage - 1)
+                console.log('📄 Table: Previous button clicked, going from', currentPage, 'to', newPage)
+                setCurrentPage(newPage)
+              }}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -703,7 +767,11 @@ export default function SocialMediaContentTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => {
+                const newPage = Math.min(totalPages, currentPage + 1)
+                console.log('📄 Table: Next button clicked, going from', currentPage, 'to', newPage)
+                setCurrentPage(newPage)
+              }}
               disabled={currentPage === totalPages}
             >
               Next

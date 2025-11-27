@@ -23,7 +23,8 @@ import {
     Globe,
     ExternalLink,
     FileDown,
-    Building2
+    Building2,
+    Mail
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -31,6 +32,7 @@ interface SettingsData {
     settings: {
         webhooks?: Record<string, string>
         integrations?: Record<string, string>
+        mailchimp?: Record<string, string>
         wordpress?: Record<string, any>
     }
     preferences: {
@@ -63,6 +65,7 @@ export default function SettingsPage() {
         image_generator: '',
         blog_processor: '',
         email_processor: '',
+        mailchimp: '',
         uvp_creation: '',
         wordpress_publisher: ''
     })
@@ -71,6 +74,16 @@ export default function SettingsPage() {
         openai_api_key: '',
         replicate_api_token: '',
         anthropic_api_key: ''
+    })
+
+    const [mailchimp, setMailchimp] = useState({
+        api_key: '',
+        server_url: '',
+        server_prefix: '',
+        default_audience_id: '',
+        default_from_name: '',
+        default_from_email: '',
+        default_reply_to_email: ''
     })
 
     const [wordpress, setWordpress] = useState({
@@ -126,6 +139,7 @@ export default function SettingsPage() {
             image_generator: 'https://n8n.aiautomata.co.za/webhook/image-generator-webhook',
             blog_processor: 'https://n8n.aiautomata.co.za/webhook/blog-creation-mvp',
             email_processor: 'https://n8n.aiautomata.co.za/webhook/email-processor',
+            mailchimp: 'https://n8n.aiautomata.co.za/webhook/mailchimp',
             uvp_creation: 'https://n8n.aiautomata.co.za/webhook/uvp_creation',
             wordpress_publisher: 'https://n8n.aiautomata.co.za/webhook/blog_post'
         })
@@ -181,6 +195,11 @@ export default function SettingsPage() {
                 setIntegrations(prev => ({ ...prev, ...data.settings.integrations }))
             }
 
+            // Populate Mailchimp settings
+            if (data.settings?.mailchimp) {
+                setMailchimp(prev => ({ ...prev, ...data.settings.mailchimp }))
+            }
+
             // Populate WordPress settings
             if (data.settings?.wordpress) {
                 setWordpress(prev => ({ ...prev, ...data.settings.wordpress }))
@@ -220,6 +239,7 @@ export default function SettingsPage() {
                     settings: {
                         Webhooks: webhooks,
                         Integrations: integrations,
+                        Mailchimp: mailchimp,
                         WordPress: wordpress
                     },
                     preferences: {
@@ -282,6 +302,7 @@ export default function SettingsPage() {
                     settings: {
                         Webhooks: webhooks,
                         Integrations: integrations,
+                        Mailchimp: mailchimp,
                         WordPress: wordpress
                     },
                     preferences: {
@@ -610,6 +631,31 @@ export default function SettingsPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
+                            <Label htmlFor="mailchimp">Mailchimp</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="mailchimp"
+                                    value={webhooks.mailchimp}
+                                    onChange={(e) => setWebhooks(prev => ({ ...prev, mailchimp: e.target.value }))}
+                                    placeholder="https://n8n.aiautomata.co.za/webhook/mailchimp"
+                                />
+                                {webhooks.mailchimp && (
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => copyToClipboard(webhooks.mailchimp, 'mailchimp')}
+                                    >
+                                        {copied === 'mailchimp' ? (
+                                            <Check className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                            <Copy className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500">Webhook for creating draft emails in Mailchimp</p>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="uvp_creation">UVP Creation</Label>
                             <div className="flex gap-2">
                                 <Input
@@ -706,6 +752,183 @@ export default function SettingsPage() {
                             />
                             <p className="text-xs text-gray-500">Used for Claude AI models</p>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Mailchimp Integration */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <Mail className="h-5 w-5 text-orange-600" />
+                            <CardTitle>Mailchimp Integration</CardTitle>
+                        </div>
+                        <CardDescription>
+                            Configure Mailchimp API credentials for email campaign creation
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Setup Instructions Banner */}
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                            <div className="flex items-start gap-3">
+                                <Mail className="h-5 w-5 text-orange-600 mt-0.5" />
+                                <div className="flex-1 space-y-2">
+                                    <h4 className="font-medium text-orange-900">How to Get Your Mailchimp API Key</h4>
+                                    <ol className="text-sm text-orange-700 space-y-1 list-decimal list-inside">
+                                        <li>Log into your Mailchimp account</li>
+                                        <li>Go to: <strong>Account → Extras → API keys</strong></li>
+                                        <li>Click <strong>"Create A Key"</strong></li>
+                                        <li>Copy the API key (format: xxxxxxxx-us1, xxxxxxxx-us2, etc.)</li>
+                                        <li>Paste it in the field below</li>
+                                        <li>The server prefix (us1, us2, etc.) will be extracted automatically</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="mailchimp_api_key">Mailchimp API Key</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="mailchimp_api_key"
+                                    type="password"
+                                    value={mailchimp.api_key}
+                                    onChange={(e) => {
+                                        const apiKey = e.target.value
+                                        setMailchimp(prev => {
+                                            // Extract server prefix from API key (format: xxxxxxxx-us1)
+                                            const prefixMatch = apiKey.match(/-([a-z0-9]+)$/)
+                                            const serverPrefix = prefixMatch ? prefixMatch[1] : prev.server_prefix
+                                            const serverUrl = serverPrefix ? `https://${serverPrefix}.api.mailchimp.com/3.0` : prev.server_url
+                                            
+                                            return {
+                                                ...prev,
+                                                api_key: apiKey,
+                                                server_prefix: serverPrefix,
+                                                server_url: serverUrl
+                                            }
+                                        })
+                                    }}
+                                    placeholder="xxxxxxxx-us1"
+                                />
+                                {mailchimp.api_key && (
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => copyToClipboard(mailchimp.api_key, 'mailchimp_api_key')}
+                                    >
+                                        {copied === 'mailchimp_api_key' ? (
+                                            <Check className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                            <Copy className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Your Mailchimp API key (format: xxxxxxxx-us1). The server prefix will be extracted automatically.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="mailchimp_server_url">Mailchimp Server URL</Label>
+                            <Input
+                                id="mailchimp_server_url"
+                                type="url"
+                                value={mailchimp.server_url}
+                                onChange={(e) => setMailchimp(prev => ({ ...prev, server_url: e.target.value }))}
+                                placeholder="https://us1.api.mailchimp.com/3.0"
+                            />
+                            <p className="text-xs text-gray-500">
+                                Mailchimp API server URL (auto-filled from API key, or enter manually)
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="mailchimp_server_prefix">Server Prefix</Label>
+                            <Input
+                                id="mailchimp_server_prefix"
+                                value={mailchimp.server_prefix}
+                                onChange={(e) => {
+                                    const prefix = e.target.value
+                                    setMailchimp(prev => ({
+                                        ...prev,
+                                        server_prefix: prefix,
+                                        server_url: prefix ? `https://${prefix}.api.mailchimp.com/3.0` : prev.server_url
+                                    }))
+                                }}
+                                placeholder="us1"
+                            />
+                            <p className="text-xs text-gray-500">
+                                Mailchimp server prefix (us1, us2, etc.) - extracted from API key automatically
+                            </p>
+                        </div>
+
+                        <div className="border-t pt-4 space-y-4">
+                            <h4 className="font-medium text-gray-900">Default Email Settings</h4>
+                            <p className="text-sm text-gray-500">These will be used as defaults when creating email campaigns</p>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="mailchimp_default_audience_id">Default Audience/List ID</Label>
+                                <Input
+                                    id="mailchimp_default_audience_id"
+                                    value={mailchimp.default_audience_id}
+                                    onChange={(e) => setMailchimp(prev => ({ ...prev, default_audience_id: e.target.value }))}
+                                    placeholder="abc123def456"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Default Mailchimp audience/list ID to send emails to
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="mailchimp_default_from_name">Default From Name</Label>
+                                <Input
+                                    id="mailchimp_default_from_name"
+                                    value={mailchimp.default_from_name}
+                                    onChange={(e) => setMailchimp(prev => ({ ...prev, default_from_name: e.target.value }))}
+                                    placeholder="John from Company"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Default sender display name for email campaigns
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="mailchimp_default_from_email">Default From Email</Label>
+                                <Input
+                                    id="mailchimp_default_from_email"
+                                    type="email"
+                                    value={mailchimp.default_from_email}
+                                    onChange={(e) => setMailchimp(prev => ({ ...prev, default_from_email: e.target.value }))}
+                                    placeholder="noreply@example.com"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Default sender email address (must be verified in Mailchimp)
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="mailchimp_default_reply_to_email">Default Reply-To Email</Label>
+                                <Input
+                                    id="mailchimp_default_reply_to_email"
+                                    type="email"
+                                    value={mailchimp.default_reply_to_email}
+                                    onChange={(e) => setMailchimp(prev => ({ ...prev, default_reply_to_email: e.target.value }))}
+                                    placeholder="support@example.com"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Default reply-to email address (optional, defaults to from email if empty)
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Connection Status */}
+                        {mailchimp.api_key && mailchimp.server_url && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                                <Check className="h-4 w-4 text-green-600" />
+                                <span className="text-sm text-green-700 font-medium">Mailchimp integration configured</span>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

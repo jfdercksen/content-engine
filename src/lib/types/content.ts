@@ -490,6 +490,15 @@ export interface EmailIdea {
   templates: string[]     // field_7221 (link to templates table)
   generatedHtml: string   // field_7223 (text)
   images: string[]        // field_7224 (link to images table)
+  // Mailchimp Integration Fields
+  subjectLine?: string    // Subject Line (text)
+  fromName?: string       // From Name (text)
+  fromEmail?: string      // From Email (email)
+  replyToEmail?: string   // Reply-To Email (email)
+  mailchimpCampaignId?: string  // Mailchimp Campaign ID (text)
+  mailchimpCampaignUrl?: string // Mailchimp Campaign URL (url)
+  mailchimpSegmentId?: string   // Mailchimp Segment ID (text)
+  mailchimpSentDate?: string    // Mailchimp Sent Date (date)
 }
 
 // Templates Types

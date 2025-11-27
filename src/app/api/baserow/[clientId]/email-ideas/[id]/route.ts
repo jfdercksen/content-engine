@@ -12,6 +12,11 @@ const updateEmailIdeaSchema = z.object({
   emailTextIdea: z.string().optional(),
   emailUrlIdea: z.string().optional(),
   status: z.string().optional(),
+  // Mailchimp fields
+  subjectLine: z.string().optional(),
+  fromName: z.string().optional(),
+  fromEmail: z.string().email().optional().or(z.literal('')),
+  replyToEmail: z.string().email().optional().or(z.literal('')),
 })
 
 export async function GET(
