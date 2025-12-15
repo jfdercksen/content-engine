@@ -129,6 +129,139 @@ export async function GET(
       result = await baserowAPI.getSocialMediaContent(socialMediaTableId, filters)
     }
 
+    // Fetch and populate image data for all posts
+    if (result.results && result.results.length > 0) {
+      console.log('GENERAL ROUTE: Fetching linked images for', result.results.length, 'posts')
+      
+      // Debug: Check structure of first post's images field
+      if (result.results[0]) {
+        console.log('GENERAL ROUTE: Sample post images field:', result.results[0].images)
+        console.log('GENERAL ROUTE: Sample post images type:', typeof result.results[0].images)
+        console.log('GENERAL ROUTE: Sample post images isArray:', Array.isArray(result.results[0].images))
+        if (result.results[0].images && Array.isArray(result.results[0].images) && result.results[0].images.length > 0) {
+          console.log('GENERAL ROUTE: Sample first image object:', result.results[0].images[0])
+          console.log('GENERAL ROUTE: Sample first image keys:', Object.keys(result.results[0].images[0]))
+        }
+      }
+      
+      try {
+        // Get the Images table ID from client config
+        const imagesTableId = clientConfig.baserow.tables.images
+        if (imagesTableId) {
+          // Collect all unique image IDs from all posts
+          const allImageIds = new Set<number>()
+          
+          result.results.forEach((post: any, index: number) => {
+            // Check both 'images' (camelCase) and potential field ID formats
+            const imagesField = post.images || post.Images || post.field_7193
+            
+            if (imagesField) {
+              if (Array.isArray(imagesField)) {
+                imagesField.forEach((img: any) => {
+                  // Handle different possible structures:
+                  // 1. { id: 123, value: 123 } - link reference
+                  // 2. { id: 123 } - link reference
+                  // 3. Just a number
+                  // 4. String ID
+                  const imageId = img?.id || img?.value || img
+                  if (imageId !== undefined && imageId !== null && imageId !== '') {
+                    const numId = typeof imageId === 'string' ? parseInt(imageId, 10) : imageId
+                    if (!isNaN(numId) && numId > 0) {
+                      allImageIds.add(numId)
+                    }
+                  }
+                })
+              } else if (typeof imagesField === 'string' && imagesField.trim() !== '') {
+                // Single string ID
+                const numId = parseInt(imagesField, 10)
+                if (!isNaN(numId) && numId > 0) {
+                  allImageIds.add(numId)
+                }
+              } else if (typeof imagesField === 'number') {
+                // Single number ID
+                allImageIds.add(imagesField)
+              }
+            }
+          })
+          
+          if (allImageIds.size > 0) {
+            console.log('GENERAL ROUTE: Found', allImageIds.size, 'unique image IDs:', Array.from(allImageIds))
+            
+            // Fetch all images at once
+            const allImagesResult = await baserowAPI.getImages(imagesTableId, {})
+            console.log('GENERAL ROUTE: Fetched', allImagesResult.results?.length || 0, 'total images')
+            
+            // Create a map of image ID to image data for quick lookup
+            const imageMap = new Map<number, any>()
+            if (allImagesResult.results) {
+              allImagesResult.results.forEach((img: any) => {
+                const imgId = typeof img.id === 'string' ? parseInt(img.id, 10) : img.id
+                if (!isNaN(imgId) && imgId > 0 && allImageIds.has(imgId)) {
+                  imageMap.set(imgId, img)
+                }
+              })
+            }
+            
+            console.log('GENERAL ROUTE: Created image map with', imageMap.size, 'images')
+            
+            // Replace link references with actual image data in each post
+            result.results = result.results.map((post: any) => {
+              // Check both 'images' (camelCase) and potential field ID formats
+              const imagesField = post.images || post.Images || post.field_7193
+              
+              if (imagesField) {
+                let imageRefs: any[] = []
+                
+                if (Array.isArray(imagesField)) {
+                  imageRefs = imagesField
+                } else if (typeof imagesField === 'string' && imagesField.trim() !== '') {
+                  imageRefs = [{ id: parseInt(imagesField, 10) }]
+                } else if (typeof imagesField === 'number') {
+                  imageRefs = [{ id: imagesField }]
+                }
+                
+                if (imageRefs.length > 0) {
+                  const fetchedImages = imageRefs
+                    .map((imgRef: any) => {
+                      const imageId = imgRef?.id || imgRef?.value || imgRef
+                      const imgId = typeof imageId === 'string' ? parseInt(imageId, 10) : imageId
+                      return imageMap.get(imgId)
+                    })
+                    .filter((img: any) => img !== undefined && img !== null)
+                  
+                  if (fetchedImages.length > 0) {
+                    return {
+                      ...post,
+                      images: fetchedImages
+                    }
+                  }
+                }
+              }
+              return post
+            })
+            
+            console.log('GENERAL ROUTE: Updated posts with image data')
+            // Debug: Check structure after update
+            if (result.results[0] && result.results[0].images) {
+              console.log('GENERAL ROUTE: After update - first post images:', result.results[0].images)
+              if (Array.isArray(result.results[0].images) && result.results[0].images.length > 0) {
+                console.log('GENERAL ROUTE: After update - first image:', result.results[0].images[0])
+                console.log('GENERAL ROUTE: After update - first image has image field:', !!result.results[0].images[0].image)
+              }
+            }
+          } else {
+            console.log('GENERAL ROUTE: No images found in posts')
+          }
+        } else {
+          console.log('GENERAL ROUTE: Images table ID not configured')
+        }
+      } catch (error) {
+        console.error('GENERAL ROUTE: Error fetching linked images:', error)
+        console.error('GENERAL ROUTE: Error stack:', error instanceof Error ? error.stack : 'No stack')
+        // Don't fail the request if image fetching fails, just log the error
+      }
+    }
+
     return NextResponse.json({
       success: true,
       contentIdeaId: contentIdeaId,

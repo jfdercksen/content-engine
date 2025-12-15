@@ -106,18 +106,32 @@ function GeneratedImageDisplay({ content }: { content: SocialMediaContent }) {
          // Extract image URL from various possible field structures
          let imageUrl = null
          
-         // Check if image URL is already processed (from API mapping)
+         // Check multiple possible image URL fields
+         // 1. image.image (file field - array of file objects)
          if (image.image) {
            if (Array.isArray(image.image) && image.image.length > 0) {
              imageUrl = image.image[0]?.url || image.image[0]?.name || image.image[0]
            } else if (typeof image.image === 'string') {
              imageUrl = image.image
-           } else {
-             imageUrl = image.image
            }
          }
          
-         console.log('Rendering image:', image.id, 'imageUrl:', imageUrl)
+         // 2. imageLinkUrl (URL field)
+         if (!imageUrl && image.imageLinkUrl) {
+           imageUrl = image.imageLinkUrl
+         }
+         
+         // 3. imageUrl (alternative field name)
+         if (!imageUrl && image.imageUrl) {
+           imageUrl = image.imageUrl
+         }
+         
+         // 4. Check if image is a string URL directly
+         if (!imageUrl && typeof image === 'string') {
+           imageUrl = image
+         }
+         
+         console.log('Rendering image:', image.id, 'imageUrl:', imageUrl, 'image keys:', Object.keys(image))
          return (
            <div key={image.id || `image-${Math.random()}`} className="flex items-center gap-2">
              {imageUrl ? ( // Main Image field
@@ -125,26 +139,30 @@ function GeneratedImageDisplay({ content }: { content: SocialMediaContent }) {
                  <img 
                    src={imageUrl} 
                    alt="Generated content"
-                   className="w-12 h-12 object-cover rounded border"
+                   className="w-64 h-64 object-cover rounded-lg border shadow-sm"
                    onError={(e) => {
+                     console.error('Image failed to load:', imageUrl)
                      e.currentTarget.style.display = 'none'
+                   }}
+                   onLoad={() => {
+                     console.log('Image loaded successfully:', imageUrl)
                    }}
                  />
               <Badge 
                 variant="secondary" 
                 className="absolute -top-1 -right-1 text-xs px-1 py-0"
               >
-                {getDisplayValue(image.imagestatus) || 'Unknown'} {/* Image Status */}
+                {getDisplayValue(image.imagestatus) || image.imageStatus || 'Unknown'} {/* Image Status */}
               </Badge>
             </div>
           ) : (
-            <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
-              <ImageIcon className="h-4 w-4 text-gray-400" />
+            <div className="w-64 h-64 bg-gray-100 rounded-lg border flex items-center justify-center shadow-sm">
+              <ImageIcon className="h-16 w-16 text-gray-400" />
             </div>
           )}
                      <div className="text-xs">
-             <div className="font-medium">{getDisplayValue(image.imageprompt) || 'Untitled'}</div> {/* Image Prompt */}
-             <div className="text-gray-500">{getDisplayValue(image.imagestatus) || 'Processing'}</div> {/* Status */}
+             <div className="font-medium">{getDisplayValue(image.imageprompt) || image.imagePrompt || 'Untitled'}</div> {/* Image Prompt */}
+             <div className="text-gray-500">{getDisplayValue(image.imagestatus) || image.imageStatus || 'Processing'}</div> {/* Status */}
            </div>
          </div>
        )
