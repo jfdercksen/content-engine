@@ -96,7 +96,12 @@ export default function ImageIdeasPage() {
       const sortedImages = allImages.sort((a, b) => {
         const dateA = a.created_at || a.createdAt || '1970-01-01'
         const dateB = b.created_at || b.createdAt || '1970-01-01'
-        return new Date(dateB).getTime() - new Date(dateA).getTime()
+        const diff = new Date(dateB).getTime() - new Date(dateA).getTime()
+        if (diff !== 0) return diff
+        // fallback to id desc to keep latest on top when dates are missing/identical
+        const idA = Number(a.id) || 0
+        const idB = Number(b.id) || 0
+        return idB - idA
       })
 
       setImageIdeas(sortedImages)
