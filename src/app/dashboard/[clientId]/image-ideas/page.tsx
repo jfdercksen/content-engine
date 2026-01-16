@@ -60,36 +60,55 @@ export default function ImageIdeasPage() {
   }, [refreshTrigger, clientConfig])
 
   const fetchImageIdeas = async () => {
+    console.log('fetchImageIdeas: Starting fetch from Images table...')
+    setLoading(true)
     try {
-      console.log('fetchImageIdeas: Starting fetch from Images table...')
-      setLoading(true)
-      const response = await fetch(`/api/baserow/${clientId}/images`)
-      if (response.ok) {
+      let allImages: any[] = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        console.log(`Fetching page ${page}...`)
+        const response = await fetch(`/api/baserow/${clientId}/images?page=${page}&size=100`)
+        if (!response.ok) {
+          console.error('fetchImageIdeas: Failed to fetch page', page, response.status)
+          break
+        }
         const data = await response.json()
-        console.log('fetchImageIdeas: Fetched data from Images table:', data)
-        console.log('fetchImageIdeas: Results count:', data.results?.length || 0)
-        
-        // Handle case where table doesn't exist yet
         if (data.error === 'Table not found') {
           console.log('fetchImageIdeas: Images table not found, showing empty state')
-          setImageIdeas([])
-        } else {
-          setImageIdeas(data.results || [])
+          allImages = []
+          hasMore = false
+          break
         }
-        
-        console.log('fetchImageIdeas: State updated with', data.results?.length || 0, 'items')
-      } else {
-        console.error('fetchImageIdeas: Failed to fetch image ideas')
-        setImageIdeas([])
+        if (data.success && data.results) {
+          allImages = [...allImages, ...data.results]
+          console.log(`Page ${page}: Got ${data.results.length} images, Total: ${allImages.length}`)
+          hasMore = data.next !== null && data.results.length === 100
+          page++
+        } else {
+          hasMore = false
+        }
       }
+
+      console.log('fetchImageIdeas: Fetched all images:', allImages.length)
+
+      const sortedImages = allImages.sort((a, b) => {
+        const dateA = a.created_at || a.createdAt || '1970-01-01'
+        const dateB = b.created_at || b.createdAt || '1970-01-01'
+        return new Date(dateB).getTime() - new Date(dateA).getTime()
+      })
+
+      setImageIdeas(sortedImages)
     } catch (error) {
       console.error('fetchImageIdeas: Error fetching image ideas:', error)
       setImageIdeas([])
     } finally {
       setLoading(false)
-      console.log('fetchImageIdeas: Loading set to false')
     }
   }
+
+  console.log('Image Ideas page rendering with', imageIdeas.length, 'images')
 
   const filteredImageIdeas = imageIdeas.filter(idea => {
     // Helper function to safely get string value from field (handles objects from single select fields)
@@ -224,7 +243,8 @@ export default function ImageIdeasPage() {
           console.log('handleDeleteImageIdea: Image idea deleted successfully')
           setRefreshTrigger(prev => prev + 1)
         } else {
-          console.error('handleDeleteImageIdea: Failed to delete image idea')
+          const errorText = await response.text()
+          console.error('handleDeleteImageIdea: Failed to delete image idea', response.status, errorText)
           alert('Failed to delete image idea. Please try again.')
         }
       } catch (error) {
@@ -426,23 +446,34 @@ export default function ImageIdeasPage() {
           </Card>
         ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredImageIdeas.map((idea) => (
-              <ImageIdeaCard
-                key={idea.id}
-                image={{
-                  id: idea.id,
-                  imageprompt: idea.imagePrompt,
-                  imagetype: idea.imageType,
-                  imagestyle: idea.imageStyle,
-                  imagestatus: typeof idea.imageStatus === 'string' ? idea.imageStatus : idea.imageStatus?.value || '',
-                  image: idea.image,
-                  referenceurl: idea.referenceUrl
-                }}
-                onView={() => setViewingImageIdea(idea)}
-                onEdit={() => { setEditingImageIdea(idea); setShowCreateForm(true); }}
-                onDelete={handleDeleteImageIdea}
-              />
-            ))}
+            {filteredImageIdeas.map((idea) => {
+              let imageUrl = null
+              if ((idea as any).imageLinkUrl && typeof (idea as any).imageLinkUrl === 'string') {
+                imageUrl = (idea as any).imageLinkUrl
+              } else if (idea.image && Array.isArray(idea.image) && idea.image.length > 0) {
+                imageUrl = idea.image[0]?.url || null
+              } else if (typeof idea.image === 'string' && idea.image.startsWith('http')) {
+                imageUrl = idea.image
+              }
+              console.log('Image Ideas page rendering card for ID:', idea.id, 'URL:', imageUrl)
+              return (
+                <ImageIdeaCard
+                  key={idea.id}
+                  image={{
+                    id: idea.id,
+                    imageprompt: idea.imagePrompt,
+                    imagetype: idea.imageType,
+                    imagestyle: idea.imageStyle,
+                    imagestatus: typeof idea.imageStatus === 'string' ? idea.imageStatus : idea.imageStatus?.value || '',
+                    image: imageUrl ? [{ url: imageUrl }] : idea.image,
+                    referenceurl: idea.referenceUrl
+                  }}
+                  onView={() => setViewingImageIdea(idea)}
+                  onEdit={() => { setEditingImageIdea(idea); setShowCreateForm(true); }}
+                  onDelete={handleDeleteImageIdea}
+                />
+              )
+            })}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -469,15 +500,19 @@ export default function ImageIdeasPage() {
                 <CardContent className="space-y-4">
                   {/* Image Preview */}
                   {(() => {
-                    // Handle both formats: direct URL string (Modern Management & new clients) or array of file objects (old Willie Hoop)
+                    // Handle multiple formats: imageLinkUrl, file array, direct string, object with url, reference URL
                     let imageUrl = null;
                     
-                    if (typeof idea.image === 'string' && idea.image.trim()) {
-                      // Modern Management & new clients format: direct URL string
-                      imageUrl = idea.image;
+                    if ((idea as any).imageLinkUrl && typeof (idea as any).imageLinkUrl === 'string') {
+                      imageUrl = (idea as any).imageLinkUrl;
                     } else if (idea.image && Array.isArray(idea.image) && idea.image.length > 0 && idea.image[0].url) {
-                      // Legacy Willie Hoop format: array of file objects
                       imageUrl = idea.image[0].url;
+                    } else if (typeof idea.image === 'string' && idea.image.trim()) {
+                      imageUrl = idea.image;
+                    } else if (typeof idea.image === 'object' && idea.image !== null && 'url' in idea.image) {
+                      imageUrl = (idea.image as any).url;
+                    } else if (idea.referenceUrl) {
+                      imageUrl = idea.referenceUrl;
                     }
                     
                     return imageUrl ? (
