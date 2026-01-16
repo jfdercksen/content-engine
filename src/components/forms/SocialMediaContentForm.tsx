@@ -1144,25 +1144,35 @@ export default function SocialMediaContentForm({
                       console.log('Image.imageUrl[0] keys:', Object.keys((image as any).imageUrl[0]))
                     }
                     
-                    // Extract image URL - direct approach
+                    // Extract image URL from Baserow format
                     let displayImageUrl = null
-                    
-                    // Try direct access first
-                    if (Array.isArray(image.image) && image.image.length > 0 && (image.image[0] as any)?.url) {
-                      displayImageUrl = (image.image[0] as any).url
-                    } else if (Array.isArray((image as any).imageUrl) && (image as any).imageUrl.length > 0 && (image as any).imageUrl[0]?.url) {
-                      displayImageUrl = (image as any).imageUrl[0].url
-                    } else if ((image as any).imageLinkUrl) {
+
+                    console.log('🔍 Extracting URL for image:', image.id, 'image.image:', image.image)
+
+                    // Priority 1: Check if imageLinkUrl is a direct URL string
+                    if ((image as any).imageLinkUrl && typeof (image as any).imageLinkUrl === 'string') {
                       displayImageUrl = (image as any).imageLinkUrl
-                    } else if (typeof image.image === 'string') {
-                      displayImageUrl = image.image
-                    } else if ((image as any).url) {
-                      displayImageUrl = (image as any).url
+                      console.log('✅ Using imageLinkUrl:', displayImageUrl)
                     }
-                    
-                    console.log('Final displayImageUrl after extraction:', displayImageUrl)
-                    
-                    console.log('Extracted displayImageUrl:', displayImageUrl)
+                    // Priority 2: Extract from Baserow file field array
+                    else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
+                      if (image.image[0] && typeof image.image[0] === 'object' && (image.image[0] as any).url) {
+                        displayImageUrl = (image.image[0] as any).url
+                        console.log('✅ Using image[0].url:', displayImageUrl)
+                      }
+                    }
+                    // Priority 3: Check if image is already a URL string
+                    else if (typeof image.image === 'string' && image.image.startsWith('http')) {
+                      displayImageUrl = image.image
+                      console.log('✅ Using direct image string:', displayImageUrl)
+                    }
+                    // Priority 4: Check imageUrl field
+                    else if ((image as any).imageUrl && typeof (image as any).imageUrl === 'string') {
+                      displayImageUrl = (image as any).imageUrl
+                      console.log('✅ Using imageUrl:', displayImageUrl)
+                    }
+
+                    console.log('🎯 Final displayImageUrl:', displayImageUrl)
                     
                     return (
                       <div key={image.id || index} className="relative flex-shrink-0">
