@@ -8,6 +8,8 @@ export const VIDEO_STUDIO_DEFAULT_TOKEN =
   process.env.BASEROW_VIDEO_STUDIO_TOKEN ||
   process.env.BASEROW_MODERN_MANAGEMENT_TOKEN ||
   ''
+export const VIDEO_STUDIO_WEBHOOK_URL =
+  process.env.N8N_VIDEO_STUDIO_WEBHOOK_URL || ''
 
 // Static table IDs for Video Studio DB
 export const VIDEO_STUDIO_TABLES: Record<string, string> = {
