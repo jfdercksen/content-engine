@@ -528,10 +528,16 @@ export default function SocialMediaContentForm({
               )
       ),
       // Add all selected images to the form data (both browsed and uploaded)
-      selectedImages: allSelectedImages.map(img => img.id).filter(Boolean),
-      images: allSelectedImages.map(img => img.id).filter(Boolean)
+      images: allSelectedImages
+        .map(img => String(img.id))
+        .filter(id => id && id !== 'undefined'),
+      selectedImages: allSelectedImages
+        .map(img => String(img.id))
+        .filter(id => id && id !== 'undefined'),
     } as SocialMediaContentFormData
     
+    console.log('🔍 CRITICAL: Sending images to API:', processedData.images)
+    console.log('🔍 CRITICAL: allSelectedImages:', allSelectedImages)
     console.log('Processed data being sent to onSubmit:', processedData)
     
     try {
