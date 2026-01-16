@@ -79,21 +79,33 @@ export default function SocialMediaContentForm({
           
           console.log('Filtered images for IDs:', imageIds, 'Found:', filteredImages)
           
-          const fetchedImages = filteredImages.map((img: any) => ({
-            id: String(img.id),
-            image: img.image || img.imageLinkUrl,
-            imageUrl: img.image || img.imageLinkUrl,
-            imagePrompt: img.imagePrompt || img.imageprompt || `Image ${img.id}`,
-            imageStatus: img.imageStatus || img.imagestatus || 'Completed',
-            imageType: img.imageType || img.imagetype || 'Generated',
-            imageScene: img.imageScene || img.imagescene || 'Social Media Post',
-            imageStyle: img.imageStyle || img.imagestyle || 'Photorealistic',
-            imageModel: img.imageModel || img.imagemodel || 'Generated',
-            imageSize: img.imageSize || img.imagesize || 'Original',
-            imageLinkUrl: img.imageLinkUrl || img.image,
-            client_id: img.client_id,
-            created_at: img.created_at || img.createdAt,
-          }))
+          const fetchedImages = filteredImages.map((img: any) => {
+            // Extract URL from Baserow file field format
+            let imageUrl = null
+            if (img.image && Array.isArray(img.image) && img.image.length > 0 && img.image[0].url) {
+              imageUrl = img.image[0].url
+            } else if (typeof img.image === 'string') {
+              imageUrl = img.image
+            } else if (img.imageLinkUrl) {
+              imageUrl = img.imageLinkUrl
+            }
+
+            return {
+              id: String(img.id),
+              image: imageUrl,
+              imageUrl: imageUrl,
+              imagePrompt: img.imagePrompt || img.imageprompt || `Image ${img.id}`,
+              imageStatus: img.imageStatus || img.imagestatus || 'Completed',
+              imageType: img.imageType || img.imagetype || 'Generated',
+              imageScene: img.imageScene || img.imagescene || 'Social Media Post',
+              imageStyle: img.imageStyle || img.imagestyle || 'Photorealistic',
+              imageModel: img.imageModel || img.imagemodel || 'Generated',
+              imageSize: img.imageSize || img.imagesize || 'Original',
+              imageLinkUrl: img.imageLinkUrl || img.image,
+              client_id: img.client_id,
+              created_at: img.created_at || img.createdAt,
+            }
+          })
           
           console.log('Updating selectedBrowsedImages with fetched data:', fetchedImages)
           setSelectedBrowsedImages(fetchedImages)
@@ -189,9 +201,13 @@ export default function SocialMediaContentForm({
           // Extract image URL from various possible field structures
           let imageUrl = null
           
-          // Check if image URL is already processed (from API mapping)
-          if (img.image) {
+          // Handle Baserow file field format (array of file objects)
+          if (img.image && Array.isArray(img.image) && img.image.length > 0 && img.image[0].url) {
+            imageUrl = img.image[0].url
+          } else if (typeof img.image === 'string') {
             imageUrl = img.image
+          } else if (img.imageLinkUrl) {
+            imageUrl = img.imageLinkUrl
           }
           
           console.log('Converting image:', img.id, 'imageUrl:', imageUrl)
