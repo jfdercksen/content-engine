@@ -19,9 +19,6 @@ export const VIDEO_STUDIO_TABLES: Record<string, string> = {
   imageStyles: '3455',
 }
 
-// Explicit re-export for module resolution
-export { VIDEO_STUDIO_TABLES }
-
 // Field names (using user_field_names=true)
 export const VIDEO_FIELDS = {
   campaignName: 'Campaign Name',
