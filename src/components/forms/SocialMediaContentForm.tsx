@@ -73,22 +73,21 @@ export default function SocialMediaContentForm({
         
         if (result.results && result.results.length > 0) {
           // Filter to only include the images we need based on the IDs
-          const filteredImages = result.results.filter((img: any) => 
-            imageIds.includes(String(img.id)) || imageIds.includes(Number(img.id))
-          )
+          const filteredImages = result.results.filter((img: any) => {
+            const imgId = String(img.id)
+            const match = imageIds.some(id => String(id) === imgId)
+            console.log(`Checking image ${imgId} against [${imageIds}]: ${match}`)
+            return match
+          })
           
           console.log('Filtered images for IDs:', imageIds, 'Found:', filteredImages)
           
           const fetchedImages = filteredImages.map((img: any) => {
-            // Extract URL from Baserow file field format
-            let imageUrl = null
-            if (img.image && Array.isArray(img.image) && img.image.length > 0 && img.image[0].url) {
-              imageUrl = img.image[0].url
-            } else if (typeof img.image === 'string') {
-              imageUrl = img.image
-            } else if (img.imageLinkUrl) {
-              imageUrl = img.imageLinkUrl
-            }
+            // Extract URL from Baserow file field array
+            const imageUrl =
+              img.image && Array.isArray(img.image) && img.image.length > 0 && img.image[0].url
+                ? img.image[0].url
+                : (typeof img.image === 'string' ? img.image : img.imageLinkUrl)
 
             return {
               id: String(img.id),
