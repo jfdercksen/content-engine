@@ -58,7 +58,15 @@ export default function ImageBrowserModal({
           console.log('First image imageStyle:', data.results[0].imageStyle)
         }
         
-        setImages(data.results || [])
+        // Sort images by created date (newest first)
+        const sortedImages = (data.results || []).sort((a: any, b: any) => {
+          const dateA = a.created_at || a.createdAt || '1970-01-01'
+          const dateB = b.created_at || b.createdAt || '1970-01-01'
+          return new Date(dateB).getTime() - new Date(dateA).getTime()
+        })
+
+        console.log('Sorted images (newest first):', sortedImages.length, 'images')
+        setImages(sortedImages)
       } else {
         console.error('Failed to fetch images:', response.status, response.statusText)
         const errorText = await response.text()
@@ -185,8 +193,26 @@ export default function ImageBrowserModal({
                     <CardContent className="p-3">
                       <div className="aspect-square mb-3 bg-gray-100 rounded-lg overflow-hidden">
                         {(() => {
-                          const imageUrl = image.imageLinkUrl || (image.image && image.image.length > 0 ? image.image[0].url : null)
-                          console.log('ImageBrowserModal: Processing image:', image.id, 'imageUrl:', imageUrl, 'image.image:', image.image)
+                          // Extract URL from multiple possible sources
+                          let imageUrl = null
+
+                          // Priority 1: imageLinkUrl text field (direct URL string)
+                          if (image.imageLinkUrl && typeof image.imageLinkUrl === 'string' && image.imageLinkUrl.trim() !== '') {
+                            imageUrl = image.imageLinkUrl
+                          }
+                          // Priority 2: image file field (Baserow array format)
+                          else if (image.image && Array.isArray(image.image) && image.image.length > 0) {
+                            const firstImage = image.image[0]
+                            if (firstImage && typeof firstImage === 'object' && (firstImage as any).url) {
+                              imageUrl = (firstImage as any).url
+                            }
+                          }
+                          // Priority 3: image as direct string
+                          else if (image.image && typeof image.image === 'string' && image.image.startsWith('http')) {
+                            imageUrl = image.image
+                          }
+
+                          console.log('ImageBrowser - Image ID:', image.id, 'URL:', imageUrl, 'Raw image field:', image.image)
                           
                           // Ensure we have a valid, non-empty string URL
                           if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() !== '') {
