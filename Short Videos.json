@@ -1,0 +1,3258 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "84924182-8e05-4bc6-b8b6-3863c1be0f06",
+              "name": "User Input",
+              "value": "={{ $json['The Main Topic'] }}",
+              "type": "string"
+            },
+            {
+              "id": "02602696-d3ad-4aeb-9d18-e80c6cf2ec17",
+              "name": "Script Duration",
+              "value": "={{ $json.Duration }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1920,
+        352
+      ],
+      "id": "f6c5799e-8c94-42e4-8a3b-406122e01751",
+      "name": "Set Idea"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nca.aiautomata.co.za/v1/image/transform/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"image_url\":\"{{ $json.Image[0].url }}\",\n    \"length\": {{ $json.Duration }},\n    \"frame_rate\": 25,\n    \"zoom_speed\": 3,\n    \"id\": \"{{ $json.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1104,
+        3184
+      ],
+      "id": "00ed542b-0ae4-4501-b412-b8208b54112b",
+      "name": "Create Clips",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "XhOG8EmUXSMMk7ct",
+          "name": "NCS-Toolkit Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nca.aiautomata.co.za/v1/video/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"video_urls\": {{ JSON.stringify($json.video_urls) }},\n    \"id\": \"{{ $('Get video').item.json.id }}\"\n}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        3664
+      ],
+      "id": "ad2deecb-bfd6-45dd-a4f0-8099d77276e9",
+      "name": "Combine Clips",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "XhOG8EmUXSMMk7ct",
+          "name": "NCS-Toolkit Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Video Clip URL"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        3664
+      ],
+      "id": "ac789e22-403c-4bae-a587-47ceaf130fa2",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "content": "## Create clips from images\n",
+        "height": 320,
+        "width": 1400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        3168
+      ],
+      "id": "35582ea5-5bd8-428e-8e0f-0b451d7b86cb",
+      "name": "Sticky Note2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## Combine clips into 1 video",
+        "height": 300,
+        "width": 1580,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        3568
+      ],
+      "id": "bdf6af15-f7cf-497e-955e-caf6e280daa3",
+      "name": "Sticky Note3",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1328,
+        3264
+      ],
+      "id": "1abc8e8e-e448-4d62-8554-a35017218405",
+      "name": "Loop Over Items3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the array of URLs\nconst urls = items[0].json[\"Video Clip URL\"] || [];\n\n// Map URLs into the required structure\nconst formattedURLs = urls.map(url => ({ \"video_url\": url }));\n\n// Return the transformed data\nreturn [{\n    json: {\n        \"video_urls\": formattedURLs\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        3664
+      ],
+      "id": "335a6f62-4b5d-46a8-aee3-1a4764d5da2b",
+      "name": "Video url to array"
+    },
+    {
+      "parameters": {
+        "content": "## Add Captions",
+        "height": 240,
+        "width": 720,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        4320
+      ],
+      "id": "6b8c8139-e2ba-45d4-9c8c-14ec2afbdbb4",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nca.aiautomata.co.za/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"id\": \"audio-layering\",\n  \"inputs\": [\n    {\n      \"file_url\": \"{{ $json['Raw Video URL'] }}\"\n    },\n    {\n      \"file_url\": \"{{ $json['TTS Audio'][0].url }}\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[1:a]volume=1[outa]\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        {\n          \"option\": \"-map\",\n          \"argument\": \"0:v\"\n        },\n        {\n          \"option\": \"-map\",\n          \"argument\": \"[outa]\"\n        },\n        {\n          \"option\": \"-c:v\",\n          \"argument\": \"copy\"\n        },\n        {\n          \"option\": \"-c:a\",\n          \"argument\": \"aac\"\n        },\n        {\n          \"option\": \"-f\",\n          \"argument\": \"mp4\"\n        }\n      ]\n    }\n  ]\n}\n",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1696,
+        4144
+      ],
+      "id": "23250f72-e4f7-4bc5-a373-e24ccb7f4a5d",
+      "name": "Combine Clips3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "XhOG8EmUXSMMk7ct",
+          "name": "NCS-Toolkit Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"id\": \"audio-layering\",\n    \"inputs\": [\n        {\n            \"file_url\": \"{{ $json['Video + Captions URL'] }}\"\n        },\n        {\n            \"file_url\": \"http://localhost:9000/nca-toolkit/music/epic-emotinal-inspirational-207071.mp3\"\n        }\n    ],\n    \"filters\": [\n        {\n            \"filter\": \"[1:a]aloop=loop=-1:size=2G[audio_loop];[0:a]volume=2[audio1];[audio_loop]volume=0.5[audio2];[audio1][audio2]amix=inputs=2:duration=first[outa]\"\n        }\n    ],\n    \"outputs\": [\n        {\n            \"options\": [\n                {\n                    \"option\": \"-map\",\n                    \"argument\": \"0:v\"\n                },\n                {\n                    \"option\": \"-map\",\n                    \"argument\": \"[outa]\"\n                },\n                {\n                    \"option\": \"-c:v\",\n                    \"argument\": \"copy\"\n                },\n                {\n                    \"option\": \"-c:a\",\n                    \"argument\": \"aac\"\n                }\n            ]\n        }\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1696,
+        4672
+      ],
+      "id": "80e11326-d1d1-4fbc-b501-d29baf693a82",
+      "name": "Add Music",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## Combine Video & Audio",
+        "height": 240,
+        "width": 720,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        4064
+      ],
+      "id": "1e49bcb2-9a8c-4065-8dd2-93d0a3b1d489",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Scenes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1744,
+        3664
+      ],
+      "id": "765acff1-c410-4bca-9f2e-e36d63b30ab9",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "content": "## Create script, title & description",
+        "height": 540,
+        "width": 2020,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        160
+      ],
+      "id": "4320b7d1-2def-4436-a533-e5678daf2251",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "=GET",
+        "url": "=https://tts.aiautomata.co.za/dev/timestamps/{{ $('Generate TTS').item.json.headers[\"x-timestamps-path\"] }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1904,
+        1152
+      ],
+      "id": "70a063b9-6856-4095-9bfc-cda9f829590e",
+      "name": "Get Captions"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tts.aiautomata.co.za/dev/captioned_speech",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"kokoro\",\n  \"input\": {{ JSON.stringify($json.Script) }},\n  \"voice\": \"{{ $json['TTS Voices'] }}\",\n  \"response_format\": \"mp3\",\n  \"download_format\": \"mp3\",\n\"return_timestamps\": true,\n  \"speed\": 1\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1744,
+        880
+      ],
+      "id": "ab18c46c-f6a6-451e-a2e9-343ea14699b0",
+      "name": "Generate TTS"
+    },
+    {
+      "parameters": {
+        "content": "## Generate TTS (Voice Over)\n",
+        "height": 500,
+        "width": 680,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        800
+      ],
+      "id": "d5651670-5a56-49e5-ab13-baccbe28f9fe",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "Segments",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        1504
+      ],
+      "id": "1223307f-c0dc-4abe-ac6d-d110adc21b2b",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "segments",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        1504
+      ],
+      "id": "9700b752-bed5-4d3c-ab4a-76aefefe2731",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assume the previous node output is available here\nconst inputSegments = $input.first().json.segments; // Accessing segments from the previous output\n\nif (inputSegments.length > 0) {\n    const lastSegment = inputSegments[inputSegments.length - 1].json;\n    \n    // Check if the last segment's duration is less than 2 seconds\n    if (parseFloat(lastSegment.duration) < 2.0) {\n        // Combine the last segment with the previous segment if it exists\n        if (inputSegments.length > 1) {\n            const secondLastSegment = inputSegments[inputSegments.length - 2].json;\n\n            // Update the second last segment's words and duration\n            secondLastSegment.words += ' ' + lastSegment.words;\n            secondLastSegment.duration = (\n                parseFloat(secondLastSegment.duration) +\n                parseFloat(lastSegment.duration)\n            ).toFixed(2); // Update duration\n\n            // Remove the last segment as it has been merged\n            inputSegments.pop();\n        }\n    }\n}\n\n// Return the updated segments\nreturn [{ json: { segments: inputSegments } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1056,
+        1504
+      ],
+      "id": "b63fd878-16e7-4023-bb18-1e4cc793f268",
+      "name": "Fixer"
+    },
+    {
+      "parameters": {
+        "content": "## Generate scenes & image prompts\n",
+        "height": 420,
+        "width": 2640,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        1360
+      ],
+      "id": "e2fbe23d-892a-41e7-903f-fa3402589b07",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json['Captions URL'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1728,
+        1504
+      ],
+      "id": "48b08de9-c8cb-4288-8d0f-91f5665be06e",
+      "name": "Get Segment File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input from the previous step\nconst splitLength = 5;\nconst inputData = $input.first().json.Segments; // Assuming 'body' is passed from the previous node\n\n// Get the Generative Style value and Script from the first item of Get records1\nconst generativeStyle = $('Get records1').first().json['Generative Style'];\nconst fullScript = $('Get records1').first().json.Script;\n\nconst segments = [];\nlet currentSegment = {\n    id: 0,\n    words: \"\",\n    duration: 0,\n    generativeStyle: generativeStyle, // Add the generative style here\n    fullScript: fullScript // Add the full script here\n};\nlet currentStartTime = -1; // Start before the first word\nlet totalDuration = 0; // Tracking total duration\nlet currentEndTime = 0;\n\n// Define the pause buffer (in seconds)\nconst pauseBuffer = 0.1; // Adjust this value based on your requirements\n\n// Loop through the input data\nfor (const wordObj of inputData) {\n    const { word, start_time, end_time } = wordObj;\n\n    // If this is the first word in a segment, set the start time\n    if (currentStartTime === -1) {\n        currentStartTime = start_time;\n    }\n\n    // Add the word to the current segment\n    currentSegment.words += (currentSegment.words ? ' ' : '') + word;\n\n    // Update the end time\n    currentEndTime = end_time;\n\n    // Keep track of the duration without pauses\n    currentSegment.duration = (currentEndTime - currentStartTime).toFixed(2);\n\n    // Check if we should finalize the current segment (if it exceeds 4 seconds)\n    if (currentSegment.duration >= splitLength) {\n        // Add pause buffer to the segment's duration before pushing it\n        currentSegment.duration = (parseFloat(currentSegment.duration) + pauseBuffer).toFixed(2);\n        \n        // Update total duration for the segment\n        totalDuration += parseFloat(currentSegment.duration);\n\n        // Push the current segment to segments\n        segments.push(currentSegment);\n\n        // Reset for the next segment\n        currentSegment = {\n            id: segments.length,\n            words: \"\",\n            duration: 0,\n            generativeStyle: generativeStyle, // Don't forget to include generativeStyle in the new segment\n            fullScript: fullScript // Include the full script in the new segment\n        };\n        currentStartTime = -1; // Reset the start time\n    }\n}\n\n// Handle any leftover words in the last segment\nif (currentSegment.words) {\n    currentSegment.duration = (currentEndTime - currentStartTime).toFixed(2);\n    // Add pause buffer to the last segment's duration\n    currentSegment.duration = (parseFloat(currentSegment.duration) + pauseBuffer).toFixed(2);\n    \n    totalDuration += parseFloat(currentSegment.duration); // Add last segment to total\n    segments.push(currentSegment);\n}\n\n// Round total duration\nconst roundedTotalDuration = Math.round(totalDuration);\n\n// Calculate total minutes and seconds\nconst totalSeconds = Math.floor(roundedTotalDuration);\nconst minutes = Math.floor(totalSeconds / 60);\nconst seconds = totalSeconds % 60;\n\n// Create a readable format for the total runtime\nconst totalRuntimeString = `${minutes} minute${minutes !== 1 ? 's' : ''}, ${seconds} second${seconds !== 1 ? 's' : ''}`;\n\n// Prepare output with segments, total duration, and total runtime string\nconst output = {\n    segments: segments.map(segment => {\n        return { json: segment };\n    }),\n    totalDuration: roundedTotalDuration,\n    TotalMinutes: totalRuntimeString\n};\n\n// Return the structured output\nreturn [{ json: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        1504
+      ],
+      "id": "5f4064ad-2144-4951-af24-e94f6f7d828d",
+      "name": "Split into 5s Scenes"
+    },
+    {
+      "parameters": {
+        "content": "## Add BG Music",
+        "height": 240,
+        "width": 720,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        4592
+      ],
+      "id": "a7c8e491-6a74-4b26-bdb9-3a50057c9a9e",
+      "name": "Sticky Note8",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nca.aiautomata.co.za/v1/video/caption",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"video_url\": \"{{ $json['Video + Audio URL'] }}\",\n    \"settings\": {\n        \"line_color\": \"#FFFFFF\",\n        \"word_color\": \"#22b525\",\n        \"all_caps\": false,\n        \"max_words_per_line\": 3,\n        \"font_size\": 60,\n        \"bold\": false,\n        \"italic\": false,\n        \"underline\": false,\n        \"strikeout\": false,\n        \"outline_width\": 6,\n        \"shadow_offset\": 8,\n        \"style\": \"highlight\",\n        \"font_family\": \"The Bold Font\",\n        \"position\": \"top_center\"\n    },\n    \"id\": \"{{ $json.id }}\"\n}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1696,
+        4400
+      ],
+      "id": "3b6aa676-81ef-49ad-89e2-b29eae194486",
+      "name": "Create Captions",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "XhOG8EmUXSMMk7ct",
+          "name": "NCS-Toolkit Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 682,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6616,
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        3264
+      ],
+      "id": "f1f08dcc-46a1-421c-b4b5-fce2cd1ff200",
+      "name": "Baserow4",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 682,
+        "rowId": "={{ $('Loop Over Items3').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6634,
+              "fieldValue": "={{ $json.response }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        3248
+      ],
+      "id": "7b64b29c-36c4-41fe-ba6b-69d2fcb802be",
+      "name": "Baserow5",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6620,
+                "operator": "empty"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        4144
+      ],
+      "id": "a8f0c325-c893-4dc2-a9c6-694e668268ee",
+      "name": "Baserow11",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $('Baserow11').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6621,
+              "fieldValue": "={{ $json.response[0].file_url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        4144
+      ],
+      "id": "a8c7bf77-36ae-41f1-a31a-9c26d2ecfe30",
+      "name": "Baserow12",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6619,
+                "operator": "empty"
+              },
+              {
+                "field": 6630,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        4400
+      ],
+      "id": "4bbc5d8a-59bc-4ab3-a077-193846390779",
+      "name": "Baserow13",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $('Baserow13').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6620,
+              "fieldValue": "={{ $json.response }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        4400
+      ],
+      "id": "4ac6275b-5407-4235-9859-f6fc01d8566b",
+      "name": "Baserow14",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6618,
+                "operator": "empty"
+              },
+              {
+                "field": 6632,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        4672
+      ],
+      "id": "a668f972-f6e6-45ae-ba22-19254f1dcb4c",
+      "name": "Baserow15",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Title\": {\n      \"type\": \"string\",\n      \"description\": \"Short and engaging title, curiosity-driven.\"\n    },\n    \"Description\": {\n      \"type\": \"string\",\n      \"description\": \"Short description with key hashtags, hook, context, CTA, and hashtags.\"\n    },\n    \"Hook\": {\n      \"type\": \"string\",\n      \"description\": \"Introduction.\"\n    },\n    \"MainScript\": {\n      \"type\": \"string\",\n      \"description\": \"Main script content.\"\n    },\n    \"CTA\": {\n      \"type\": \"string\",\n      \"description\": \"Call to action\"\n    }\n  },\n  \"required\": [\"Title\", \"Description\", \"Intro\", \"MainScript\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        592
+      ],
+      "id": "24515051-144b-4eac-8a4f-573a4a0801d2",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Prompt\": \"enter prompt here\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -416,
+        1632
+      ],
+      "id": "35bc2a55-84a3-499b-a7bf-d3fd1c8ba440",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The Topic:\n{{ $json[\"User Input\"] }}\n\nRough Duration:\n{{ $('Set Idea').item.json['Script Duration'] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Act as a YouTube video scriptwriter who specializes in transforming user-submitted ideas—whether they are story concepts or intriguing facts—into engaging, bite-sized video scripts. The user will also provide a target video length, which you should keep in mind while crafting the content. Your goal is to take these ideas and produce compelling, original content without referencing specific sources or names.\n\nYour script should be engaging, energetic, and easy to follow, turning user concepts into captivating narratives within the specified video length. Use a conversational tone, vivid descriptions, and a strong hook to instantly grab attention. Keep the pacing snappy, ensuring that every second counts.\n\nNEVER add linebreaks or emojis to the hook, main script & CTA\n\n**Output Format:**\n- **Title:** [Catchy, curiosity-driven title based on user idea]  \n- **Description:** [50-150 characters, snappy summary with key hashtags relevant to the user’s topic]  \n- **Hook:** [An attention-grabbing opening line inspired by the user idea]  \n- **MainScript:** [A natural, spoken-style script without line breaks or emojis, tailored to the user-defined video length]  \n- **Call to Action:** [A compelling prompt encouraging viewers to engage, like \"What was your favorite part of this story?\" or \"Want to explore more ideas? Follow for more!\"]\n\nMake sure the MainScript feels seamless and original, as if these insights are being shared firsthand. No direct references to names, specific sources, or the user—just pure, engaging storytelling that keeps viewers hooked."
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1488,
+        352
+      ],
+      "id": "476b5de3-6366-4829-adcd-93d105eaff91",
+      "name": "Script Writier 🧠"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User Imput:\n{{ $json.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Take the user input and output in the following JSON Structure, DO NOT change or alter any of the text\n\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Title\": {\n      \"type\": \"string\",\n      \"description\": \"Short and engaging title, curiosity-driven.\"\n    },\n    \"Description\": {\n      \"type\": \"string\",\n      \"description\": \"Short description with key hashtags, hook, context, CTA, and hashtags.\"\n    },\n    \"Hook\": {\n      \"type\": \"string\",\n      \"description\": \"The hook.\"\n    },\n    \"MainScript\": {\n      \"type\": \"string\",\n      \"description\": \"Main script content.\"\n    },\n    \"CTA\": {\n      \"type\": \"string\",\n      \"description\": \"Call to action\"\n    }\n  },\n  \"required\": [\"Title\", \"Description\", \"Intro\", \"MainScript\"]\n}"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1104,
+        352
+      ],
+      "id": "1364b576-f4a7-472e-901b-536fb470cf06",
+      "name": "Output Parser 🛠"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('On form submission').item.json['Video Type'] }}",
+                    "rightValue": "From transcript",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "67835e1a-7770-4d3e-b9d6-0dac59a5923a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "From transcript"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "171a9dfd-59a3-49a4-af28-c284abc85f13",
+                    "leftValue": "={{ $('On form submission').item.json['Video Type'] }}",
+                    "rightValue": "From user idea",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "User Idea"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8ae898da-9db0-450f-9750-63023f6f68ba",
+                    "leftValue": "={{ $('On form submission').item.json['Video Type'] }}",
+                    "rightValue": "User Script",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "User Script"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1696,
+        352
+      ],
+      "id": "164712e5-b3fd-44b6-93e1-673f27d9ccda",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Heres the full script:\n{{ $json.json.fullScript }}\n\nGenerative style:\n{{ $json.json.generativeStyle.value }}\n\nHere is the current scene:\nScript portion: {{ $json.json.words }}\nScript position: {{ $json.json.id }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an image prompt generator agent for video production. Your role is to create starting frames for a longer video by transforming script segments into visually descriptive image prompts. Each scene will be generated in a specified artistic style, which must be factored into the prompt to ensure consistency.  \n\nOutput a JSON object containing the prompt for the current script segment that you are presented with:  \n\n```json\n{\n  \"Prompt\": \"enter prompt here\"\n}\n```  \n\n### **IMPORTANT INSTRUCTIONS:**  \n\n- **Always** incorporate the given style into the visual description.  \n- **Never** include text in the images.\n- **Never** exceed 240 characters in your prompt.  \n- **Keep images visually compelling** – Instead of basic or static representations, focus on **dynamic compositions, dramatic angles, striking lighting, immersive textures, and environmental storytelling**.  \n- **Small subjects should have compelling micro-world narratives** – If the subject is small (e.g., a drop of water, a single key, a lone leaf), provide a **rich atmosphere**, interplay of lighting, and framing that enhances storytelling.  \n- **Focus on depth, detail, and artistic impact** rather than excessive complexity.  \n\n\nA well-crafted prompt should now include:  \n\n- **Subject:** The main focus of the image.  \n- **Style:** The artistic style provided for this scene (e.g., Lego, Minecraft, Disney Pixar, Hand-Drawn, Chibi, Anime, Hyper-Realistic, Cyberpunk).  \n- **Composition:** Use **engaging angles** (macro close-ups, over-the-shoulder, dynamic perspectives).  \n- **Lighting:** Prioritize dramatic effects like **backlighting, neon glows, moody shadows, or iridescent reflections** for added immersion. \n- **Micro-World Storytelling:** Ensure even small objects contribute to a **scene with intrigue, interaction, or emotion**.  \n- **Color Palette:** The dominant colors or color scheme.  \n- **Mood/Atmosphere:** The emotional tone of the image.  \n- **Technical Details:** Camera effects like **bokeh, depth of field, contrast**, or lens distortion to make the image feel real.  \n- **Additional Elements:** Small but meaningful details that **enhance interest without overwhelming the scene**.  \n\n\nExample Prompts\n\n- **Style: Hyper-Realistic** – A hyperrealistic macro shot of a single droplet of glue stretching delicately from a cracked porcelain teacup, caught in the moment before it falls. The soft golden glow from a nearby desk lamp refracts through the droplet, revealing tiny swirling textures inside. Dust particles float around, illuminated in the warm evening light.  \n- **Style: Minecraft** – A blocky Minecraft-style cavern glowing with radiant blue crystals embedded in stone. A pixelated adventurer stands at the entrance, silhouetted against eerie, ambient light. Shadows dance across the cave walls, creating intrigue.  \n- **Style: Disney Pixar** – A cozy animated bakery at sunrise, where a little girl with oversized round glasses watches a tray of fresh golden pastries steaming on the counter. Soft beams of morning sunlight filter in, casting a warm, dreamy glow on the checkered tiles.  \n- **Style: Cyberpunk** – A neon-lit cyberpunk alleyway drenched in rain. The headlights of a hoverbike cut through thin mist as a shadowy figure in a metallic trench coat leans against a graffiti-covered wall. Bright neon blues and deep magentas create dramatic contrast.  \n\n"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -656,
+        1408
+      ],
+      "id": "6fe1aa27-0357-40fb-989b-a863bf01be83",
+      "name": "Image Prompter V2 📷"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1760,
+        2240
+      ],
+      "id": "622d6947-7772-45a5-94c8-bf5b70c4365e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "content": "## Image Generation - flux/schnell\n",
+        "height": 1180,
+        "width": 2240,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        1840
+      ],
+      "id": "471ac217-e7a3-4307-af98-200f6f9f77cd",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        2448
+      ],
+      "id": "bca55019-8f3f-4efd-bec7-b68e78bac731",
+      "name": "Wait1",
+      "webhookId": "417c1874-053b-4a23-b40b-2378fa533a7f"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 682,
+        "rowId": "={{ $('Loop Over Items').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6633,
+              "fieldValue": "={{ $json.name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        2448
+      ],
+      "id": "84e042fa-9fbd-47ed-a8af-3d29bb46c61e",
+      "name": "Baserow21",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The Transcript:\n{{ $json['User Input'] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Act as a YouTube video scriptwriter who specializes in transforming insights, interesting facts, and key takeaways into engaging, bite-sized video scripts. Your goal is to craft compelling short-form scripts based on the most intriguing ideas from long-form podcast transcripts—presenting them as fresh, original content without referencing sources or names.  \n\nYour script should be engaging, energetic, and easy to follow, turning complex ideas into exciting, digestible narratives. Use a conversational tone, vivid descriptions, and a strong hook to instantly grab attention. Keep the pacing snappy, ensuring every second counts.  \n\nImportant Guidelines:\n- Do NOT use asterisks (*) or emojis. Keep the text clean and formatted naturally.  \n- Do NOT include line breaks within the \"MainScript\" unless necessary for readability. Write in a natural, spoken style as if it’s being delivered by a person.  \n- The script must feel ORIGINAL and conversational, without direct references to specific podcasts, hosts, or episodes.  \n- The Call to Action should remain simple and engaging. Examples: \"What was your favorite insight?\" or \"Want more ideas like this? Follow for more!\"\n\nOutput Format: \n- Title: [Catchy, curiosity-driven title]  \n- Description: [50-150 characters, snappy summary with key hashtags]  \n- Hook: [An attention-grabbing opening line]  \n- MainScript: [A natural, spoken-style script—NO asterisks, NO emojis, NO unnecessary formatting]  \n- Call to Action: [A compelling prompt encouraging viewers to engage]  \n\nMake sure the MainScript feels seamless and engaging, as if these insights are being shared firsthand. Keep everything punchy and to the point, ensuring high retention and engagement.  "
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1488,
+        192
+      ],
+      "id": "df7c36e4-0f6f-40b2-8e5a-970c1ff1b19a",
+      "name": "Long form to Script Writier 🧠"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": 168,
+        "tableId": 681,
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6615,
+              "fieldValue": "={{ $('Output Parser 🛠').item.json.output.Title }}"
+            },
+            {
+              "fieldId": 6617,
+              "fieldValue": "={{ $('Output Parser 🛠').item.json.output.Description }}"
+            },
+            {
+              "fieldId": 6618,
+              "fieldValue": "={{ $json.Script }}"
+            },
+            {
+              "fieldId": 6629,
+              "fieldValue": "={{ $('Set Idea').item.json['User Input'] }}"
+            },
+            {
+              "fieldId": 6628,
+              "fieldValue": "={{ $('On form submission').item.json['Generative Style'] }}"
+            },
+            {
+              "fieldId": 6624,
+              "fieldValue": "={{ $('On form submission').item.json['TTS Voice'] }}"
+            },
+            {
+              "fieldId": 6630,
+              "fieldValue": "Processing"
+            },
+            {
+              "fieldId": 6631,
+              "fieldValue": "={{ $('On form submission').item.json['Image Provider'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        352
+      ],
+      "id": "a38f38e4-aa2c-42f3-98ea-97b0eb7646cc",
+      "name": "Baserow - Create record",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6622,
+                "operator": "empty"
+              },
+              {
+                "field": 6630,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1968,
+        3664
+      ],
+      "id": "29160c4e-aca8-49e7-a081-01c8ad834474",
+      "name": "Get video",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 682,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6616,
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        3664
+      ],
+      "id": "be1a42f4-1df3-43d4-aaed-ceff8b926612",
+      "name": "Get Scenes",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6622,
+              "fieldValue": "={{ $json.response }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        3664
+      ],
+      "id": "3f45196e-6ebe-45ff-abc5-c40009b1ab04",
+      "name": "Baserow",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1520,
+        880
+      ],
+      "id": "2a8e166c-e20a-4705-bf29-24685f2d6fe2",
+      "name": "Upload tts to baserow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6630,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        880
+      ],
+      "id": "9d081003-d8b7-417c-b9a8-48b3b043e449",
+      "name": "Get records",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6636,
+                "operator": "empty"
+              },
+              {
+                "field": 6630,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1936,
+        1504
+      ],
+      "id": "ee989c4a-f63b-4fbb-a73f-3ee634f8ac08",
+      "name": "Get records1",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 681,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6622,
+                "operator": "empty"
+              },
+              {
+                "field": 6630,
+                "operator": "contains",
+                "value": "Processing"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1968,
+        3264
+      ],
+      "id": "7e58c79a-69ee-4b08-ba8d-3b8c5d61502e",
+      "name": "Get video1",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Scenes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1760,
+        3264
+      ],
+      "id": "4b48362f-cb14-423c-a982-3d0d0cf23e8b",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $('Baserow15').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "={{ 6618 }}",
+              "fieldValue": "={{ $json.response[0].file_url }}"
+            },
+            {
+              "fieldId": "={{ 6732 }}",
+              "fieldValue": "Done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        4672
+      ],
+      "id": "d42dae0c-8b62-421d-bab6-774e492bb632",
+      "name": "Baserow1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        704
+      ],
+      "id": "48ea3a5d-1ed7-4bf4-8dbb-1c2297226da8",
+      "name": "Open Router - Deepseek v3.1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "eni2kFdHGvy7lEd3",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7cd1dc03-8331-44ba-bda9-848145bab939",
+              "name": "Main Script",
+              "value": "={{ $json.output.Hook }}{{ $json.output.MainScript }}{{ $json.output.CTA }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        352
+      ],
+      "id": "54c825a8-7e2c-4aa1-a98a-08d6afacaacf",
+      "name": "Combine"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bfd6c0e6-93c2-496a-8f3d-9ebc3061e78f",
+              "name": "Script",
+              "value": "={{$json['Main Script']\n  .replace(/\\n{2,}/g, \"\")      // Remove multiple newlines\n  .replace(/\\*(.*?)\\*/g, \"$1\") // Remove asterisks around words\n}}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -496,
+        352
+      ],
+      "id": "55a0fbe1-bde2-4f34-86ac-a32e2d15c14f",
+      "name": "Format Cleanup"
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "base64Image",
+              "stringValue": "={{ $json.body.data[0].b64_json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a57b9aca-9bf7-4f50-b76a-7f31c6c76f3e",
+      "name": "Base64 To String",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.1,
+      "position": [
+        -1120,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "convertAllData": false,
+        "sourceKey": "base64Image",
+        "options": {
+          "dataIsBase64": true,
+          "fileName": "image.png",
+          "mimeType": "image/png"
+        }
+      },
+      "id": "2e6161a0-38ab-4225-8708-9502801a519c",
+      "name": "Convert String to binary",
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        2448
+      ],
+      "id": "8d7e5c15-001d-4914-a50a-9870267c8969",
+      "name": "HTTP - Upload To Baserow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1728,
+        1152
+      ],
+      "id": "de44954a-814b-41c0-8907-67c3d56e5146",
+      "name": "Upload captions To Baserow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $('Get records').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6623,
+              "fieldValue": "={{ $('Upload tts to baserow').item.json.name }}"
+            },
+            {
+              "fieldId": 6627,
+              "fieldValue": "={{ $json.url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        1152
+      ],
+      "id": "a98a5de1-586d-483c-8133-5142e6454aaa",
+      "name": "Update Record",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 681,
+        "rowId": "={{ $('Get records1').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6636,
+              "fieldValue": "={{ $json.ids }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        432,
+        1504
+      ],
+      "id": "7afd814a-2e39-402c-ace8-2b6610d8c685",
+      "name": "Baserow19",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize an array to hold IDs\nconst ids = [];\n\n// Loop over input items\nfor (const item of $input.all()) {\n  // Loop through each 'data' array\n  for (const dataItem of item.json.data) {\n    // Check if 'id' is defined\n    if (dataItem.id) {\n      // Push the ID into the array\n      ids.push(dataItem.id);\n    }\n  }\n}\n\n// Return the array wrapped in an object\nreturn [{ json: { ids } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        1504
+      ],
+      "id": "d2db4242-6f03-4260-a502-e41d03605f47",
+      "name": "IDs To Array1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "include": "specifiedFields",
+        "fieldsToInclude": "id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        1504
+      ],
+      "id": "67f22e7c-4514-4c5c-9433-83100a701f20",
+      "name": "Aggregate3"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": 168,
+        "tableId": 682,
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6626,
+              "fieldValue": "={{ $json.output.Prompt }}"
+            },
+            {
+              "fieldId": 6632,
+              "fieldValue": "={{ $('Split Out').item.json.json.duration }}"
+            },
+            {
+              "fieldId": 6637,
+              "fieldValue": "={{ $('On form submission').item.json['Image Provider'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        1504
+      ],
+      "id": "1bd628fb-117a-4256-842f-01c23868fe62",
+      "name": "Baserow22",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.together.xyz/v1/images/generations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"model\": \"black-forest-labs/FLUX.1-schnell-Free\",\n    \"prompt\": {{ JSON.stringify($json.Prompt) }},\n    \"width\": 576,\n    \"height\": 1024,\n    \"steps\": 4,\n    \"n\": 1,\n    \"response_format\": \"b64_json\"\n   }",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1344,
+        2448
+      ],
+      "id": "0aec986d-0268-45a9-aef4-948feb9cd099",
+      "name": "HTTP - Together.ai",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "y97zmr8F665tRMyl",
+          "name": "Together.ai Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Loop Over Items').item.json['Image Provider'].value }}",
+                    "rightValue": "fal.ai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "eaf1a214-ae9e-455f-889b-5fb2f010b2a6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "fal.ai"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3e78a869-ccdb-4d17-b4f0-bc61733f6232",
+                    "leftValue": "={{ $('Loop Over Items').item.json['Image Provider'].value }}",
+                    "rightValue": "together.ai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "together.ai"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "18ede95f-0440-4e1b-b55e-48ccbfb32dab",
+                    "leftValue": "={{ $('Loop Over Items').item.json['Image Provider'].value }}",
+                    "rightValue": "Fluxpro.ai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Fluxpro.ai"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1568,
+        2128
+      ],
+      "id": "bec39717-cb0a-49ee-9040-7e839c386f9e",
+      "name": "Switch - Image Provider"
+    },
+    {
+      "parameters": {
+        "databaseId": 168,
+        "tableId": 682,
+        "returnAll": true,
+        "additionalOptions": {
+          "filters": {
+            "fields": [
+              {
+                "field": 6633,
+                "operator": "empty"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -1936,
+        2144
+      ],
+      "id": "bde02f33-c54d-4607-bd76-549c1e4196e4",
+      "name": "Get scenes",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/flux/schnell",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ JSON.stringify($json.Prompt) }}"
+            },
+            {
+              "name": "image_size",
+              "value": "portrait_16_9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1344,
+        2032
+      ],
+      "id": "83805499-f359-425b-97ba-375ee2ee582d",
+      "name": "fal.ai - Submit request",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6631ecc8-bcf2-43b1-8fa4-63b23795815f",
+              "name": "status_url",
+              "value": "={{ $json.status_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -464,
+        2128
+      ],
+      "id": "bf5fe648-6379-4b9b-830a-1ca8ffab33f4",
+      "name": "set status_url"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "393f74e8-2678-4e29-9831-bcd043da904b",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "COMPLETED",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -928,
+        2032
+      ],
+      "id": "58edd55b-5185-46c8-af01-112142d2569c",
+      "name": "If complete",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:85/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        1952
+      ],
+      "id": "4f757f4c-a518-4d56-9804-c3d612a9c863",
+      "name": "HTTP - Upload To Baserow1",
+      "disabled": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Passthrough",
+      "typeVersion": 1,
+      "position": [
+        128,
+        2240
+      ],
+      "id": "73181628-0876-4253-8040-c8551a7d9f85"
+    },
+    {
+      "parameters": {
+        "content": "## together.ai FREE - Has rate limits so much slower due to batching",
+        "height": 260,
+        "width": 1380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        2352
+      ],
+      "id": "2497aef2-3810-46de-bbc1-b1785dedb878",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## fal.ai - Much faster.\n$0.003 - $1 you can run this model approximately 333 times.",
+        "height": 380,
+        "width": 1540,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        1904
+      ],
+      "id": "616fa728-269e-4860-bec5-3a6147ae3642",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.status_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        2032
+      ],
+      "id": "8019e403-c3fc-4cbd-9226-4c8674f59b83",
+      "name": "HTTP - get status",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        1920
+      ],
+      "id": "d2fc9305-bd7f-4554-83cb-f3c5226a7d06",
+      "name": "HTTP - get image url",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.images[0].url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        1920
+      ],
+      "id": "58597eb2-30e1-4dd4-ae47-d8dbd8126229",
+      "name": "HTTP Download Image",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 94,
+        "tableId": 682,
+        "rowId": "={{ $('Loop Over Items').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6627,
+              "fieldValue": "={{ $json.name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        1952
+      ],
+      "id": "737befbe-84f4-48b3-96d8-2ccbcf9e317d",
+      "name": "Update Scene record",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        2112
+      ],
+      "id": "952329e6-7cdd-4619-b3f5-537b3655a515",
+      "name": "Wait 1s",
+      "webhookId": "833a4309-7169-43f7-bfc3-edfe58e50d97"
+    },
+    {
+      "parameters": {
+        "model": "openai/o3-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        1632
+      ],
+      "id": "c9e7dae2-59c3-47a2-b329-a9d6d56c82cf",
+      "name": "Open Router - Deepseek v3.",
+      "credentials": {
+        "openRouterApi": {
+          "id": "eni2kFdHGvy7lEd3",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The Topic:\n{{ $json[\"User Input\"] }}\n\nRough Duration:\n{{ $('Set Idea').item.json['Script Duration'] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an expert script formatter for YouTube video content. Your role is to take the script provided by the user and ensure it is perfectly formatted and ready for the next step in production. Do not alter the content, tone, or wording of the script in any way. Your sole responsibility is to organize the script into the specified structure, correct any formatting issues, and make sure it is clean, consistent, and professional.\n\nFormatting Instructions:\n\nOrganize the script into the following sections:\n\nTitle: [Title as provided by the user, or clearly marked in the script]\n\nDescription: [Description as provided by the user, or clearly marked in the script]\n\nHook: [Hook as provided by the user, or clearly marked in the script]\n\nMainScript: [Main script content, as provided]\n\nCall to Action: [Call to action as provided by the user, or clearly marked in the script]\n\nEnsure each section is clearly labeled and separated.\n\nRemove any unnecessary line breaks, extra spaces, or inconsistent formatting within each section.\n\nIf any section is missing, leave it blank but include the section header.\n\nDo NOT change, rewrite, or add to the user’s script content in any way.\n\nDo NOT add or remove emojis or line breaks from the script content.\n\nDo NOT reference the user or yourself in the output.\n\nOutput Example:\n\nTitle: [User’s title]\n\nDescription: [User’s description]\n\nHook: [User’s hook]\n\nMainScript: [User’s main script]\n\nCall to Action: [User’s call to action]\n\nYour output should be clean, organized, and ready for the next step in the workflow.\n\nLet me know if you’d like this prompt adjusted for a specific workflow, or if you need a version for a different content format!"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1488,
+        544
+      ],
+      "id": "8828d44a-7f7a-489b-8992-19483a5c5bb9",
+      "name": "User Script format"
+    },
+    {
+      "parameters": {
+        "content": "## Fluxpro.ai ",
+        "height": 260,
+        "width": 1380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        2688
+      ],
+      "id": "a948c89f-af91-462a-86f4-c13a5d98745e",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        2800
+      ],
+      "id": "58da666b-77aa-421d-a166-0ba5998f2a79",
+      "name": "Wait",
+      "webhookId": "417c1874-053b-4a23-b40b-2378fa533a7f"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": 168,
+        "tableId": 682,
+        "rowId": "={{ $('Loop Over Items').item.json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": 6633,
+              "fieldValue": "={{ $json.name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2800
+      ],
+      "id": "c0ae8dc1-5ac5-429d-926b-adb062aefc3d",
+      "name": "Baserow23",
+      "credentials": {
+        "baserowApi": {
+          "id": "GnM4Cf2nf0PpI51v",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "base64Image",
+              "stringValue": "={{ $json.body.data[0].b64_json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "624af42e-7e1d-4457-9ca1-720abf6d4ba1",
+      "name": "Base64 To String1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.1,
+      "position": [
+        -528,
+        2800
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "convertAllData": false,
+        "sourceKey": "base64Image",
+        "options": {
+          "dataIsBase64": true,
+          "fileName": "image.png",
+          "mimeType": "image/png"
+        }
+      },
+      "id": "07e8ba2b-f8fe-4c11-a0fc-f1d7e07adee3",
+      "name": "Convert String to binary1",
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        2800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://baserow.aiautomata.co.za/api/user-files/upload-file/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -176,
+        2704
+      ],
+      "id": "e95a1cd2-d00b-420b-93e9-39954943b635",
+      "name": "HTTP - Upload To Baserow2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eLr9WkAowHbRSmCb",
+          "name": "Baserow Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.together.xyz/v1/images/generations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"model\": \"black-forest-labs/FLUX.1.1-pro\",\n    \"prompt\": {{ JSON.stringify($json.Prompt) }},\n    \"width\": 576,\n    \"height\": 1024,\n    \"steps\": 4,\n    \"n\": 1,\n    \"response_format\": \"b64_json\"\n   }\n",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1968,
+        2752
+      ],
+      "id": "09ce4f9f-c9ec-4ed4-ae4f-700bab1f5a41",
+      "name": "HTTP - Together.ai1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "y97zmr8F665tRMyl",
+          "name": "Together.ai Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro-ultra/predictions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"input\": {\n\"prompt\": \"{{ $json.text }}\",\n\"seed\": 42,\n\"steps\": 50,\n\"guidance\": 5,\n\"interval\": 1,\n\"aspect_ratio\": \"9:16\",\n\"safety_tolerance\": 3\n\n}\n}\n\n",
+        "options": {}
+      },
+      "id": "10b9984a-aa9d-40d5-86f6-58217069fe0b",
+      "name": "Start Image Generation1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1248,
+        2768
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JlfTRouEz1b1K4bJ",
+          "name": "Flux Replicate Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your task is:\nUpdate prompt that can be used in Flux image generator.\nIf the descriprion is to log you can make it shorter\n\n1. Read the input text provided below.\n2. Extract ONLY the actual descriptive text content that follows each heading and sub-point.\n3. Combine all these extracted pieces of text into a single, continuous block of plain text. Use spaces to separate the different pieces naturally.\n4. REMOVE all original headings (e.g., remove \"**Environment:**\", \"**Style:**\").\n5. REMOVE all formatting markers (e.g., remove the `**` characters, remove `- ` list markers).\n6. The final output must be ONLY this combined plain text string. Do not add any explanations, introductory phrases, or any JSON formatting.\n7. Also make sure that the informtion is not \n\nInput Text: {{ JSON.stringify($json.Prompt) }}\"",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "="
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1616,
+        2768
+      ],
+      "id": "d51de1d0-3af5-4ddd-8c51-59fccb1fc25b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        2992
+      ],
+      "id": "4728f127-3b7a-4a64-b7b4-468a71c230a4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "eni2kFdHGvy7lEd3",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1088,
+        2768
+      ],
+      "id": "ad23f32c-dc84-4ef3-afe9-96c08bbe173d",
+      "name": "Wait2",
+      "webhookId": "417c1874-053b-4a23-b40b-2378fa533a7f"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.urls.get }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22d8bf44-ff8e-445b-bd0c-5128e7a83b53",
+      "name": "Get Image Result1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -848,
+        2768
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JlfTRouEz1b1K4bJ",
+          "name": "Flux Replicate Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -640,
+        2688
+      ],
+      "id": "5a1fb676-e80f-4da9-9d62-e23223049667",
+      "name": "HTTP Download Image1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "short_video",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -3008,
+        2320
+      ],
+      "id": "9b5d6ab7-81cd-491e-888b-3c5852102193",
+      "name": "Webhook",
+      "webhookId": "56b98d8c-1324-46a7-a30f-a5519bbf73a6"
+    }
+  ],
+  "connections": {
+    "Set Idea": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Clips": {
+      "main": [
+        [
+          {
+            "node": "Baserow5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Clips": {
+      "main": [
+        [
+          {
+            "node": "Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Video url to array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Create Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video url to array": {
+      "main": [
+        [
+          {
+            "node": "Combine Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Clips3": {
+      "main": [
+        [
+          {
+            "node": "Baserow12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Music": {
+      "main": [
+        [
+          {
+            "node": "Baserow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Get Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Captions": {
+      "main": [
+        [
+          {
+            "node": "Upload captions To Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate TTS": {
+      "main": [
+        [
+          {
+            "node": "Upload tts to baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Split into 5s Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Image Prompter V2 📷",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixer": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Segment File": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into 5s Scenes": {
+      "main": [
+        [
+          {
+            "node": "Fixer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Captions": {
+      "main": [
+        [
+          {
+            "node": "Baserow14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow11": {
+      "main": [
+        [
+          {
+            "node": "Combine Clips3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow13": {
+      "main": [
+        [
+          {
+            "node": "Create Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow15": {
+      "main": [
+        [
+          {
+            "node": "Add Music",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Output Parser 🛠",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Image Prompter V2 📷",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Script Writier 🧠": {
+      "main": [
+        [
+          {
+            "node": "Output Parser 🛠",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser 🛠": {
+      "main": [
+        [
+          {
+            "node": "Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Long form to Script Writier 🧠",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Script Writier 🧠",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "User Script format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Prompter V2 📷": {
+      "main": [
+        [
+          {
+            "node": "Baserow22",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Switch - Image Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow21": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Long form to Script Writier 🧠": {
+      "main": [
+        [
+          {
+            "node": "Output Parser 🛠",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get video": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Scenes": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload tts to baserow": {
+      "main": [
+        [
+          {
+            "node": "Get Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get records": {
+      "main": [
+        [
+          {
+            "node": "Generate TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get records1": {
+      "main": [
+        [
+          {
+            "node": "Get Segment File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get video1": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Baserow4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Router - Deepseek v3.1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Long form to Script Writier 🧠",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Output Parser 🛠",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Script Writier 🧠",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "User Script format",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine": {
+      "main": [
+        [
+          {
+            "node": "Format Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Cleanup": {
+      "main": [
+        [
+          {
+            "node": "Baserow - Create record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64 To String": {
+      "main": [
+        [
+          {
+            "node": "Convert String to binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert String to binary": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Upload To Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Upload To Baserow": {
+      "main": [
+        [
+          {
+            "node": "Baserow21",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload captions To Baserow": {
+      "main": [
+        [
+          {
+            "node": "Update Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IDs To Array1": {
+      "main": [
+        [
+          {
+            "node": "Baserow19",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate3": {
+      "main": [
+        [
+          {
+            "node": "IDs To Array1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow22": {
+      "main": [
+        [
+          {
+            "node": "Aggregate3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Together.ai": {
+      "main": [
+        [
+          {
+            "node": "Base64 To String",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Image Provider": {
+      "main": [
+        [
+          {
+            "node": "fal.ai - Submit request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Together.ai",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get scenes": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fal.ai - Submit request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - get status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set status_url": {
+      "main": [
+        [
+          {
+            "node": "HTTP - get status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If complete": {
+      "main": [
+        [
+          {
+            "node": "HTTP - get image url",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Upload To Baserow1": {
+      "main": [
+        [
+          {
+            "node": "Update Scene record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passthrough": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - get status": {
+      "main": [
+        [
+          {
+            "node": "If complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - get image url": {
+      "main": [
+        [
+          {
+            "node": "HTTP Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Download Image": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Upload To Baserow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Scene record": {
+      "main": [
+        [
+          {
+            "node": "Passthrough",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1s": {
+      "main": [
+        [
+          {
+            "node": "set status_url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Router - Deepseek v3.": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Image Prompter V2 📷",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Script format": {
+      "main": [
+        [
+          {
+            "node": "Output Parser 🛠",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow23": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64 To String1": {
+      "main": [
+        [
+          {
+            "node": "Convert String to binary1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert String to binary1": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP - Upload To Baserow2": {
+      "main": [
+        [
+          {
+            "node": "Baserow23",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Together.ai1": {
+      "main": [
+        []
+      ]
+    },
+    "Start Image Generation1": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Start Image Generation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Get Image Result1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Image Result1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Download Image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Download Image1": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Upload To Baserow2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "15a60e08082ab352e35a507877bcd1434fb079a9fcbac992f93eb2b8909136d7"
+  }
+}

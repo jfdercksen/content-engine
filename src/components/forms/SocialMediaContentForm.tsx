@@ -50,6 +50,7 @@ export default function SocialMediaContentForm({
   const [characterCount, setCharacterCount] = useState(0)
   const [previewMode, setPreviewMode] = useState(false)
   const [showImageGeneration, setShowImageGeneration] = useState(false)
+  const [imageBrowserRefresh, setImageBrowserRefresh] = useState(0)
   const [showImageBrowser, setShowImageBrowser] = useState(false)
   const [generatedImages, setGeneratedImages] = useState<Image[]>([])
   const [selectedImage, setSelectedImage] = useState<Image | null>(null)
@@ -813,6 +814,7 @@ export default function SocialMediaContentForm({
       }
 
       setUploadedImages(prev => [...prev, uploadedImage])
+      setImageBrowserRefresh(prev => prev + 1)
       
       // Clear the file input
       if (fileInputRef.current) {
@@ -1506,6 +1508,7 @@ export default function SocialMediaContentForm({
             onSelectImage={handleSelectBrowsedImage}
             onClose={() => setShowImageBrowser(false)}
             isOpen={showImageBrowser}
+            refreshTrigger={imageBrowserRefresh}
           />
        )}
 

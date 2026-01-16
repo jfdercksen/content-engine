@@ -15,6 +15,7 @@ interface ImageBrowserModalProps {
   onSelectImage: (image: Partial<Image>) => void
   clientId: string
   selectedPosition?: string
+  refreshTrigger?: number
 }
 
 export default function ImageBrowserModal({ 
@@ -22,7 +23,8 @@ export default function ImageBrowserModal({
   onClose, 
   onSelectImage, 
   clientId,
-  selectedPosition 
+  selectedPosition,
+  refreshTrigger = 0
 }: ImageBrowserModalProps) {
   const [images, setImages] = useState<Partial<Image>[]>([])
   const [loading, setLoading] = useState(false)
@@ -33,12 +35,13 @@ export default function ImageBrowserModal({
     if (isOpen) {
       fetchImages()
     }
-  }, [isOpen, clientId])
+  }, [isOpen, clientId, refreshTrigger])
 
   const fetchImages = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/baserow/${clientId}/images`)
+      const ts = Date.now()
+      const response = await fetch(`/api/baserow/${clientId}/images?_t=${ts}`)
       if (response.ok) {
         const data = await response.json()
         console.log('Fetched images data:', data)

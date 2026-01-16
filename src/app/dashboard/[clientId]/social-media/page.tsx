@@ -248,33 +248,44 @@ export default function SocialMediaPage() {
 
             const newIdea = await createResponse.json()
 
-            // Trigger n8n webhook (non-blocking)
-            try {
-                await fetch('/api/webhooks/n8n/content-idea-created', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        clientId,
-                        ideaId: newIdea.id,
-                        ...formData,
-                        contentType: 'social_media_post',
-                        baserow: {
-                            databaseId: clientConfig.baserow.databaseId,
-                            tableId: clientConfig.baserow.tables.contentIdeas,
-                            recordId: newIdea.id,
-                            baseUrl: process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za',
-                        },
-                        files: newIdea.files || {},
-                    }),
-                })
-            } catch (webhookError) {
-                console.warn('n8n webhook error (non-blocking):', webhookError)
+            // Only trigger n8n webhook for automated ideas (skip for manual ideas)
+            // Check for both 'manual' and 'text_idea' as they both represent manual input
+            const isManualIdea = formData.informationSource === 'manual' || formData.informationSource === 'text_idea'
+            
+            if (!isManualIdea) {
+                // Trigger n8n webhook (non-blocking) for automated generation
+                try {
+                    await fetch('/api/webhooks/n8n/content-idea-created', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            clientId,
+                            ideaId: newIdea.id,
+                            ...formData,
+                            contentType: 'social_media_post',
+                            baserow: {
+                                databaseId: clientConfig.baserow.databaseId,
+                                tableId: clientConfig.baserow.tables.contentIdeas,
+                                recordId: newIdea.id,
+                                baseUrl: process.env.BASEROW_API_URL || 'https://baserow.aiautomata.co.za',
+                            },
+                            files: newIdea.files || {},
+                        }),
+                    })
+                } catch (webhookError) {
+                    console.warn('n8n webhook error (non-blocking):', webhookError)
+                }
+            } else {
+                console.log('Manual idea created - skipping automation webhook')
             }
 
             await fetchContentIdeas()
             setShowForm(false)
             setEditingIdea(null)
-            alert('Social media idea created successfully!')
+            const successMessage = isManualIdea 
+                ? 'Manual idea created successfully! You can now create posts manually using the "Create Post" button.'
+                : 'Social media idea created successfully!'
+            alert(successMessage)
         } catch (error) {
             console.error('Error creating social media idea:', error)
             alert('Error creating social media idea. Please try again.')
@@ -1089,12 +1100,12 @@ export default function SocialMediaPage() {
                                             Back
                                         </Button>
                                         <div>
-                                                                                         <h2 className="text-2xl font-bold">
-                                                 Generated Posts for "{selectedIdeaForSocialMedia.title}"
-                                             </h2>
-                                             <p className="text-sm text-muted-foreground">
-                                                 View and manage social media content for this idea
-                                             </p>
+                                            <h2 className="text-2xl font-bold">
+                                                Posts for "{selectedIdeaForSocialMedia.title}"
+                                            </h2>
+                                            <p className="text-sm text-muted-foreground">
+                                                View and manage social media content for this idea. Click "Create Post" to add posts manually.
+                                            </p>
                                         </div>
                                     </div>
                                     <Button
@@ -1119,23 +1130,36 @@ export default function SocialMediaPage() {
                                     <Card>
                                         <CardContent className="flex flex-col items-center justify-center py-12">
                                             <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No posts generated yet</h3>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
                                             <p className="text-gray-500 text-center mb-4">
-                                                This content idea hasn't generated any social media posts yet.
+                                                This content idea doesn't have any posts yet. Create posts manually using the "Create Post" button above, or generate posts automatically.
                                             </p>
-                                            <Button
-                                                onClick={() => {
-                                                    setShowSocialMediaModal(false)
-                                                    setSelectedIdeaForSocialMedia(null)
-                                                    // Trigger regeneration for this idea
-                                                    handleRegenerateContent(selectedIdeaForSocialMedia.id)
-                                                }}
-                                                style={{ backgroundColor: clientConfig.branding.primaryColor }}
-                                                className="hover:opacity-90"
-                                            >
-                                                <TrendingUp className="h-4 w-4 mr-2" />
-                                                Generate Posts
-                                            </Button>
+                                            <div className="flex gap-3">
+                                                <Button
+                                                    onClick={() => {
+                                                        setEditingContent(null)
+                                                        setShowEditModal(true)
+                                                    }}
+                                                    style={{ backgroundColor: clientConfig.branding.primaryColor }}
+                                                    className="hover:opacity-90 flex items-center gap-2"
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    Create Post Manually
+                                                </Button>
+                                                <Button
+                                                    onClick={() => {
+                                                        setShowSocialMediaModal(false)
+                                                        setSelectedIdeaForSocialMedia(null)
+                                                        // Trigger regeneration for this idea
+                                                        handleRegenerateContent(selectedIdeaForSocialMedia.id)
+                                                    }}
+                                                    variant="outline"
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <TrendingUp className="h-4 w-4" />
+                                                    Generate Posts Automatically
+                                                </Button>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 ) : (
