@@ -13,6 +13,7 @@ export async function POST(
     // Extract file and other data
     const imageFile = formData.get('imageFile') as File | null
     const position = formData.get('position') as string
+    const socialMediaContentId = formData.get('socialMediaContentId') as string | null
 
     console.log('📤 Image upload request received:', {
       clientId,
@@ -135,6 +136,14 @@ export async function POST(
       imageLinkUrl: fileUploadResult.url, // Image Link URL
       client_id: clientId, // client_id
       created_at: new Date().toISOString().split('T')[0], // created_at
+      socialMediaContent: [], // placeholder for link field
+    }
+
+    if (socialMediaContentId) {
+      const parsedId = parseInt(socialMediaContentId, 10)
+      if (!Number.isNaN(parsedId)) {
+        imageData.socialMediaContent = [{ id: parsedId }]
+      }
     }
 
     // Don't set emailImages for social media posts - it's a single-select field with specific options

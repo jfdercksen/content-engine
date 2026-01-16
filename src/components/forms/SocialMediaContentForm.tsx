@@ -794,6 +794,9 @@ export default function SocialMediaContentForm({
       formData.append('imageFile', file)
       formData.append('position', 'Social Media Post')
       formData.append('clientId', clientId)
+      if (isEditing && initialData?.id) {
+        formData.append('socialMediaContentId', String(initialData.id))
+      }
 
       console.log('Uploading image:', file.name, file.size, 'bytes')
 
