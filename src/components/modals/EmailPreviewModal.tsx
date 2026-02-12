@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Eye, Download, Copy, Mail, Calendar, Tag, ExternalLink, RefreshCw } from 'lucide-react'
+import { Eye, Download, Copy, Mail, Calendar, Tag, ExternalLink, RefreshCw, Send, Loader2 } from 'lucide-react'
 import { EmailIdea } from '@/lib/types/content'
 
 interface EmailPreviewModalProps {
@@ -14,10 +14,12 @@ interface EmailPreviewModalProps {
   isOpen: boolean
   onClose: () => void
   onRefresh?: () => void
+  onSendToMailchimp?: (emailIdeaId: string) => Promise<void> | void
 }
 
-export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefresh }: EmailPreviewModalProps) {
+export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefresh, onSendToMailchimp }: EmailPreviewModalProps) {
   const [viewMode, setViewMode] = useState<'preview' | 'html'>('preview')
+  const [isSending, setIsSending] = useState(false)
 
   if (!emailIdea) return null
 
@@ -37,6 +39,7 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
   const emailType = getFieldValue('emailType', 'emailtype') || ''
   const status = getFieldValue('status', 'status') || ''
   const lastModified = getFieldValue('lastModified', 'lastmodified') || ''
+  const mailchimpCampaignId = getFieldValue('mailchimpCampaignId', 'mailchimpcampaignid') || ''
 
   const handleCopyHtml = async () => {
     if (generatedHtml) {
@@ -62,6 +65,16 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+    }
+  }
+
+  const handleSendToMailchimp = async () => {
+    if (!onSendToMailchimp || isSending) return
+    try {
+      setIsSending(true)
+      await onSendToMailchimp(String(emailIdea.id))
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -100,6 +113,34 @@ export default function EmailPreviewModal({ emailIdea, isOpen, onClose, onRefres
             <Mail className="h-5 w-5" />
             Email Preview: {emailIdeaName || 'Untitled Email'}
           </DialogTitle>
+          <div className="flex items-center gap-2">
+            {mailchimpCampaignId && (
+              <Badge className="bg-green-100 text-green-800 border border-green-200">
+                Sent to Mailchimp
+              </Badge>
+            )}
+            {generatedHtml && onSendToMailchimp && !mailchimpCampaignId && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleSendToMailchimp}
+                disabled={isSending}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send to Mailchimp
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-3">

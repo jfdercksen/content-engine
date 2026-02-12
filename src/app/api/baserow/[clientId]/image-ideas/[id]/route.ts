@@ -157,7 +157,7 @@ export async function DELETE(
     console.error('Error deleting image idea:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
     return NextResponse.json(
-      { error: 'Failed to delete image idea', details: errorMessage },
+      { error: 'Failed to delete image idea', details: errorMessage, recordId: params.id, tableId: clientConfig?.baserow?.tables?.images },
       { status: 500 }
     )
   }

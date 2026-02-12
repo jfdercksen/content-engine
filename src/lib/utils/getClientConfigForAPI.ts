@@ -72,20 +72,32 @@ export async function getClientConfigForAPI(clientId: string): Promise<ClientCon
       return null
     }
 
-    // Fetch Mailchimp settings from SettingsManager
+    // Fetch Mailchimp settings from SettingsManager with environment fallbacks
     let mailchimpSettings: any = {}
     try {
       const settings = await SettingsManager.getSettings(clientId)
       const mailchimpCategory = settings.mailchimp || settings.integrations?.mailchimp || {}
-      
+
+      // Environment fallbacks
+      const envMailchimp = {
+        apiKey: process.env.MAILCHIMP_API_KEY || null,
+        serverUrl: process.env.MAILCHIMP_SERVER_URL || null,
+        serverPrefix: process.env.MAILCHIMP_SERVER_PREFIX || null,
+        defaultAudienceId: process.env.MAILCHIMP_DEFAULT_AUDIENCE_ID || null,
+        defaultFromName: process.env.MAILCHIMP_DEFAULT_FROM_NAME || null,
+        defaultFromEmail: process.env.MAILCHIMP_DEFAULT_FROM_EMAIL || null,
+        defaultReplyToEmail: process.env.MAILCHIMP_DEFAULT_REPLY_TO_EMAIL || null
+      }
+
+      // Merge settings with env fallbacks (settings take priority)
       mailchimpSettings = {
-        apiKey: mailchimpCategory.api_key || mailchimpCategory.apiKey || null,
-        serverUrl: mailchimpCategory.server_url || mailchimpCategory.serverUrl || null,
-        serverPrefix: mailchimpCategory.server_prefix || mailchimpCategory.serverPrefix || null,
-        defaultAudienceId: mailchimpCategory.default_audience_id || mailchimpCategory.defaultAudienceId || null,
-        defaultFromName: mailchimpCategory.default_from_name || mailchimpCategory.defaultFromName || null,
-        defaultFromEmail: mailchimpCategory.default_from_email || mailchimpCategory.defaultFromEmail || null,
-        defaultReplyToEmail: mailchimpCategory.default_reply_to_email || mailchimpCategory.defaultReplyToEmail || null
+        apiKey: mailchimpCategory.api_key || mailchimpCategory.apiKey || envMailchimp.apiKey,
+        serverUrl: mailchimpCategory.server_url || mailchimpCategory.serverUrl || envMailchimp.serverUrl,
+        serverPrefix: mailchimpCategory.server_prefix || mailchimpCategory.serverPrefix || envMailchimp.serverPrefix,
+        defaultAudienceId: mailchimpCategory.default_audience_id || mailchimpCategory.defaultAudienceId || envMailchimp.defaultAudienceId,
+        defaultFromName: mailchimpCategory.default_from_name || mailchimpCategory.defaultFromName || envMailchimp.defaultFromName,
+        defaultFromEmail: mailchimpCategory.default_from_email || mailchimpCategory.defaultFromEmail || envMailchimp.defaultFromEmail,
+        defaultReplyToEmail: mailchimpCategory.default_reply_to_email || mailchimpCategory.defaultReplyToEmail || envMailchimp.defaultReplyToEmail
       }
       
       // Extract server prefix from API key if not provided (format: key-us1, key-us2, etc.)
@@ -150,7 +162,7 @@ export async function getClientConfigForAPI(clientId: string): Promise<ClientCon
         allowedFileTypes: ['image/*', 'video/*', 'audio/*'],
         autoApproval: false
       },
-      mailchimp: Object.keys(mailchimpSettings).length > 0 ? mailchimpSettings : undefined,
+      mailchimp: Object.values(mailchimpSettings || {}).some(v => v) ? mailchimpSettings : undefined,
       users: [
         { email: 'admin@example.com', role: 'admin' }
       ]

@@ -90,14 +90,18 @@ export async function PATCH(
 
         if (!allSuccessful) {
             console.error('Some settings failed to update')
+            return NextResponse.json(
+                { success: false, message: 'Some settings failed to update' },
+                { status: 500 }
+            )
         }
 
         // Fetch updated settings
         const { settings, preferences } = await SettingsManager.getAllClientConfig(clientId)
 
         return NextResponse.json({
-            success: allSuccessful,
-            message: allSuccessful ? 'Settings updated successfully' : 'Some settings failed to update',
+            success: true,
+            message: 'Settings updated successfully',
             settings,
             preferences
         })

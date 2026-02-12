@@ -21,8 +21,11 @@ export async function POST(
       )
     }
     
-    // Get Mailchimp webhook URL from settings
-    const mailchimpWebhookUrl = await SettingsManager.getSetting(clientId, 'Webhooks', 'mailchimp')
+    // Get Mailchimp webhook URL from settings (fallback to default sendmail webhook or env override)
+    const settingsWebhookUrl = await SettingsManager.getSetting(clientId, 'Webhooks', 'mailchimp')
+    const defaultWebhookUrl = process.env.N8N_MAILCHIMP_SENDMAIL_WEBHOOK_URL || 'https://n8n.aiautomata.co.za/webhook/sendmail'
+    const mailchimpWebhookUrl = settingsWebhookUrl || defaultWebhookUrl
+    
     if (!mailchimpWebhookUrl) {
       return NextResponse.json(
         { error: 'Mailchimp webhook URL not configured. Please configure it in Settings.' },

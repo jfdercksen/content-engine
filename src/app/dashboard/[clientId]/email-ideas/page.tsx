@@ -736,6 +736,7 @@ export default function EmailIdeasPage() {
           isOpen={!!previewingEmailIdea}
           onClose={handleClosePreview}
           onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+          onSendToMailchimp={handleSendToMailchimp}
         />
       </div>
     </ClientOnly>

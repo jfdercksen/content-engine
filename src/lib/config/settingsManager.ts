@@ -43,33 +43,41 @@ export class SettingsManager {
      */
     static async getSettings(clientId: string): Promise<Record<string, any>> {
         try {
-            const response = await fetch(
-                `${this.baseUrl}/api/database/rows/table/${this.clientSettingsTableId}/?user_field_names=true`,
-                {
-                    headers: {
-                        'Authorization': `Token ${this.baserowToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            )
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch settings: ${response.statusText}`)
-            }
-
-            const data = await response.json()
             const settings: Record<string, any> = {}
+            let page = 1
+            const pageSize = 200
+            let hasMore = true
 
-            // Filter by client ID and organize by category
-            data.results
-                .filter((row: ClientSetting) => row['Client ID'] === clientId && row['Is Active'])
-                .forEach((row: ClientSetting) => {
-                    const category = row['Category'].toLowerCase().replace(/\s+/g, '_')
-                    if (!settings[category]) {
-                        settings[category] = {}
+            while (hasMore) {
+                const response = await fetch(
+                    `${this.baseUrl}/api/database/rows/table/${this.clientSettingsTableId}/?user_field_names=true&page=${page}&size=${pageSize}`,
+                    {
+                        headers: {
+                            'Authorization': `Token ${this.baserowToken}`,
+                            'Content-Type': 'application/json',
+                        },
                     }
-                    settings[category][row['Setting Key']] = row['Setting Value']
-                })
+                )
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch settings (page ${page}): ${response.statusText}`)
+                }
+
+                const data = await response.json()
+
+                data.results
+                    .filter((row: ClientSetting) => row['Client ID'] === clientId && row['Is Active'])
+                    .forEach((row: ClientSetting) => {
+                        const category = row['Category'].toLowerCase().replace(/\s+/g, '_')
+                        if (!settings[category]) {
+                            settings[category] = {}
+                        }
+                        settings[category][row['Setting Key']] = row['Setting Value']
+                    })
+
+                hasMore = Boolean(data.next)
+                page += 1
+            }
 
             return settings
         } catch (error) {
@@ -83,50 +91,58 @@ export class SettingsManager {
      */
     static async getPreferences(clientId: string): Promise<Record<string, any>> {
         try {
-            const response = await fetch(
-                `${this.baseUrl}/api/database/rows/table/${this.clientPreferencesTableId}/?user_field_names=true`,
-                {
-                    headers: {
-                        'Authorization': `Token ${this.baserowToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            )
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch preferences: ${response.statusText}`)
-            }
-
-            const data = await response.json()
             const preferences: Record<string, any> = {}
+            let page = 1
+            const pageSize = 200
+            let hasMore = true
 
-            // Filter by client ID and organize by category
-            data.results
-                .filter((row: ClientPreference) => row['Client ID'] === clientId)
-                .forEach((row: ClientPreference) => {
-                    const category = row['Category'].toLowerCase().replace(/\s+/g, '_')
-                    if (!preferences[category]) {
-                        preferences[category] = {}
+            while (hasMore) {
+                const response = await fetch(
+                    `${this.baseUrl}/api/database/rows/table/${this.clientPreferencesTableId}/?user_field_names=true&page=${page}&size=${pageSize}`,
+                    {
+                        headers: {
+                            'Authorization': `Token ${this.baserowToken}`,
+                            'Content-Type': 'application/json',
+                        },
                     }
-                    // Parse value based on data type
-                    let value: any = row['Preference Value']
-                    switch (row['Data Type'].toLowerCase()) {
-                        case 'number':
-                            value = parseFloat(value)
-                            break
-                        case 'boolean':
-                            value = value.toLowerCase() === 'true'
-                            break
-                        case 'json':
-                            try {
-                                value = JSON.parse(value)
-                            } catch (e) {
-                                console.error('Failed to parse JSON preference:', e)
-                            }
-                            break
-                    }
-                    preferences[category][row['Preference Key']] = value
-                })
+                )
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch preferences (page ${page}): ${response.statusText}`)
+                }
+
+                const data = await response.json()
+
+                data.results
+                    .filter((row: ClientPreference) => row['Client ID'] === clientId)
+                    .forEach((row: ClientPreference) => {
+                        const category = row['Category'].toLowerCase().replace(/\s+/g, '_')
+                        if (!preferences[category]) {
+                            preferences[category] = {}
+                        }
+                        // Parse value based on data type
+                        let value: any = row['Preference Value']
+                        switch (row['Data Type'].toLowerCase()) {
+                            case 'number':
+                                value = parseFloat(value)
+                                break
+                            case 'boolean':
+                                value = value.toLowerCase() === 'true'
+                                break
+                            case 'json':
+                                try {
+                                    value = JSON.parse(value)
+                                } catch (e) {
+                                    console.error('Failed to parse JSON preference:', e)
+                                }
+                                break
+                        }
+                        preferences[category][row['Preference Key']] = value
+                    })
+
+                hasMore = Boolean(data.next)
+                page += 1
+            }
 
             return preferences
         } catch (error) {
@@ -166,27 +182,37 @@ export class SettingsManager {
     ): Promise<boolean> {
         try {
             // First, check if setting exists
-            const response = await fetch(
-                `${this.baseUrl}/api/database/rows/table/${this.clientSettingsTableId}/?user_field_names=true`,
-                {
-                    headers: {
-                        'Authorization': `Token ${this.baserowToken}`,
-                        'Content-Type': 'application/json',
-                    },
+            // Fetch settings with pagination to find an existing record
+            let existingSetting: ClientSetting | undefined = undefined
+            let page = 1
+            const pageSize = 200
+            while (!existingSetting) {
+                const response = await fetch(
+                    `${this.baseUrl}/api/database/rows/table/${this.clientSettingsTableId}/?user_field_names=true&page=${page}&size=${pageSize}`,
+                    {
+                        headers: {
+                            'Authorization': `Token ${this.baserowToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    throw new Error(`Failed to fetch settings (page ${page}): ${response.status} ${response.statusText} - ${errorText}`)
                 }
-            )
 
-            if (!response.ok) {
-                throw new Error(`Failed to fetch settings: ${response.statusText}`)
+                const data = await response.json()
+                existingSetting = data.results.find(
+                    (row: ClientSetting) =>
+                        row['Client ID'] === clientId &&
+                        row['Category'] === category &&
+                        row['Setting Key'] === key
+                )
+
+                if (!data.next) break
+                page += 1
             }
-
-            const data = await response.json()
-            const existingSetting = data.results.find(
-                (row: ClientSetting) =>
-                    row['Client ID'] === clientId &&
-                    row['Category'] === category &&
-                    row['Setting Key'] === key
-            )
 
             if (existingSetting) {
                 // Update existing setting
@@ -206,6 +232,18 @@ export class SettingsManager {
                         }),
                     }
                 )
+
+                if (!updateResponse.ok) {
+                    const errorText = await updateResponse.text()
+                    console.error('Failed to update setting:', {
+                        clientId,
+                        category,
+                        key,
+                        status: updateResponse.status,
+                        statusText: updateResponse.statusText,
+                        errorText
+                    })
+                }
 
                 return updateResponse.ok
             } else {
@@ -229,6 +267,18 @@ export class SettingsManager {
                         }),
                     }
                 )
+
+                if (!createResponse.ok) {
+                    const errorText = await createResponse.text()
+                    console.error('Failed to create setting:', {
+                        clientId,
+                        category,
+                        key,
+                        status: createResponse.status,
+                        statusText: createResponse.statusText,
+                        errorText
+                    })
+                }
 
                 return createResponse.ok
             }
