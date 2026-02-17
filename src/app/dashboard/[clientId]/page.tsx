@@ -1,13 +1,22 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import ClientHeader from '@/components/layout/ClientHeader'
 import ClientOnly from '@/components/ClientOnly'
 import { Card, CardContent } from '@/components/ui/card'
-import { FileText, Image, Video, Mail, Lightbulb, ArrowRight, Palette, Settings, Sparkles, Loader2, CalendarRange } from 'lucide-react'
+import {
+    FileText,
+    Image,
+    Video,
+    Mail,
+    Lightbulb,
+    ArrowRight,
+    Palette,
+    Settings,
+    Sparkles,
+    Loader2
+} from 'lucide-react'
 import { useClientConfig } from '@/hooks/useClientConfig'
-import { toast } from 'sonner'
+import CalendarView from './calendar/CalendarView'
 
 export default function DashboardPage() {
     const params = useParams()
@@ -84,15 +93,6 @@ export default function DashboardPage() {
             color: 'bg-indigo-500',
             available: true,
             route: `/dashboard/${clientId}/brand-assets`
-        },
-        {
-            id: 'calendar',
-            title: 'Calendar',
-            description: 'See all scheduled social posts in one view',
-            icon: CalendarRange,
-            color: 'bg-blue-500',
-            available: true,
-            route: `/dashboard/${clientId}/calendar`
         },
         {
             id: 'templates',
@@ -177,120 +177,111 @@ export default function DashboardPage() {
                 </div>
             </div>
         }>
-            <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-                {/* Client Header */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
                     <div>
-                        <h1 
-                            className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2" 
+                        <h1
+                            className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2"
                             style={{ color: clientConfig.branding.primaryColor }}
                         >
                             Content Engine Dashboard
                         </h1>
                         <p className="text-sm sm:text-base text-muted-foreground">
-                            Choose a content type to get started with {clientConfig.name}
+                            Plan and launch content for {clientConfig.name}
                         </p>
                     </div>
                 </div>
 
-                {/* Content Type Selection */}
-                <div className="space-y-3 sm:space-y-4">
-                    <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Content Types</h2>
-                        <p className="text-sm sm:text-base text-gray-600 mt-1">Create and manage different types of content for your brand</p>
+                <div className="flex flex-col lg:flex-row gap-6 items-stretch lg:min-h-[80vh]">
+                    {/* Calendar hero */}
+                    <div className="w-full lg:flex-[2] min-w-0 flex min-h-[calc(100vh-220px)]">
+                        <div className="h-full w-full">
+                            <CalendarView clientId={clientId} embedded />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {contentTypes.map((type) => (
-                            <Card 
-                                key={type.id}
-                                className={`cursor-pointer transition-all active:scale-[0.98] sm:hover:shadow-lg min-h-[120px] sm:min-h-[140px] ${
-                                    type.available 
-                                        ? 'border-2 sm:hover:scale-105 sm:hover:border-blue-200 active:border-blue-300' 
-                                        : 'opacity-60 cursor-not-allowed'
-                                }`}
-                                onClick={() => handleContentTypeSelect(type)}
-                            >
-                                <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${type.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                                            <type.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                                        </div>
-                                        {type.available && (
-                                            <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                                        )}
+
+                    {/* Actions sidebar */}
+                    <div className="w-full lg:flex-1 min-w-0 flex min-h-[calc(100vh-220px)]">
+                        <Card className="w-full h-full min-h-full border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                            <CardContent className="p-4 sm:p-6 space-y-6 h-full flex flex-col flex-1 overflow-y-auto">
+                            <div className="space-y-2">
+                                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Content Types</h2>
+                                <p className="text-sm text-gray-600">Jump into creation flows.</p>
+                                <div className="space-y-2 w-full">
+                                    {contentTypes.map((type) => (
+                                        <button
+                                            key={type.id}
+                                            onClick={() => handleContentTypeSelect(type)}
+                                            className={`w-full rounded-lg border bg-white px-3 py-3 text-left transition hover:border-blue-200 hover:bg-blue-50 active:scale-[0.99] ${
+                                                type.available ? '' : 'opacity-60 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 w-full">
+                                                <span className={`w-9 h-9 ${type.color} rounded-md inline-flex items-center justify-center shrink-0`}>
+                                                    <type.icon className="h-4 w-4 text-white" />
+                                                </span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-semibold text-gray-900">{type.title}</div>
+                                                    <div className="text-xs text-gray-500 line-clamp-2">{type.description}</div>
+                                                </div>
+                                                {type.available && <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Management Tools</h2>
+                                <p className="text-sm text-gray-600">Configure assets & settings.</p>
+                                <div className="space-y-2 w-full">
+                                    {managementTools.map((tool) => (
+                                        <button
+                                            key={tool.id}
+                                            onClick={() => handleManagementToolSelect(tool)}
+                                            className={`w-full rounded-lg border bg-white px-3 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50 active:scale-[0.99] ${
+                                                tool.available ? '' : 'opacity-60 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 w-full">
+                                                <span className={`w-9 h-9 ${tool.color} rounded-md inline-flex items-center justify-center shrink-0`}>
+                                                    <tool.icon className="h-4 w-4 text-white" />
+                                                </span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-semibold text-gray-900">{tool.title}</div>
+                                                    <div className="text-xs text-gray-500 line-clamp-2">{tool.description}</div>
+                                                </div>
+                                                {tool.available && <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 rounded-lg border bg-gray-50 p-4">
+                                <h3 className="text-sm font-semibold text-gray-900">Quick Overview</h3>
+                                <div className="grid grid-cols-2 gap-3 text-center">
+                                    <div>
+                                        <div className="text-lg font-bold text-blue-600">3</div>
+                                        <div className="text-[11px] text-gray-600 mt-1">Active Types</div>
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-gray-900 text-base sm:text-lg leading-tight">{type.title}</h3>
-                                        <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{type.description}</p>
-                                        {!type.available && (
-                                            <p className="text-xs text-gray-400 mt-2 font-medium">Coming Soon</p>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Management Tools */}
-                <div className="space-y-3 sm:space-y-4">
-                    <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Management Tools</h2>
-                        <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your brand assets and system configuration</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {managementTools.map((tool) => (
-                            <Card 
-                                key={tool.id}
-                                className={`cursor-pointer transition-all active:scale-[0.98] sm:hover:shadow-lg min-h-[120px] sm:min-h-[140px] ${
-                                    tool.available 
-                                        ? 'border-2 sm:hover:scale-105 sm:hover:border-indigo-200 active:border-indigo-300' 
-                                        : 'opacity-60 cursor-not-allowed'
-                                }`}
-                                onClick={() => handleManagementToolSelect(tool)}
-                            >
-                                <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${tool.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                                            <tool.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                                        </div>
-                                        {tool.available && (
-                                            <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                                        )}
+                                        <div className="text-lg font-bold text-indigo-600">2</div>
+                                        <div className="text-[11px] text-gray-600 mt-1">Tools</div>
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-gray-900 text-base sm:text-lg leading-tight">{tool.title}</h3>
-                                        <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{tool.description}</p>
-                                        {!tool.available && (
-                                            <p className="text-xs text-gray-400 mt-2 font-medium">Coming Soon</p>
-                                        )}
+                                        <div className="text-lg font-bold text-green-600">2</div>
+                                        <div className="text-[11px] text-gray-600 mt-1">Coming Soon</div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="mt-8 sm:mt-12 bg-gray-50 rounded-lg p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Overview</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
-                        <div className="p-2 sm:p-0">
-                            <div className="text-xl sm:text-2xl font-bold text-blue-600">3</div>
-                            <div className="text-xs sm:text-sm text-gray-600 mt-1">Active Content Types</div>
-                        </div>
-                        <div className="p-2 sm:p-0">
-                            <div className="text-xl sm:text-2xl font-bold text-indigo-600">2</div>
-                            <div className="text-xs sm:text-sm text-gray-600 mt-1">Management Tools</div>
-                        </div>
-                        <div className="p-2 sm:p-0">
-                            <div className="text-xl sm:text-2xl font-bold text-green-600">2</div>
-                            <div className="text-xs sm:text-sm text-gray-600 mt-1">Coming Soon</div>
-                        </div>
-                        <div className="p-2 sm:p-0">
-                            <div className="text-xl sm:text-2xl font-bold text-purple-600">∞</div>
-                            <div className="text-xs sm:text-sm text-gray-600 mt-1">Possibilities</div>
-                        </div>
+                                    <div>
+                                        <div className="text-lg font-bold text-purple-600">∞</div>
+                                        <div className="text-[11px] text-gray-600 mt-1">Ideas</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        </Card>
                     </div>
                 </div>
             </div>
