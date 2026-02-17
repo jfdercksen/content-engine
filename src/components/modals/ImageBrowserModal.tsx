@@ -131,7 +131,7 @@ export default function ImageBrowserModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} key={refreshTrigger}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
@@ -149,17 +149,22 @@ export default function ImageBrowserModal({
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
           {/* Search */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search images by ID, prompt, scene, type, or style (optional)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
-            <Button variant="outline" onClick={fetchImages} disabled={loading}>
+            <Button 
+              variant="outline" 
+              onClick={fetchImages} 
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
               {loading ? 'Loading...' : 'Refresh'}
             </Button>
           </div>
@@ -179,7 +184,7 @@ export default function ImageBrowserModal({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                 {filteredImages.map((image, index) => (
                   <Card 
                     key={image.id || `image-${index}`}
@@ -280,7 +285,7 @@ export default function ImageBrowserModal({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t">
             <div className="text-sm text-gray-600">
               {selectedImage ? (
                 <span>Selected: <strong>Image #{String(selectedImage.imageId || 'Unknown')}</strong></span>
@@ -288,14 +293,15 @@ export default function ImageBrowserModal({
                 <span>Select an image to continue</span>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onClose}>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
               <Button 
                 onClick={handleSelectImage}
                 disabled={!selectedImage}
+                className="w-full sm:w-auto"
               >
                 <Check className="h-4 w-4 mr-2" />
                 Select Image

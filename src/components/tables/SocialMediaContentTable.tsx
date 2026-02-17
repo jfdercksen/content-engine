@@ -297,41 +297,22 @@ export default function SocialMediaContentTable({
     }
   }
 
-  const getStatusVariant = (status: string | any) => {
-    // Handle Baserow select field format {id, value, color}
-    const statusValue = typeof status === 'object' && status?.value ? status.value : status
-    
-    if (!statusValue || typeof statusValue !== 'string') {
-      return 'secondary'
-    }
-    
-    switch (statusValue.toLowerCase()) {
-      case 'published': return 'default'
-      case 'approved': return 'secondary'
-      case 'scheduled': return 'outline'
-      case 'draft': return 'secondary'
-      case 'ready for review': return 'outline'
-      case 'in review': return 'outline'
-      default: return 'secondary'
-    }
-  }
-
   const getStatusColor = (status: string | any) => {
     // Handle Baserow select field format {id, value, color}
     const statusValue = typeof status === 'object' && status?.value ? status.value : status
     
     if (!statusValue || typeof statusValue !== 'string') {
-      return 'text-gray-600 bg-gray-50'
+      return 'text-gray-700 bg-gray-100'
     }
     
     switch (statusValue.toLowerCase()) {
-      case 'published': return 'text-green-600 bg-green-50'
-      case 'approved': return 'text-blue-600 bg-blue-50'
-      case 'scheduled': return 'text-orange-600 bg-orange-50'
-      case 'draft': return 'text-gray-600 bg-gray-50'
-      case 'ready for review': return 'text-yellow-600 bg-yellow-50'
-      case 'in review': return 'text-pink-600 bg-pink-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'published': return 'text-green-700 bg-green-100'
+      case 'approved': return 'text-blue-700 bg-blue-100'
+      case 'scheduled': return 'text-orange-700 bg-orange-100'
+      case 'draft': return 'text-gray-700 bg-gray-100'
+      case 'ready for review': return 'text-yellow-700 bg-yellow-100'
+      case 'in review': return 'text-pink-700 bg-pink-100'
+      default: return 'text-gray-700 bg-gray-100'
     }
   }
 
@@ -369,14 +350,16 @@ export default function SocialMediaContentTable({
   const endIndex = startIndex + itemsPerPage
   const currentContent = filteredContent.slice(startIndex, endIndex)
 
+  const cardGridClasses = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+
   if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-64 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -391,11 +374,10 @@ export default function SocialMediaContentTable({
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
           No social media content yet
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-gray-500 mb-6 max-w-xl mx-auto px-4">
           {contentIdeaTitle 
             ? `No social media content has been generated for "${contentIdeaTitle}" yet.`
-            : 'Social media content will appear here once generated from content ideas.'
-          }
+            : 'Social media content will appear here once generated from content ideas.'}
         </p>
       </div>
     )
@@ -439,66 +421,80 @@ export default function SocialMediaContentTable({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search posts, hooks, or hashtags..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4 bg-gray-50 p-4 rounded-lg">
+          <div className="space-y-1 lg:col-span-2">
+            <label className="text-sm font-medium text-gray-700">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search posts by hook, post, or hashtag..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 lg:col-span-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Platform</label>
+              <Select value={filters.platform || 'all'} onValueChange={(value) => 
+                setFilters(prev => ({ ...prev, platform: value === 'all' ? undefined : value }))
+              }>
+                <SelectTrigger>
+                  <SelectValue placeholder="Platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Platforms</SelectItem>
+                  <SelectItem value="Facebook">Facebook</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="X">X (Twitter)</SelectItem>
+                  <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                  <SelectItem value="YouTube">YouTube</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Status</label>
+              <Select value={filters.status || 'all'} onValueChange={(value) => 
+                setFilters(prev => ({ ...prev, status: value === 'all' ? undefined : value }))
+              }>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Ready for Review">Ready for Review</SelectItem>
+                  <SelectItem value="Approved">Approved</SelectItem>
+                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                  <SelectItem value="Published">Published</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Content Type</label>
+              <Select value={filters.contentType || 'all'} onValueChange={(value) => 
+                setFilters(prev => ({ ...prev, contentType: value === 'all' ? undefined : value }))
+              }>
+                <SelectTrigger>
+                  <SelectValue placeholder="Content Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Post">Post</SelectItem>
+                  <SelectItem value="Story">Story</SelectItem>
+                  <SelectItem value="Reel">Reel</SelectItem>
+                  <SelectItem value="Video">Video</SelectItem>
+                  <SelectItem value="Carousel">Carousel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-        
-        <Select value={filters.platform || 'all'} onValueChange={(value) => 
-          setFilters(prev => ({ ...prev, platform: value === 'all' ? undefined : value }))
-        }>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Platform" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Platforms</SelectItem>
-            <SelectItem value="Facebook">Facebook</SelectItem>
-            <SelectItem value="Instagram">Instagram</SelectItem>
-            <SelectItem value="X">X (Twitter)</SelectItem>
-            <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-            <SelectItem value="YouTube">YouTube</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filters.status || 'all'} onValueChange={(value) => 
-          setFilters(prev => ({ ...prev, status: value === 'all' ? undefined : value }))
-        }>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
-            <SelectItem value="Ready for Review">Ready for Review</SelectItem>
-            <SelectItem value="Approved">Approved</SelectItem>
-            <SelectItem value="Scheduled">Scheduled</SelectItem>
-            <SelectItem value="Published">Published</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filters.contentType || 'all'} onValueChange={(value) => 
-          setFilters(prev => ({ ...prev, contentType: value === 'all' ? undefined : value }))
-        }>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Content Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="Post">Post</SelectItem>
-            <SelectItem value="Story">Story</SelectItem>
-            <SelectItem value="Reel">Reel</SelectItem>
-            <SelectItem value="Video">Video</SelectItem>
-            <SelectItem value="Carousel">Carousel</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Content Display */}
@@ -651,9 +647,9 @@ export default function SocialMediaContentTable({
           </Table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {currentContent.map((content) => (
-            <Card key={content.id} className="hover:shadow-md transition-shadow">
+            <Card key={content.id} className="hover:shadow-md transition-shadow h-full border border-gray-200">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
@@ -661,7 +657,7 @@ export default function SocialMediaContentTable({
                     <CardTitle className="text-base">{getDisplayValue(content.platform)}</CardTitle>
                   </div>
                   <Badge 
-                    variant={getStatusVariant(content.status) as any}
+                    variant="outline"
                     className={getStatusColor(content.status)}
                   >
                     {getDisplayValue(content.status)}

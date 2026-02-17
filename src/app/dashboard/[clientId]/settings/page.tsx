@@ -353,7 +353,7 @@ export default function SettingsPage() {
 
     if (loading) {
         return (
-            <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -364,11 +364,12 @@ export default function SettingsPage() {
         )
     }
 
-    return (
-        <div className="container mx-auto p-6 space-y-6">
-            {/* Header with Breadcrumb */}
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Header with Breadcrumb */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
                     {/* Breadcrumb */}
                     <div className="flex items-center text-sm text-gray-500 space-x-2">
                         <button
@@ -384,10 +385,12 @@ export default function SettingsPage() {
                     <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
                     <p className="text-gray-600">Configure your system preferences and integrations</p>
                 </div>
-                <Button onClick={() => router.push(`/dashboard/${clientId}`)} variant="outline">
-                    <Home className="mr-2 h-4 w-4" />
-                    Back to Dashboard
-                </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button onClick={() => router.push(`/dashboard/${clientId}`)} variant="outline" className="w-full sm:w-auto">
+            <Home className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </div>
             </div>
 
             {/* First-Time Setup Banner */}
@@ -1257,17 +1260,18 @@ export default function SettingsPage() {
                 </Card>
 
                 {/* Save Button */}
-                <div className="flex justify-end gap-3 sticky bottom-6">
+                <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sticky bottom-0 bg-white/90 backdrop-blur border-t p-3 sm:p-4 rounded-t-lg">
                     <Button
                         variant="outline"
                         onClick={() => router.push(`/dashboard/${clientId}`)}
+                        className="w-full sm:w-auto"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleSave}
                         disabled={saving}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     >
                         {saving ? (
                             <>
@@ -1283,6 +1287,7 @@ export default function SettingsPage() {
                     </Button>
                 </div>
             </div>
-        </div>
+      </div>
+    </div>
     )
 }

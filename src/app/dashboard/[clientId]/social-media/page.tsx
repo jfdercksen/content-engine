@@ -926,7 +926,7 @@ export default function SocialMediaPage() {
     // Conditional rendering based on client config state
     if (configLoading) {
         return (
-            <div className="container mx-auto p-6">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -939,7 +939,7 @@ export default function SocialMediaPage() {
 
     if (configError || !clientConfig) {
         return (
-            <div className="container mx-auto p-6">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
                 <div className="text-center py-12">
                     <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Not Found</h1>
                     <p className="text-gray-600 mb-6">
@@ -958,7 +958,7 @@ export default function SocialMediaPage() {
 
     return (
         <ClientOnly fallback={
-            <div className="container mx-auto py-6">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
                 <div className="animate-pulse space-y-6">
                     <div className="h-8 bg-gray-200 rounded w-1/3"></div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -974,10 +974,11 @@ export default function SocialMediaPage() {
                 </div>
             </div>
         }>
-            <div className="container mx-auto py-6 space-y-6">
+            <div className="min-h-screen bg-gray-50">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
                 {/* Header with Back Button */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2 sm:mb-4">
+                    <div className="flex items-start gap-3 sm:items-center sm:gap-4">
                         <Button 
                             variant="ghost" 
                             onClick={() => router.push(`/dashboard/${clientId}`)}
@@ -1000,7 +1001,7 @@ export default function SocialMediaPage() {
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <ViewToggle view={viewMode} onViewChange={setViewMode} />
                         <Button
                             variant="outline"
@@ -1010,14 +1011,14 @@ export default function SocialMediaPage() {
                             <Palette className="h-4 w-4" />
                             Brand Assets
                         </Button>
-                        <Button
-                            onClick={() => setShowForm(true)}
-                            style={{ backgroundColor: clientConfig.branding.primaryColor }}
-                            className="hover:opacity-90"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            New Social Media Idea
-                        </Button>
+                            <Button
+                                onClick={() => setShowForm(true)}
+                                style={{ backgroundColor: clientConfig.branding.primaryColor }}
+                                className="hover:opacity-90"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                New Social Media Idea
+                            </Button>
                     </div>
                 </div>
 
@@ -1058,7 +1059,7 @@ export default function SocialMediaPage() {
                 {/* Form Modal */}
                 {showForm && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-lg p-4 sm:p-6">
                             <ContentIdeaForm
                                 onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
                                 onClose={() => {
@@ -1083,10 +1084,10 @@ export default function SocialMediaPage() {
                 })()}
                 {showSocialMediaModal && selectedIdeaForSocialMedia && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto">
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-4">
+                        <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto shadow-lg">
+                            <div className="p-4 sm:p-6">
+                                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-4 sm:mb-6">
+                                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
                                         <Button 
                                             variant="ghost" 
                                             onClick={() => {
@@ -1094,7 +1095,7 @@ export default function SocialMediaPage() {
                                                 setSelectedIdeaForSocialMedia(null)
                                                 setSocialMediaContentForIdea([])
                                             }}
-                                            className="flex items-center gap-2"
+                                            className="flex items-center gap-2 w-full md:w-auto"
                                         >
                                             <ArrowLeft className="h-4 w-4" />
                                             Back
@@ -1114,7 +1115,7 @@ export default function SocialMediaPage() {
                                             setShowEditModal(true)
                                         }}
                                         style={{ backgroundColor: clientConfig.branding.primaryColor }}
-                                        className="hover:opacity-90 flex items-center gap-2"
+                                        className="hover:opacity-90 flex items-center gap-2 w-full md:w-auto"
                                     >
                                         <Plus className="h-4 w-4" />
                                         Create Post
@@ -1134,14 +1135,14 @@ export default function SocialMediaPage() {
                                             <p className="text-gray-500 text-center mb-4">
                                                 This content idea doesn't have any posts yet. Create posts manually using the "Create Post" button above, or generate posts automatically.
                                             </p>
-                                            <div className="flex gap-3">
+                                            <div className="flex flex-col gap-3 sm:flex-row">
                                                 <Button
                                                     onClick={() => {
                                                         setEditingContent(null)
                                                         setShowEditModal(true)
                                                     }}
                                                     style={{ backgroundColor: clientConfig.branding.primaryColor }}
-                                                    className="hover:opacity-90 flex items-center gap-2"
+                                                    className="hover:opacity-90 flex items-center gap-2 w-full sm:w-auto"
                                                 >
                                                     <Plus className="h-4 w-4" />
                                                     Create Post Manually
@@ -1154,7 +1155,7 @@ export default function SocialMediaPage() {
                                                         handleRegenerateContent(selectedIdeaForSocialMedia.id)
                                                     }}
                                                     variant="outline"
-                                                    className="flex items-center gap-2"
+                                                    className="flex items-center gap-2 w-full sm:w-auto"
                                                 >
                                                     <TrendingUp className="h-4 w-4" />
                                                     Generate Posts Automatically
@@ -1203,7 +1204,7 @@ export default function SocialMediaPage() {
                 {/* Create/Edit Social Media Content Modal */}
                 {showEditModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto">
+                        <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto shadow-lg p-4 sm:p-6">
                             <SocialMediaContentForm
                                 initialData={editingContent}
                                 onSubmit={handleUpdateContent}
@@ -1221,6 +1222,7 @@ export default function SocialMediaPage() {
                         </div>
                     </div>
                 )}
+            </div>
             </div>
         </ClientOnly>
     )

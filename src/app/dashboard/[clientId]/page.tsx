@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import ClientHeader from '@/components/layout/ClientHeader'
 import ClientOnly from '@/components/ClientOnly'
 import { Card, CardContent } from '@/components/ui/card'
-import { FileText, Image, Video, Mail, Lightbulb, ArrowRight, Palette, Settings, Sparkles, Loader2 } from 'lucide-react'
+import { FileText, Image, Video, Mail, Lightbulb, ArrowRight, Palette, Settings, Sparkles, Loader2, CalendarRange } from 'lucide-react'
 import { useClientConfig } from '@/hooks/useClientConfig'
 import { toast } from 'sonner'
 
@@ -84,6 +84,15 @@ export default function DashboardPage() {
             color: 'bg-indigo-500',
             available: true,
             route: `/dashboard/${clientId}/brand-assets`
+        },
+        {
+            id: 'calendar',
+            title: 'Calendar',
+            description: 'See all scheduled social posts in one view',
+            icon: CalendarRange,
+            color: 'bg-blue-500',
+            available: true,
+            route: `/dashboard/${clientId}/calendar`
         },
         {
             id: 'templates',

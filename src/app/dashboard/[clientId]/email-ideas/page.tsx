@@ -355,7 +355,7 @@ export default function EmailIdeasPage() {
 
   return (
     <ClientOnly fallback={
-      <div className="container mx-auto py-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/3"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -366,10 +366,11 @@ export default function EmailIdeasPage() {
         </div>
       </div>
     }>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 sm:items-center sm:gap-4">
             <Button 
               variant="ghost" 
               onClick={() => {
@@ -401,10 +402,12 @@ export default function EmailIdeasPage() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Email Idea
-          </Button>
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button onClick={() => setShowCreateForm(true)} className="flex-1 sm:flex-initial flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Create Email Idea
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -464,7 +467,7 @@ export default function EmailIdeasPage() {
         {/* Filters */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -472,33 +475,35 @@ export default function EmailIdeasPage() {
                     placeholder="Search email ideas..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                 </div>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  {Object.values(EMAIL_STATUS).map(status => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <ViewToggle view={viewMode} onViewChange={setViewMode} />
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {Object.values(EMAIL_TYPES).map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:gap-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {Object.values(EMAIL_STATUS).map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {Object.values(EMAIL_TYPES).map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ViewToggle view={viewMode} onViewChange={setViewMode} />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -506,7 +511,7 @@ export default function EmailIdeasPage() {
         {/* Email Ideas Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Email Ideas ({filteredEmailIdeas.length})</CardTitle>
+            <CardTitle className="text-lg font-semibold">Email Ideas ({filteredEmailIdeas.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -738,6 +743,7 @@ export default function EmailIdeasPage() {
           onRefresh={() => setRefreshTrigger(prev => prev + 1)}
           onSendToMailchimp={handleSendToMailchimp}
         />
+        </div>
       </div>
     </ClientOnly>
   )
